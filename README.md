@@ -2,6 +2,8 @@
 
 AI-powered platform for the Daviess County, Kentucky coalition pilot to address homelessness via eviction defense, ED super-utilizer care coordination, caseworker tooling, and an SMS individual companion.
 
+**Repo:** [github.com/DobbsBoldry/homeless](https://github.com/DobbsBoldry/homeless)
+
 **Status:** Pre-Sprint 1. Repo scaffolded, GitHub Issues seeded from `BACKLOG.md`. Application code begins with story FND-001.
 
 **Sister docs repo:** the documentation site (Pilot Plan, Product Vision, Strategy) lives separately at `~/Documents/Claude/Projects/Homeless/` and is deployed to Railway.
@@ -32,13 +34,10 @@ cd ~/git/homeless
 ./scripts/setup-github.sh
 ```
 
-The script will prompt for:
-- GitHub username or org (default: your authenticated user)
-- Repo name (default: `daviess-coalition-platform`)
-- Repo visibility (default: private)
+The script defaults to **`DobbsBoldry/homeless`** (the canonical repo, already created). Override with `--repo OWNER/NAME` if running against a fork or test repo.
 
 It will then:
-1. Create the GitHub repo (or skip if it exists)
+1. Skip repo creation (the repo already exists)
 2. Create labels: `phase-0` through `phase-4`, `epic:fnd` etc, `points:1` through `points:13`, plus a few utility labels
 3. Create milestones (one per phase)
 4. Create a Project (v2) with custom fields: Story Points, Sprint, Phase, Epic, Status

@@ -62,8 +62,8 @@ done
 
 # --- prompt for repo if not specified ---
 
-GH_USER="$(gh api user --jq .login)"
-DEFAULT_REPO="${GH_USER}/daviess-coalition-platform"
+# Default: the canonical repo, already created on GitHub.
+DEFAULT_REPO="DobbsBoldry/homeless"
 
 if ! printf '%s\n' "${EXTRA_ARGS[@]:-}" | grep -q -- '--repo'; then
     read -r -p "Target repo [${DEFAULT_REPO}]: " ANSWER
@@ -71,10 +71,15 @@ if ! printf '%s\n' "${EXTRA_ARGS[@]:-}" | grep -q -- '--repo'; then
     EXTRA_ARGS+=("--repo" "$REPO")
 fi
 
+# Repo already exists, so visibility flag is not needed for creation.
+# Pass --skip-repo to be explicit that we're not creating it.
+if ! printf '%s\n' "${EXTRA_ARGS[@]:-}" | grep -q -- '--skip-repo'; then
+    EXTRA_ARGS+=("--skip-repo")
+fi
+
 if ! printf '%s\n' "${EXTRA_ARGS[@]:-}" | grep -q -- '--visibility'; then
-    read -r -p "Visibility (private/public) [private]: " VIS
-    VIS="${VIS:-private}"
-    EXTRA_ARGS+=("--visibility" "$VIS")
+    EXTRA_ARGS+=("--visibility" "private")  # placeholder; ignored due to --skip-repo
+    VIS="(existing repo)"
 fi
 
 # --- confirm ---

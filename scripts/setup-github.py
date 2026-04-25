@@ -338,7 +338,7 @@ def ensure_issues(repo: str, stories, milestone_nums, dry_run: bool):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--repo", help="OWNER/NAME (default: <gh-user>/daviess-coalition-platform)")
+    ap.add_argument("--repo", help="OWNER/NAME (default: DobbsBoldry/homeless)")
     ap.add_argument("--visibility", default="private", choices=["public", "private"])
     ap.add_argument("--dry-run", action="store_true",
                     help="Print what would happen, but still require gh auth")
@@ -388,9 +388,10 @@ def main():
     if args.repo:
         owner, name = args.repo.split("/", 1)
     else:
-        r = gh("api", "user", "--jq", ".login")
-        owner = r.stdout.strip()
-        name = "daviess-coalition-platform"
+        # Default: the canonical repo for this project (already created on GitHub).
+        # Override with --repo OWNER/NAME if running against a fork or test repo.
+        owner = "DobbsBoldry"
+        name = "homeless"
     repo = f"{owner}/{name}"
 
     print(f"Target: {repo} ({args.visibility})")
