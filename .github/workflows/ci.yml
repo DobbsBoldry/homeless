@@ -6,45 +6,46 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
-      - name: Skip if pre-Sprint 1 (no package.json yet)
-        id: check
-        run: |
-          if [ -f package.json ]; then
-            echo "has_app=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_app=false" >> "$GITHUB_OUTPUT"
-            echo "Pre-Sprint 1 — no app code yet. CI no-op."
-          fi
-
-      - uses: pnpm/action-setup@v3
-        if: steps.check.outputs.has_app == 'true'
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
 
       - uses: actions/setup-node@v4
-        if: steps.check.outputs.has_app == 'true'
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
-      - name: Install
-        if: steps.check.outputs.has_app == 'true'
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
       - name: Lint
-        if: steps.check.outputs.has_app == 'true'
         run: pnpm run lint
 
       - name: Typecheck
-        if: steps.check.outputs.has_app == 'true'
         run: pnpm run typecheck
 
       - name: Test
-        if: steps.check.outputs.has_app == 'true'
         run: pnpm run test
+
+      - name: Build
+        run: pnpm run build
+        env:
+          # Build needs these to instantiate the DB client and Clerk provider.
+          # Real values aren't reached at build time — these are placeholders so
+          # the env-presence checks pass. Real values come from each deploy env.
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
+          CLERK_SECRET_KEY: sk_test_placeholder
