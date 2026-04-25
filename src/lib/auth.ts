@@ -20,21 +20,33 @@ export async function requireUser(): Promise<User> {
   if (existing.length > 0) return existing[0];
 
   // First sign-in: mirror to DB. Pull canonical email + name from Clerk.
-  const client = await clerkClient();
-  const clerkUser = await client.users.getUser(userId);
-  const primaryEmail =
-    clerkUser.emailAddresses.find((e) => e.id === clerkUser.primaryEmailAddressId)?.emailAddress ??
-    clerkUser.emailAddresses[0]?.emailAddress ??
-    '';
+  let primaryEmail = '';
+  let firstName: string | null = null;
+  let lastName: string | null = null;
+  try {
+    const client = await clerkClient();
+    const clerkUser = await client.users.getUser(userId);
+    primaryEmail =
+      clerkUser.emailAddresses.find((e) => e.id === clerkUser.primaryEmailAddressId)
+        ?.emailAddress ??
+      clerkUser.emailAddresses[0]?.emailAddress ??
+      '';
+    firstName = clerkUser.firstName;
+    lastName = clerkUser.lastName;
+  } catch (err) {
+    console.error('[requireUser] clerk lookup failed for', userId, err);
+    redirect('/sign-in?error=user_lookup_failed');
+  }
 
+  // onConflictDoNothing handles the race where two concurrent first-requests
+  // both pass the SELECT and try to INSERT; the loser re-SELECTs.
   const [created] = await db
     .insert(users)
-    .values({
-      clerkUserId: userId,
-      email: primaryEmail,
-      firstName: clerkUser.firstName,
-      lastName: clerkUser.lastName,
-    })
+    .values({ clerkUserId: userId, email: primaryEmail, firstName, lastName })
+    .onConflictDoNothing({ target: users.clerkUserId })
     .returning();
-  return created;
+  if (created) return created;
+
+  const [winner] = await db.select().from(users).where(eq(users.clerkUserId, userId)).limit(1);
+  return winner;
 }
