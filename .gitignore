@@ -38,9 +38,6 @@ yarn-error.log*
 # Vercel
 .vercel
 
-# Drizzle
-drizzle/migrations/meta/
-
 # Logs
 logs
 *.log
