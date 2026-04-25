@@ -1,0 +1,61 @@
+name: Story
+description: A backlog story
+title: "[XXX-NNN] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for any backlog story. The bulk-import script populates these fields automatically; for hand-created issues, fill in everything below.
+  - type: input
+    id: story_id
+    attributes:
+      label: Story ID
+      description: e.g. EVDT-007
+      placeholder: EVDT-007
+    validations:
+      required: true
+  - type: input
+    id: epic
+    attributes:
+      label: Epic
+      description: e.g. EVDT, FND, ESUC
+    validations:
+      required: true
+  - type: input
+    id: phase
+    attributes:
+      label: Phase
+      description: 0, 1, 2, 3, or 4
+    validations:
+      required: true
+  - type: input
+    id: points
+    attributes:
+      label: Story points (Fibonacci)
+      description: 1, 2, 3, 5, 8, or 13
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is this story?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checklist of conditions that must pass
+      value: |
+        - [ ]
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Tech approach, dependencies, gotchas
