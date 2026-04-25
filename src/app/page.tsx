@@ -1,7 +1,11 @@
+import { auth } from '@clerk/nextjs/server';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default function Home() {
+export default async function Home() {
+  const { userId } = await auth();
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-background p-8">
       <div className="max-w-2xl text-center space-y-4">
@@ -19,8 +23,20 @@ export default function Home() {
           <CardDescription>This is a scaffold. Real surfaces ship in Phase 1.</CardDescription>
         </CardHeader>
         <CardContent className="flex gap-3">
-          <Button>Get started</Button>
-          <Button variant="outline">View backlog</Button>
+          {userId ? (
+            <Link href="/app/dashboard">
+              <Button>Open dashboard</Button>
+            </Link>
+          ) : (
+            <>
+              <Link href="/sign-in">
+                <Button>Sign in</Button>
+              </Link>
+              <Link href="/sign-up">
+                <Button variant="outline">Create account</Button>
+              </Link>
+            </>
+          )}
         </CardContent>
       </Card>
     </main>

@@ -8,6 +8,13 @@
       "when": 1777159840170,
       "tag": "0000_lean_blacklash",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777160718880,
+      "tag": "0001_useful_guardian",
+      "breakpoints": true
     }
   ]
 }
