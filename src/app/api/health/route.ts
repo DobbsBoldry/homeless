@@ -14,9 +14,9 @@ export async function GET() {
       totalPings: count,
     });
   } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : 'unknown error' },
-      { status: 500 },
-    );
+    // Log server-side; never leak DB error details (may include connection
+    // string fragments or schema info) to clients.
+    console.error('[/api/health] db error:', err);
+    return NextResponse.json({ ok: false }, { status: 500 });
   }
 }

@@ -1,14 +1,13 @@
 import { config } from 'dotenv';
 import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+import * as schema from './schema';
 
 // Load .env.local for non-Next contexts (drizzle-kit, scripts).
-// Next.js itself auto-loads it for the app runtime.
+// Next.js itself auto-loads it for the app runtime, so this is a no-op there.
 if (!process.env.DATABASE_URL) {
   config({ path: ['.env.local', '.env'] });
 }
-
-import postgres from 'postgres';
-import * as schema from './schema';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -18,7 +17,16 @@ if (!connectionString) {
 // Singleton across hot reloads in dev.
 const globalForPg = globalThis as unknown as { sql?: ReturnType<typeof postgres> };
 
-const sql = globalForPg.sql ?? postgres(connectionString, { prepare: false });
+// prepare:false — Supabase Transaction Pooler reuses connections across statements
+// and breaks prepared statements. max:10 keeps us under the pooler's per-client cap.
+const sql =
+  globalForPg.sql ??
+  postgres(connectionString, {
+    prepare: false,
+    max: 10,
+    idle_timeout: 20,
+    connect_timeout: 10,
+  });
 if (process.env.NODE_ENV !== 'production') {
   globalForPg.sql = sql;
 }
