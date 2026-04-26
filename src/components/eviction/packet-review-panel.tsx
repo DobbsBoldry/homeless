@@ -117,30 +117,48 @@ function HasPacket({ packet, filing }: { packet: EvictionResponsePacket; filing:
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={pending || packet.status === 'approved'}
-            onClick={() => onChangeStatus('approved')}
-          >
-            Approve
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={pending || packet.status !== 'approved'}
-            onClick={() => onChangeStatus('filed')}
-          >
-            Mark filed
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={pending || packet.status === 'rejected'}
-            onClick={() => onChangeStatus('rejected')}
-          >
-            Reject
-          </Button>
+          {packet.status === 'filed' ? (
+            <p className="text-xs text-muted-foreground">
+              Packet has been filed in court — no further status changes from this UI.
+            </p>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending || packet.status !== 'draft'}
+                onClick={() => onChangeStatus('approved')}
+              >
+                Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending || packet.status !== 'approved'}
+                onClick={() => onChangeStatus('filed')}
+              >
+                Mark filed
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending || packet.status === 'rejected'}
+                onClick={() => onChangeStatus('rejected')}
+              >
+                Reject
+              </Button>
+              {packet.status === 'rejected' ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => onChangeStatus('draft')}
+                >
+                  Re-open as draft
+                </Button>
+              ) : null}
+            </>
+          )}
           {error ? <span className="text-destructive text-xs">{error}</span> : null}
         </CardContent>
       </Card>

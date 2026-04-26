@@ -3,7 +3,6 @@
 import * as Sentry from '@sentry/nextjs';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
-import { RESPONSE_PACKET_DISCLAIMER_PREFIX } from '@/ai/prompts/eviction-response-packet';
 import { CaseFilingsRoles } from '@/components/eviction/case-filings-roles';
 import { db } from '@/db/client';
 import { getFilingById } from '@/db/queries/eviction-filings';
@@ -14,7 +13,7 @@ import {
 import { evictionResponsePackets } from '@/db/schema/eviction-response-packets';
 import { logAuditEvent } from '@/lib/audit';
 import { requireKlaAttorney, requireRole } from '@/lib/auth';
-import { generateResponsePacket } from '@/lib/eviction/response-packet';
+import { generateResponsePacket, validateDisclaimer } from '@/lib/eviction/response-packet';
 import { scoreFiling } from '@/lib/eviction/risk-score';
 
 export type ScoreFilingResult = { ok: true } | { ok: false; error: string };
@@ -64,17 +63,10 @@ export async function savePacketAction(
   if (packetMd.trim().length < 200) {
     return { ok: false, error: 'Packet must be at least 200 characters.' };
   }
-  // The disclaimer is non-negotiable — refuse to save a packet that has
-  // had it stripped or substantially edited away.
-  if (
-    !packetMd.includes(RESPONSE_PACKET_DISCLAIMER_PREFIX) ||
-    !packetMd.includes('not legal advice')
-  ) {
-    return {
-      ok: false,
-      error: 'Disclaimer block must be preserved verbatim — restore it before saving.',
-    };
-  }
+  // The disclaimer is non-negotiable — same fragments enforced post-
+  // generation in response-packet.ts. Single source of truth.
+  const dCheck = validateDisclaimer(packetMd, 'edit');
+  if (!dCheck.ok) return { ok: false, error: dCheck.error };
   await db
     .update(evictionResponsePackets)
     .set({ packetMd, updatedAt: new Date() })
@@ -87,6 +79,22 @@ export type ChangePacketStatusResult = { ok: true } | { ok: false; error: string
 
 const STATUSES: readonly EvictionResponsePacketStatus[] =
   evictionResponsePacketStatusEnum.enumValues;
+
+/**
+ * Allowed transitions per current status. Server-authoritative — don't
+ * trust the client's `disabled` rules. `filed` is terminal: once a
+ * packet has been filed in court, our DB shouldn't pretend it can be
+ * un-filed; correcting a misfile happens out-of-band.
+ */
+const ALLOWED_TRANSITIONS: Record<
+  EvictionResponsePacketStatus,
+  readonly EvictionResponsePacketStatus[]
+> = {
+  draft: ['approved', 'rejected'],
+  approved: ['filed', 'rejected', 'draft'],
+  filed: [],
+  rejected: ['draft'],
+};
 
 export async function changePacketStatusAction(
   packetId: string,
@@ -102,6 +110,13 @@ export async function changePacketStatusAction(
     .where(eq(evictionResponsePackets.id, packetId))
     .limit(1);
   if (!previous) return { ok: false, error: 'Packet not found.' };
+
+  if (!ALLOWED_TRANSITIONS[previous.status].includes(newStatus)) {
+    return {
+      ok: false,
+      error: `Status transition ${previous.status} → ${newStatus} is not allowed.`,
+    };
+  }
 
   await db
     .update(evictionResponsePackets)
