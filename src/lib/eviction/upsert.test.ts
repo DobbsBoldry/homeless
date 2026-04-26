@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EvictionFiling, NewEvictionFiling } from '@/db/schema/eviction-filings';
-import { decideUpsert, fieldsChanged } from './upsert';
+import { decideUpsert, fieldsChanged } from './upsert-rules';
 
 const baseExisting: EvictionFiling = {
   id: '00000000-0000-0000-0000-000000000001',

@@ -1,72 +1,23 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import type { EvictionFilingSource } from '@/db/schema/enums';
 import {
   type EvictionFiling,
   evictionFilings,
   type NewEvictionFiling,
 } from '@/db/schema/eviction-filings';
-
-/**
- * Source-preference order: higher index wins. When the daily scraper
- * (EVDT-005) imports the same case_number from CourtNet that already exists
- * as a synthetic-source row (e.g. left over from dev), the courtnet row
- * supersedes — it doesn't get blocked or duplicated.
- */
-export const SOURCE_RANK: Record<EvictionFilingSource, number> = {
-  synthetic: 0,
-  manual: 1,
-  courtnet: 2,
-};
-
-export type UpsertAction = 'inserted' | 'updated' | 'unchanged' | 'superseded';
+import { decideUpsert, type UpsertAction } from './upsert-rules';
 
 export interface UpsertResult {
   action: UpsertAction;
   filing?: EvictionFiling;
 }
 
-export interface UpsertDecision {
-  action: UpsertAction;
-  /** Set when action is 'updated' or 'unchanged' or 'superseded' — the row to keep/update. */
-  existingMatch?: EvictionFiling;
-}
-
-/** Fields the scraper expects to mutate when a case status / facts change over time. */
-export function fieldsChanged(prev: EvictionFiling, next: NewEvictionFiling): boolean {
-  return (
-    prev.status !== next.status ||
-    prev.amountClaimedCents !== (next.amountClaimedCents ?? null) ||
-    prev.defendantAddress !== (next.defendantAddress ?? null) ||
-    prev.plaintiff !== next.plaintiff ||
-    prev.causeType !== next.causeType
-  );
-}
-
-/**
- * Pure function: given the rows that already exist for this case_number
- * (any source) and the incoming filing, decide what to do. No I/O.
- */
-export function decideUpsert(
-  existing: EvictionFiling[],
-  incoming: NewEvictionFiling,
-): UpsertDecision {
-  const incomingRank = SOURCE_RANK[incoming.source];
-  const winner = existing.find((r) => SOURCE_RANK[r.source] > incomingRank);
-  if (winner) return { action: 'superseded', existingMatch: winner };
-
-  const sameSource = existing.find((r) => r.source === incoming.source);
-  if (sameSource) {
-    return fieldsChanged(sameSource, incoming)
-      ? { action: 'updated', existingMatch: sameSource }
-      : { action: 'unchanged', existingMatch: sameSource };
-  }
-  return { action: 'inserted' };
-}
-
 /**
  * Idempotent upsert of one parsed filing. Atomic per row (single
  * transaction) so concurrent scraper runs don't double-insert.
+ *
+ * Pure decision logic lives in upsert-rules.ts so unit tests don't need
+ * a live DB connection.
  */
 export async function upsertFiling(filing: NewEvictionFiling): Promise<UpsertResult> {
   return await db.transaction(async (tx) => {
