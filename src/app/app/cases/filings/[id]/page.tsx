@@ -8,6 +8,8 @@ import { listCaseOutcomes } from '@/db/queries/eviction-case-outcomes';
 import { getFilingById } from '@/db/queries/eviction-filings';
 import { matchAssistancePrograms } from '@/db/queries/rental-assistance';
 import { requireRole, userIsKlaAttorney } from '@/lib/auth';
+import { recordDataAccess } from '@/lib/dtrs/data-access';
+import { redactAddress, viewerCanSeeDvAddresses } from '@/lib/dtrs/dv-blind';
 import { getLatestScore } from '@/lib/eviction/risk-score';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -29,6 +31,22 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
     matchAssistancePrograms(filing),
   ]);
 
+  // DV abuser-blind: filing.dv_flag is the per-record marker; the viewer
+  // role is the second axis. Attorneys + caseworkers see the address;
+  // everyone else sees LOCATION_REDACTED.
+  const showAddress = !filing.dvFlag || viewerCanSeeDvAddresses(me.role);
+  const safeFiling = redactAddress(filing, !showAddress);
+
+  // DTRS-003: log this read. We log AFTER the row is fetched so the
+  // log entry corresponds to a successful access.
+  await recordDataAccess({
+    actorUserId: me.id,
+    resourceType: 'eviction_filings',
+    resourceId: filing.id,
+    purpose: 'attorney_case_detail',
+    metadata: { dvFlag: filing.dvFlag, addressVisible: showAddress },
+  });
+
   return (
     <div className="mx-auto max-w-4xl p-6 space-y-4">
       <div className="text-xs">
@@ -36,7 +54,7 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
           ← Back to filings
         </Link>
       </div>
-      <FilingDetail filing={filing} score={score} />
+      <FilingDetail filing={safeFiling} score={score} />
       <div className="rounded-md border border-border bg-card p-4 text-sm">
         <p className="mb-2 font-medium">Response packet</p>
         <p className="mb-3 text-xs text-muted-foreground">
