@@ -4,7 +4,9 @@ AI-powered platform for the Daviess County, Kentucky coalition pilot to address 
 
 **Repo:** [github.com/DobbsBoldry/homeless](https://github.com/DobbsBoldry/homeless)
 
-**Status:** Sprint 1 in progress (Phase 0 foundation). Application scaffolded and deployed to staging via Railway as stories land.
+**Staging:** [homeless-production.up.railway.app](https://homeless-production.up.railway.app) — auto-deploys on push to `main`
+
+**Status:** Sprint 1 wrapping (Phase 0 foundation). Application scaffolded and deployed to staging via Railway as stories land.
 
 **Sister docs repo:** the documentation site (Pilot Plan, Product Vision, Strategy) lives separately at `~/Documents/Claude/Projects/Homeless/` and is deployed to Railway.
 
@@ -66,6 +68,20 @@ This is idempotent — re-running skips items that already exist.
 ## Tech stack (planned)
 
 See `CLAUDE.md` for the full stack table. Short version: Next.js 15 + TypeScript + Tailwind + shadcn/ui + Supabase Postgres + Drizzle + Clerk + Claude API + Twilio + Resend + Inngest + Mapbox + Sentry + PostHog. Hosted on Railway → Vercel + AWS once HIPAA work begins.
+
+## Deployment
+
+`main` auto-deploys to Railway staging at
+[homeless-production.up.railway.app](https://homeless-production.up.railway.app).
+Env vars live in the Railway dashboard (Variables tab). The full set is
+enumerated in `.env.example`. Branch protection on `main` requires the `ci`
+status check to pass.
+
+To verify a deploy:
+```bash
+curl https://homeless-production.up.railway.app/api/health
+```
+Should return `{ "ok": true, ... }` and increment `totalPings`.
 
 ## Working with Claude Code
 
