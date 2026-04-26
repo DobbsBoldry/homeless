@@ -4,6 +4,7 @@ import { CaseFilingsRoles } from '@/components/eviction/case-filings-roles';
 import { FilingDetail } from '@/components/eviction/filing-detail';
 import { getFilingById } from '@/db/queries/eviction-filings';
 import { requireRole } from '@/lib/auth';
+import { getLatestScore } from '@/lib/eviction/risk-score';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -17,6 +18,8 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
   const filing = await getFilingById(id);
   if (!filing) notFound();
 
+  const score = await getLatestScore(filing.id);
+
   return (
     <div className="mx-auto max-w-4xl p-6 space-y-4">
       <div className="text-xs">
@@ -24,7 +27,7 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
           ← Back to filings
         </Link>
       </div>
-      <FilingDetail filing={filing} />
+      <FilingDetail filing={filing} score={score} />
     </div>
   );
 }

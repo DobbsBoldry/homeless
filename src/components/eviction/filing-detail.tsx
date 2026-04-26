@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
+import { scoreFilingAction } from '@/app/actions/eviction';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { EvictionFilingRiskScore } from '@/db/schema/eviction-filing-risk-scores';
 import type { EvictionFiling } from '@/db/schema/eviction-filings';
 
 const fmtDate = (d: Date) =>
@@ -28,7 +30,13 @@ const statusClass: Record<EvictionFiling['status'], string> = {
   sealed: 'bg-muted text-muted-foreground italic',
 };
 
-export function FilingDetail({ filing }: { filing: EvictionFiling }) {
+export function FilingDetail({
+  filing,
+  score,
+}: {
+  filing: EvictionFiling;
+  score: EvictionFilingRiskScore | null;
+}) {
   const [showFullName, setShowFullName] = useState(false);
   const [showRawJson, setShowRawJson] = useState(false);
 
@@ -94,14 +102,7 @@ export function FilingDetail({ filing }: { filing: EvictionFiling }) {
         </CardContent>
       </Card>
 
-      <Card className="opacity-70">
-        <CardHeader>
-          <CardTitle className="text-base">Risk score</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Not yet scored. Risk scoring lands in EVDT-009.
-        </CardContent>
-      </Card>
+      <RiskScorePanel filing={filing} score={score} />
 
       {filing.rawJson != null && (
         <Card>
@@ -128,5 +129,83 @@ export function FilingDetail({ filing }: { filing: EvictionFiling }) {
         </Card>
       )}
     </div>
+  );
+}
+
+const scoreBandClass = (score: number) => {
+  if (score >= 70) return 'text-destructive';
+  if (score >= 40) return 'text-amber-600 dark:text-amber-400';
+  return 'text-emerald-600 dark:text-emerald-400';
+};
+
+const scoreBandLabel = (score: number) => {
+  if (score >= 70) return 'High risk';
+  if (score >= 40) return 'Moderate risk';
+  return 'Lower risk';
+};
+
+function RiskScorePanel({
+  filing,
+  score,
+}: {
+  filing: EvictionFiling;
+  score: EvictionFilingRiskScore | null;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const onClick = () => {
+    setError(null);
+    startTransition(async () => {
+      const result = await scoreFilingAction(filing.id);
+      if (!result.ok) setError(result.error);
+    });
+  };
+
+  if (!score) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Risk score</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <p className="text-muted-foreground">
+            This case has not been scored yet. Scoring uses Claude to assess displacement risk from
+            public filing facts only — no PHI.
+          </p>
+          <div className="flex items-center gap-3">
+            <Button onClick={onClick} disabled={pending} size="sm">
+              {pending ? 'Scoring…' : 'Score this case'}
+            </Button>
+            {error ? <span className="text-destructive text-xs">{error}</span> : null}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Risk score</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-baseline gap-3">
+          <span className={`text-5xl font-semibold tabular-nums ${scoreBandClass(score.score)}`}>
+            {score.score}
+          </span>
+          <span className={`text-sm font-medium ${scoreBandClass(score.score)}`}>
+            {scoreBandLabel(score.score)}
+          </span>
+        </div>
+        <p className="text-sm leading-relaxed">{score.rationale}</p>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span>
+            Model: <span className="font-mono">{score.modelVersion}</span>
+          </span>
+          <span>Scored {fmtDate(score.createdAt)}</span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
