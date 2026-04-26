@@ -15,6 +15,13 @@
       "when": 1777160718880,
       "tag": "0001_useful_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777161985393,
+      "tag": "0002_fearless_domino",
+      "breakpoints": true
     }
   ]
 }
