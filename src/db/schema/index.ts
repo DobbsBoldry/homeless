@@ -14,5 +14,6 @@ export * from './partner-service-events';
 export * from './person-partner-consents';
 export * from './rental-assistance-programs';
 export * from './shelters';
+export * from './sms-conversations';
 export * from './sms-messages';
 export * from './users';

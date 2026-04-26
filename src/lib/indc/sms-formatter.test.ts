@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { ShelterWithOrg } from '@/db/queries/shelters';
 import type { BedFinderResult } from './bed-finder';
-import { formatBedResults, SMS_MAX_LEN, smsHelp, smsStop, smsUnknown } from './sms-formatter';
+import {
+  formatBedResults,
+  SMS_MAX_LEN,
+  smsHelp,
+  smsLocationPrompt,
+  smsStop,
+  smsUnknown,
+} from './sms-formatter';
 
 const shelter = (name: string, phone: string | null = '+1-270-555-0100'): ShelterWithOrg => ({
   id: name,
@@ -72,5 +79,22 @@ describe('canned replies', () => {
     expect(smsHelp().length).toBeLessThanOrEqual(SMS_MAX_LEN);
     expect(smsStop().length).toBeLessThanOrEqual(SMS_MAX_LEN);
     expect(smsUnknown().length).toBeLessThanOrEqual(SMS_MAX_LEN);
+    expect(smsLocationPrompt().length).toBeLessThanOrEqual(SMS_MAX_LEN);
+  });
+
+  it('location prompt mentions ANYWHERE escape hatch', () => {
+    expect(smsLocationPrompt()).toMatch(/ANYWHERE/);
+  });
+});
+
+describe('formatBedResults — location label', () => {
+  it('includes "near <loc>" in the header when supplied', () => {
+    const r = formatBedResults([result('Boulware', 5)], {}, '42301');
+    expect(r).toMatch(/near 42301/);
+  });
+
+  it('skips "near" label when null', () => {
+    const r = formatBedResults([result('Boulware', 5)], {}, null);
+    expect(r).not.toMatch(/near/);
   });
 });

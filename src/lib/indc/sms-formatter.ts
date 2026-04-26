@@ -35,14 +35,32 @@ function formatShelterLine(idx: number, r: BedFinderResult): string {
   return `${idx}. ${r.shelter.name} — ${free}.${phone}`;
 }
 
+const LOCATION_PROMPT =
+  'Where are you near? Reply with a neighborhood, intersection, or ZIP — or ANYWHERE for any open bed.';
+
+/**
+ * The "where are you?" prompt shown after the first BED message
+ * (INDC-004). Stays well under SMS_MAX_LEN.
+ */
+export function smsLocationPrompt(): string {
+  return LOCATION_PROMPT;
+}
+
 /**
  * Format a list of bed-finder results as a body that fits in
- * `SMS_MAX_LEN`. Drops trailing matches if they don't fit.
+ * `SMS_MAX_LEN`. Drops trailing matches if they don't fit. The optional
+ * `nearLocation` is appended to the header when provided so the user
+ * sees the location they gave reflected back.
  */
-export function formatBedResults(results: BedFinderResult[], filter: BedFilter): string {
+export function formatBedResults(
+  results: BedFinderResult[],
+  filter: BedFilter,
+  nearLocation?: string | null,
+): string {
   if (results.length === 0) return NO_MATCH_REPLY;
 
-  const header = `Open beds${describeFilter(filter)}:`;
+  const near = nearLocation ? ` near ${nearLocation}` : '';
+  const header = `Open beds${describeFilter(filter)}${near}:`;
   const footer = ' Reply HOLD <#> to hold, HELP for options.';
   const fixed = `${header}${footer}`;
   const budget = SMS_MAX_LEN - fixed.length;
@@ -60,10 +78,8 @@ export function formatBedResults(results: BedFinderResult[], filter: BedFilter):
   if (lines.length === 0) {
     // Even one line didn't fit. Bail to a tiny fallback.
     const top = results[0];
-    return `${top.shelter.name}: ${top.freeBeds} free.${top.shelter.contactPhone ? ` ${top.shelter.contactPhone}` : ''}`.slice(
-      0,
-      SMS_MAX_LEN,
-    );
+    const phone = top.shelter.contactPhone ? ` ${top.shelter.contactPhone}` : '';
+    return `${top.shelter.name}: ${top.freeBeds} free.${phone}`.slice(0, SMS_MAX_LEN);
   }
 
   return `${header} ${lines.join(' ')}${footer}`;

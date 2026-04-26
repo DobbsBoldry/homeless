@@ -134,6 +134,13 @@ export const bedHoldStatusEnum = pgEnum('bed_hold_status', [
 
 export type BedHoldStatus = (typeof bedHoldStatusEnum.enumValues)[number];
 
+export const smsConversationStateEnum = pgEnum('sms_conversation_state', [
+  'idle',
+  'awaiting_location',
+]);
+
+export type SmsConversationState = (typeof smsConversationStateEnum.enumValues)[number];
+
 export const partnerServiceEventTypeEnum = pgEnum('partner_service_event_type', [
   'food_pantry',
   'shelter_intake',
