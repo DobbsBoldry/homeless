@@ -2,8 +2,7 @@ import { notFound } from 'next/navigation';
 import { ConsentRow } from '@/components/consent/consent-row';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listPersonPartnerSummary } from '@/db/queries/person-consents';
-
-const REF_RE = /^SYN-PERSON-[A-Z0-9]+$/;
+import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export const metadata = {
   title: 'Your sharing settings',
@@ -11,10 +10,9 @@ export const metadata = {
 
 export default async function ConsentPage({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params;
-  if (!REF_RE.test(ref)) notFound();
+  if (!isValidSyntheticPersonRef(ref)) notFound();
 
   const rows = await listPersonPartnerSummary(ref);
-  if (rows.length === 0) notFound();
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-6">
@@ -45,15 +43,22 @@ export default async function ConsentPage({ params }: { params: Promise<{ ref: s
           <CardTitle className="text-base">Coalition partners with your record</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="space-y-2">
-            {rows.map((row) => (
-              <ConsentRow
-                key={row.consentId ?? row.partnerOrgId}
-                syntheticPersonRef={ref}
-                summary={row}
-              />
-            ))}
-          </ul>
+          {rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No partners on record for this identifier. If you expected something here, ask the
+              caseworker who gave you this link to confirm the identifier.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {rows.map((row) => (
+                <ConsentRow
+                  key={row.consentId ?? row.partnerOrgId}
+                  syntheticPersonRef={ref}
+                  summary={row}
+                />
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
 

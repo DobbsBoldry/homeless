@@ -5,8 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/db/client';
 import { personPartnerConsents } from '@/db/schema/person-partner-consents';
 import { logAuditEvent } from '@/lib/audit';
-
-const REF_RE = /^SYN-PERSON-[A-Z0-9]+$/;
+import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export type ConsentResult = { ok: true } | { ok: false; error: string };
 
@@ -19,7 +18,8 @@ export async function revokeConsentAction(
   syntheticPersonRef: string,
   consentId: string,
 ): Promise<ConsentResult> {
-  if (!REF_RE.test(syntheticPersonRef)) return { ok: false, error: 'Invalid identifier.' };
+  if (!isValidSyntheticPersonRef(syntheticPersonRef))
+    return { ok: false, error: 'Invalid identifier.' };
 
   const [updated] = await db
     .update(personPartnerConsents)
@@ -48,7 +48,8 @@ export async function regrantConsentAction(
   syntheticPersonRef: string,
   consentId: string,
 ): Promise<ConsentResult> {
-  if (!REF_RE.test(syntheticPersonRef)) return { ok: false, error: 'Invalid identifier.' };
+  if (!isValidSyntheticPersonRef(syntheticPersonRef))
+    return { ok: false, error: 'Invalid identifier.' };
 
   const [updated] = await db
     .update(personPartnerConsents)
