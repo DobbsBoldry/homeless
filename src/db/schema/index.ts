@@ -2,6 +2,7 @@ export * from './audit-log';
 export * from './consents';
 export * from './ed-encounters';
 export * from './enums';
+export * from './esuc-care-plans';
 export * from './eviction-case-outcomes';
 export * from './eviction-filing-risk-scores';
 export * from './eviction-filings';
