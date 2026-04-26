@@ -90,14 +90,23 @@ export async function requireRole(allowed: readonly UserRole[]): Promise<User> {
 export async function requireKlaAttorney(): Promise<User> {
   const user = await requireUser();
   if (user.role !== 'attorney') notFound();
+  if (!(await userIsKlaAttorney(user))) notFound();
+  return user;
+}
 
+/**
+ * Non-throwing variant: returns true iff `user` has role=attorney AND
+ * KLA membership. For server components that need to decide whether to
+ * render an attorney-only widget but can't 404 the whole page (e.g.,
+ * the case-detail page is visible to caseworkers and admins too).
+ */
+export async function userIsKlaAttorney(user: User): Promise<boolean> {
+  if (user.role !== 'attorney') return false;
   const [membership] = await db
     .select({ id: orgMemberships.id })
     .from(orgMemberships)
     .innerJoin(partnerOrgs, eq(orgMemberships.partnerOrgId, partnerOrgs.id))
     .where(and(eq(orgMemberships.userId, user.id), eq(partnerOrgs.slug, KLA_OWENSBORO_SLUG)))
     .limit(1);
-  if (!membership) notFound();
-
-  return user;
+  return Boolean(membership);
 }

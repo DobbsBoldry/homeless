@@ -76,3 +76,14 @@ export const evictionResponsePacketStatusEnum = pgEnum('eviction_response_packet
 
 export type EvictionResponsePacketStatus =
   (typeof evictionResponsePacketStatusEnum.enumValues)[number];
+
+export const evictionCaseOutcomeEnum = pgEnum('eviction_case_outcome', [
+  'dismissed',
+  'judgment_for_plaintiff',
+  'judgment_for_defendant',
+  'settled',
+  'default_judgment',
+  'withdrawn',
+]);
+
+export type EvictionCaseOutcome = (typeof evictionCaseOutcomeEnum.enumValues)[number];

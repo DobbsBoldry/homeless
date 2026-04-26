@@ -7,9 +7,12 @@ import { CaseFilingsRoles } from '@/components/eviction/case-filings-roles';
 import { db } from '@/db/client';
 import { getFilingById } from '@/db/queries/eviction-filings';
 import {
+  type EvictionCaseOutcome,
   type EvictionResponsePacketStatus,
+  evictionCaseOutcomeEnum,
   evictionResponsePacketStatusEnum,
 } from '@/db/schema/enums';
+import { evictionCaseOutcomes } from '@/db/schema/eviction-case-outcomes';
 import { evictionResponsePackets } from '@/db/schema/eviction-response-packets';
 import { logAuditEvent } from '@/lib/audit';
 import { requireKlaAttorney, requireRole } from '@/lib/auth';
@@ -176,4 +179,42 @@ export async function exportPacketPdfAction(packetId: string): Promise<ExportPac
     filename: `packet-${safeCase}-${packet.id.slice(0, 8)}.pdf`,
     base64: bytes.toString('base64'),
   };
+}
+
+export type RecordCaseOutcomeResult = { ok: true } | { ok: false; error: string };
+
+const OUTCOMES: readonly EvictionCaseOutcome[] = evictionCaseOutcomeEnum.enumValues;
+
+export async function recordCaseOutcomeAction(
+  filingId: string,
+  outcome: EvictionCaseOutcome,
+  notes?: string,
+): Promise<RecordCaseOutcomeResult> {
+  const user = await requireKlaAttorney();
+  if (!OUTCOMES.includes(outcome)) return { ok: false, error: 'Invalid outcome.' };
+
+  const filing = await getFilingById(filingId);
+  if (!filing) return { ok: false, error: 'Filing not found.' };
+
+  const trimmed = notes?.trim();
+  const [row] = await db
+    .insert(evictionCaseOutcomes)
+    .values({
+      filingId,
+      outcome,
+      notes: trimmed && trimmed.length > 0 ? trimmed : null,
+      recordedByUserId: user.id,
+    })
+    .returning();
+
+  await logAuditEvent({
+    actorUserId: user.id,
+    action: 'case.outcome_recorded',
+    targetTable: 'eviction_case_outcomes',
+    targetId: row.id,
+    metadata: { filingId, outcome, hasNotes: Boolean(trimmed) },
+  });
+
+  revalidatePath(`/app/cases/filings/${filingId}`);
+  return { ok: true };
 }
