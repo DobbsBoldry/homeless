@@ -8,18 +8,17 @@
  *
  * - Reads the JSON file produced by gen-synthetic-filings.ts
  * - Parses each row through src/lib/eviction/parser.ts
- * - Inserts via onConflictDoNothing on the unique (case_number, source) idx
- * - Skips parse errors with a warning (doesn't fail the whole load)
+ * - Upserts via src/lib/eviction/upsert.ts (handles cross-source rank,
+ *   no-op on unchanged, update on real change)
  *
- * Safe to re-run; existing rows are not touched.
+ * Safe to re-run.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { config } from 'dotenv';
-import { db } from '@/db/client';
-import { evictionFilings } from '@/db/schema/eviction-filings';
 import { parseEvictionFiling } from '@/lib/eviction/parser';
+import { upsertFiling } from '@/lib/eviction/upsert';
 
 config({ path: ['.env.local', '.env'], override: true });
 
@@ -38,29 +37,20 @@ async function main() {
     throw new Error('fixture file missing top-level "filings" array');
   }
 
-  let inserted = 0;
-  let skipped = 0;
-  let errored = 0;
+  const counts = { inserted: 0, updated: 0, unchanged: 0, superseded: 0, parse_errors: 0 };
 
   for (const record of raw.filings) {
     const result = parseEvictionFiling(record, 'synthetic');
     if (!result.ok) {
       console.warn('[load] parse error', { errors: result.errors });
-      errored++;
+      counts.parse_errors++;
       continue;
     }
-    const [row] = await db
-      .insert(evictionFilings)
-      .values(result.filing)
-      .onConflictDoNothing({
-        target: [evictionFilings.caseNumber, evictionFilings.source],
-      })
-      .returning({ id: evictionFilings.id });
-    if (row) inserted++;
-    else skipped++;
+    const { action } = await upsertFiling(result.filing);
+    counts[action]++;
   }
 
-  console.log(`[load] inserted=${inserted} skipped=${skipped} errored=${errored}`);
+  console.log(`[load] ${JSON.stringify(counts)}`);
   process.exit(0);
 }
 
