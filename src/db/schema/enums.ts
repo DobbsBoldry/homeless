@@ -105,3 +105,12 @@ export const edEncounterSourceEnum = pgEnum('ed_encounter_source', [
 ]);
 
 export type EdEncounterSource = (typeof edEncounterSourceEnum.enumValues)[number];
+
+export const esucCarePlanStatusEnum = pgEnum('esuc_care_plan_status', [
+  'draft',
+  'approved',
+  'active',
+  'archived',
+]);
+
+export type EsucCarePlanStatus = (typeof esucCarePlanStatusEnum.enumValues)[number];

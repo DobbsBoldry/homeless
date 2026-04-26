@@ -85,6 +85,13 @@
       "when": 1777213496658,
       "tag": "0011_ancient_ultimo",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1777228050129,
+      "tag": "0012_common_darkstar",
+      "breakpoints": true
     }
   ]
 }

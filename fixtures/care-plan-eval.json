@@ -1,0 +1,191 @@
+{
+  "patients": [
+    {
+      "patient_id": "SYN-PAT-100001",
+      "encounter_count": 4,
+      "window_days": 180,
+      "encounters": [
+        {
+          "arrived_at": "2026-04-22T03:14:00-05:00",
+          "chief_complaint": "alcohol withdrawal",
+          "disposition": "admitted",
+          "housing_status": "shelter",
+          "charge_cents": 720000,
+          "notes": "CIWA 24 on arrival; admitted for IV thiamine + benzodiazepine taper"
+        },
+        {
+          "arrived_at": "2026-03-30T22:01:00-05:00",
+          "chief_complaint": "acute alcohol intoxication",
+          "disposition": "discharged-home",
+          "housing_status": "shelter",
+          "charge_cents": 180000,
+          "notes": "BAL 0.32, observed to clinical sobriety, declined SUD referral"
+        },
+        {
+          "arrived_at": "2026-02-18T14:55:00-05:00",
+          "chief_complaint": "alcohol withdrawal",
+          "disposition": "ama",
+          "housing_status": "doubled_up",
+          "charge_cents": 95000,
+          "notes": "left AMA after CIWA initiated"
+        },
+        {
+          "arrived_at": "2026-01-04T11:32:00-05:00",
+          "chief_complaint": "fall, intoxication",
+          "disposition": "discharged-home",
+          "housing_status": "unknown",
+          "charge_cents": 145000,
+          "notes": "head laceration sutured, no LOC documented"
+        }
+      ]
+    },
+    {
+      "patient_id": "SYN-PAT-100002",
+      "encounter_count": 5,
+      "window_days": 180,
+      "encounters": [
+        {
+          "arrived_at": "2026-04-21T09:10:00-05:00",
+          "chief_complaint": "hypertensive urgency",
+          "disposition": "discharged-home",
+          "housing_status": "unsheltered",
+          "charge_cents": 220000,
+          "notes": "BP 198/112; lost antihypertensive prescription"
+        },
+        {
+          "arrived_at": "2026-04-02T16:42:00-05:00",
+          "chief_complaint": "diabetic ketoacidosis",
+          "disposition": "admitted",
+          "housing_status": "unsheltered",
+          "charge_cents": 1850000,
+          "notes": "blood glucose 612, anion gap 22; insulin drip"
+        },
+        {
+          "arrived_at": "2026-03-15T07:20:00-05:00",
+          "chief_complaint": "frostbite",
+          "disposition": "discharged-home",
+          "housing_status": "unsheltered",
+          "charge_cents": 95000,
+          "notes": "left toes; rewarming, no surgical eval needed"
+        },
+        {
+          "arrived_at": "2026-02-08T13:55:00-05:00",
+          "chief_complaint": "uncontrolled hyperglycemia",
+          "disposition": "discharged-home",
+          "housing_status": "unsheltered",
+          "charge_cents": 165000,
+          "notes": "out of insulin x 6 days"
+        },
+        {
+          "arrived_at": "2026-01-12T20:30:00-05:00",
+          "chief_complaint": "alcohol withdrawal",
+          "disposition": "ama",
+          "housing_status": "unsheltered",
+          "charge_cents": 80000,
+          "notes": "left before treatment initiated"
+        }
+      ]
+    },
+    {
+      "patient_id": "SYN-PAT-100003",
+      "encounter_count": 3,
+      "window_days": 180,
+      "encounters": [
+        {
+          "arrived_at": "2026-04-19T18:00:00-05:00",
+          "chief_complaint": "suicidal ideation",
+          "disposition": "transferred",
+          "housing_status": "doubled_up",
+          "charge_cents": 280000,
+          "notes": "transferred to inpatient psych; C-SSRS positive"
+        },
+        {
+          "arrived_at": "2026-03-04T11:15:00-05:00",
+          "chief_complaint": "anxiety, panic",
+          "disposition": "discharged-home",
+          "housing_status": "doubled_up",
+          "charge_cents": 110000,
+          "notes": "PRN ativan; outpatient psych follow-up encouraged"
+        },
+        {
+          "arrived_at": "2026-02-01T22:45:00-05:00",
+          "chief_complaint": "depression with passive ideation",
+          "disposition": "discharged-home",
+          "housing_status": "doubled_up",
+          "charge_cents": 130000,
+          "notes": "warm handoff to mental-health crisis line"
+        }
+      ]
+    },
+    {
+      "patient_id": "SYN-PAT-100004",
+      "encounter_count": 4,
+      "window_days": 180,
+      "encounters": [
+        {
+          "arrived_at": "2026-04-25T05:30:00-05:00",
+          "chief_complaint": "opioid overdose",
+          "disposition": "admitted",
+          "housing_status": "shelter",
+          "charge_cents": 920000,
+          "notes": "narcan x 2 by EMS; admitted for monitoring + MOUD induction discussion"
+        },
+        {
+          "arrived_at": "2026-04-08T19:11:00-05:00",
+          "chief_complaint": "skin abscess (likely IVDU)",
+          "disposition": "discharged-home",
+          "housing_status": "shelter",
+          "charge_cents": 220000,
+          "notes": "I&D, oral antibiotics, declined SUD referral"
+        },
+        {
+          "arrived_at": "2026-03-12T15:40:00-05:00",
+          "chief_complaint": "withdrawal, opioid",
+          "disposition": "ama",
+          "housing_status": "shelter",
+          "charge_cents": 75000,
+          "notes": "left AMA after fluids"
+        },
+        {
+          "arrived_at": "2026-02-21T08:20:00-05:00",
+          "chief_complaint": "altered mental status",
+          "disposition": "discharged-home",
+          "housing_status": "unknown",
+          "charge_cents": 140000,
+          "notes": "tox screen positive for opioids; tox screen positive for benzos"
+        }
+      ]
+    },
+    {
+      "patient_id": "SYN-PAT-100005",
+      "encounter_count": 3,
+      "window_days": 180,
+      "encounters": [
+        {
+          "arrived_at": "2026-04-15T10:05:00-05:00",
+          "chief_complaint": "chest pain",
+          "disposition": "discharged-home",
+          "housing_status": "doubled_up",
+          "charge_cents": 410000,
+          "notes": "troponin negative x2, EKG benign, GERD likely"
+        },
+        {
+          "arrived_at": "2026-03-22T17:30:00-05:00",
+          "chief_complaint": "back pain",
+          "disposition": "discharged-home",
+          "housing_status": "doubled_up",
+          "charge_cents": 95000,
+          "notes": "no red flags; PCP referral, NSAID"
+        },
+        {
+          "arrived_at": "2026-02-05T09:45:00-05:00",
+          "chief_complaint": "shortness of breath",
+          "disposition": "discharged-home",
+          "housing_status": "shelter",
+          "charge_cents": 230000,
+          "notes": "asthma exacerbation; albuterol response"
+        }
+      ]
+    }
+  ]
+}

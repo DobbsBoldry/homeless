@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { CarePlanPanel } from '@/components/esuc/care-plan-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listEncountersForPatient } from '@/db/queries/ed-encounters';
 import { requireRole } from '@/lib/auth';
+import { getCarePlanByPatient } from '@/lib/esuc/care-plan';
 
 const fmtDate = (d: Date) =>
   new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(d));
@@ -15,7 +17,10 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   // a hashed value. Either way they should be ≥ 6 chars of safe characters.
   if (!/^[A-Za-z0-9_-]{6,}$/.test(patientId)) notFound();
 
-  const encounters = await listEncountersForPatient(patientId);
+  const [encounters, carePlan] = await Promise.all([
+    listEncountersForPatient(patientId),
+    getCarePlanByPatient(patientId),
+  ]);
   if (encounters.length === 0) notFound();
 
   return (
@@ -57,14 +62,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Care plan</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          AI-assisted care plan generation lands in ESUC-011.
-        </CardContent>
-      </Card>
+      <CarePlanPanel patientId={patientId} plan={carePlan} />
     </div>
   );
 }
