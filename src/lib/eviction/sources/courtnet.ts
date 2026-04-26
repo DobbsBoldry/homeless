@@ -13,6 +13,13 @@ import type { DocketSource, RawFiling } from './types';
  * in production currently means "no new filings ingested" — by design, so an
  * accidental switch can't pollute the database with empty results that look
  * like real data.
+ *
+ * FIXME(EVDT-001/002): when this stub starts returning real rows, the
+ * parser at src/lib/eviction/parser.ts gates on source ∈ {synthetic,
+ * manual} and will emit "unsupported source: courtnet" for every row
+ * (parse_errors -> 100%). Either drop that gate (the SyntheticSourceSchema
+ * shape likely fits a normalized courtnet row) or add a courtnet-specific
+ * RawSchema. Verify before flipping EVICTION_SOURCE=courtnet in prod.
  */
 class CourtnetSource implements DocketSource {
   readonly source = 'courtnet' as const;
