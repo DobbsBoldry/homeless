@@ -92,6 +92,13 @@
       "when": 1777228050129,
       "tag": "0012_common_darkstar",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1777229074412,
+      "tag": "0013_blue_tinkerer",
+      "breakpoints": true
     }
   ]
 }

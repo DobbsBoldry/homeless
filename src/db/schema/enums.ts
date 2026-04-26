@@ -17,6 +17,12 @@ export const partnerOrgTypeEnum = pgEnum('partner_org_type', [
   'shelter',
   'community_org',
   'government',
+  'faith_based',
+  'school',
+  'philanthropy',
+  'education',
+  'public_health',
+  'media',
   'other',
 ]);
 
@@ -114,3 +120,7 @@ export const esucCarePlanStatusEnum = pgEnum('esuc_care_plan_status', [
 ]);
 
 export type EsucCarePlanStatus = (typeof esucCarePlanStatusEnum.enumValues)[number];
+
+export const dataSharingTierEnum = pgEnum('data_sharing_tier', ['none', 'aggregate', 'individual']);
+
+export type DataSharingTier = (typeof dataSharingTierEnum.enumValues)[number];
