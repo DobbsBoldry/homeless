@@ -14,6 +14,11 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/app/dashboard', roles: 'all' },
   {
+    label: 'Filings',
+    href: '/app/cases/filings',
+    roles: ['attorney', 'caseworker', 'admin'],
+  },
+  {
     label: 'Cases',
     href: '/app/cases',
     roles: ['attorney', 'caseworker', 'admin'],
