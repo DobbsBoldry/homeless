@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { db } from '@/db/client';
 import { smsMessages } from '@/db/schema/sms-messages';
-import { handleInboundSms } from '@/lib/indc/sms-pipeline';
+import { handleInboundSmsForNumber } from '@/lib/indc/sms-pipeline';
 import { twimlEmpty, twimlMessage, verifyTwilioSignature } from '@/lib/indc/twilio-signature';
 
 export const dynamic = 'force-dynamic';
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
   let reply: string;
   let intent: string;
   try {
-    const result = await handleInboundSms(body);
+    const result = await handleInboundSmsForNumber(fromNumber, body);
     reply = result.reply;
     intent = result.intent;
   } catch (err) {
