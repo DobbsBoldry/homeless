@@ -21,12 +21,16 @@ export function posthogServer(): PostHog | null {
 /**
  * Fire-and-forget event capture from the server. Swallows errors so analytics
  * never breaks the user-facing action.
+ *
+ * In serverless environments the runtime may freeze before the queue flushes;
+ * await `flushServerEvents()` from the same request handler if you need
+ * delivery guarantees (e.g. before responding to a webhook).
  */
-export async function captureServerEvent(input: {
+export function captureServerEvent(input: {
   distinctId: string;
   event: string;
   properties?: Record<string, unknown>;
-}): Promise<void> {
+}): void {
   const client = posthogServer();
   if (!client) return;
   try {
@@ -37,5 +41,19 @@ export async function captureServerEvent(input: {
     });
   } catch (err) {
     console.error('[posthog] server capture failed', { input, err });
+  }
+}
+
+/**
+ * Force-flush queued server events. Call before returning from a serverless
+ * handler to ensure delivery (the queue is dropped when the function freezes).
+ */
+export async function flushServerEvents(): Promise<void> {
+  const client = posthogServer();
+  if (!client) return;
+  try {
+    await client.flush();
+  } catch (err) {
+    console.error('[posthog] flush failed', err);
   }
 }

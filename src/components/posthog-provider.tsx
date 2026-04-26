@@ -26,6 +26,8 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
     const host = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
     if (!key) return;
+    // Guard against double-init from React strict mode + dev hot reload.
+    if ((posthog as unknown as { __loaded?: boolean }).__loaded) return;
     posthog.init(key, {
       api_host: host,
       capture_pageview: false, // we capture manually via PageviewTracker (path-only)
