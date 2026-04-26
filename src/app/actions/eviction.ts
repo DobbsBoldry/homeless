@@ -13,6 +13,7 @@ import {
 import { evictionResponsePackets } from '@/db/schema/eviction-response-packets';
 import { logAuditEvent } from '@/lib/audit';
 import { requireKlaAttorney, requireRole } from '@/lib/auth';
+import { renderPacketPdf } from '@/lib/eviction/packet-pdf';
 import { generateResponsePacket, validateDisclaimer } from '@/lib/eviction/response-packet';
 import { scoreFiling } from '@/lib/eviction/risk-score';
 
@@ -133,4 +134,46 @@ export async function changePacketStatusAction(
 
   revalidatePath(`/app/cases/filings/${filingId}/packet`);
   return { ok: true };
+}
+
+export type ExportPacketPdfResult =
+  | { ok: true; filename: string; base64: string }
+  | { ok: false; error: string };
+
+export async function exportPacketPdfAction(packetId: string): Promise<ExportPacketPdfResult> {
+  const user = await requireKlaAttorney();
+  const [packet] = await db
+    .select()
+    .from(evictionResponsePackets)
+    .where(eq(evictionResponsePackets.id, packetId))
+    .limit(1);
+  if (!packet) return { ok: false, error: 'Packet not found.' };
+  if (packet.status !== 'approved' && packet.status !== 'filed') {
+    return { ok: false, error: 'Only approved or filed packets can be exported.' };
+  }
+  const filing = await getFilingById(packet.filingId);
+  if (!filing) return { ok: false, error: 'Filing not found.' };
+
+  let bytes: Buffer;
+  try {
+    bytes = await renderPacketPdf({ packetMd: packet.packetMd, filing });
+  } catch (err) {
+    Sentry.captureException(err, { tags: { action: 'exportPacketPdfAction', packetId } });
+    return { ok: false, error: 'PDF render failed.' };
+  }
+
+  await logAuditEvent({
+    actorUserId: user.id,
+    action: 'response_packet.exported',
+    targetTable: 'eviction_response_packets',
+    targetId: packetId,
+    metadata: { filingId: filing.id, status: packet.status, sizeBytes: bytes.byteLength },
+  });
+
+  const safeCase = filing.caseNumber.replace(/[^a-zA-Z0-9_-]+/g, '-');
+  return {
+    ok: true,
+    filename: `packet-${safeCase}-${packet.id.slice(0, 8)}.pdf`,
+    base64: bytes.toString('base64'),
+  };
 }
