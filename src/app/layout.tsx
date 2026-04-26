@@ -1,6 +1,7 @@
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono, Lora } from 'next/font/google';
+import { PostHogProvider } from '@/components/posthog-provider';
 import { ThemeProvider } from '@/components/theme-provider';
 import './globals.css';
 
@@ -40,7 +41,7 @@ export default function RootLayout({
       >
         <body className="min-h-full flex flex-col font-sans">
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            {children}
+            <PostHogProvider>{children}</PostHogProvider>
           </ThemeProvider>
         </body>
       </html>
