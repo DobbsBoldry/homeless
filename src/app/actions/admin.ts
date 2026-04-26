@@ -1,6 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db/client';
 import { orgMemberships } from '@/db/schema/org-memberships';
@@ -41,17 +41,22 @@ export async function promoteToKlaAttorneyAction(
     };
   }
 
-  await db
-    .update(users)
-    .set({ role: 'attorney', updatedAt: new Date() })
-    .where(eq(users.id, target.id));
-
-  await db
-    .insert(orgMemberships)
-    .values({ userId: target.id, partnerOrgId: klaOrg.id, role: 'attorney' })
-    .onConflictDoNothing({
-      target: [orgMemberships.userId, orgMemberships.partnerOrgId],
-    });
+  // Wrap role-flip + membership in a transaction so an interrupted
+  // promote doesn't leave a user as `attorney` with no KLA membership.
+  // Re-running the action self-heals either way (idempotent), but the
+  // transaction closes the failure window without relying on retry.
+  await db.transaction(async (tx) => {
+    await tx
+      .update(users)
+      .set({ role: 'attorney', updatedAt: new Date() })
+      .where(eq(users.id, target.id));
+    await tx
+      .insert(orgMemberships)
+      .values({ userId: target.id, partnerOrgId: klaOrg.id, role: 'attorney' })
+      .onConflictDoNothing({
+        target: [orgMemberships.userId, orgMemberships.partnerOrgId],
+      });
+  });
 
   await logAuditEvent({
     actorUserId: actor.id,
@@ -81,6 +86,19 @@ export async function demoteUserAction(targetUserId: string): Promise<AdminUserA
   if (!target) return { ok: false, error: 'User not found.' };
   if (target.id === actor.id) {
     return { ok: false, error: 'You cannot demote yourself.' };
+  }
+
+  // Last-admin lockout: never let the admin role count drop to zero,
+  // even if the actor is somehow demoting another admin (only possible
+  // when there are >= 2 admins).
+  if (target.role === 'admin') {
+    const [{ value: adminCount }] = await db
+      .select({ value: count() })
+      .from(users)
+      .where(eq(users.role, 'admin'));
+    if (adminCount <= 1) {
+      return { ok: false, error: 'Cannot demote the last admin in the system.' };
+    }
   }
 
   await db
