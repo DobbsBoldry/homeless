@@ -28,7 +28,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { config } from 'dotenv';
-import { eq } from 'drizzle-orm';
+import { eq, like } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { listRecentFilings } from '@/db/queries/eviction-filings';
 import { evictionResponsePackets } from '@/db/schema/eviction-response-packets';
@@ -77,6 +77,20 @@ async function ensureDemoAttorney() {
   const [existing] = await db.select().from(users).where(eq(users.email, demoEmail)).limit(1);
   let user = existing;
   if (!user) {
+    // Heads-up if there are stale seed-created attorney users from prior
+    // runs with a different DEMO_ATTORNEY_EMAIL. We don't auto-clean them
+    // (this is a seed script, not a janitor) but the operator should know.
+    const stale = await db
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(like(users.clerkUserId, 'seed_demo_attorney_%'));
+    if (stale.length > 0) {
+      console.warn(
+        `[demo]   ! ${stale.length} prior seed-attorney user(s) exist:`,
+        stale.map((s) => s.email).join(', '),
+      );
+      console.warn('[demo]     consider deleting them in Supabase to avoid clutter');
+    }
     const fakeClerkId = `seed_demo_attorney_${Date.now().toString(36)}`;
     [user] = await db
       .insert(users)
@@ -161,6 +175,10 @@ async function generatePackets(userId: string): Promise<void> {
     const target = targetStatuses[i];
     const packet = await generateResponsePacket(f, userId);
     if (packet.status !== target) {
+      // Direct UPDATE bypasses the audit log on purpose — these are
+      // fixture promotions, not real attorney transitions. Real status
+      // changes go through changePacketStatusAction (EVDT-013) which
+      // does write to audit_log.
       await db
         .update(evictionResponsePackets)
         .set({ status: target, updatedAt: new Date() })
