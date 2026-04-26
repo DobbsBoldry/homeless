@@ -9,7 +9,10 @@ export const users = pgTable(
     email: text('email').notNull(),
     firstName: text('first_name'),
     lastName: text('last_name'),
-    role: userRoleEnum('role').notNull().default('caseworker'),
+    // Defaults to 'pending' so self-service signup never grants PHI access.
+    // Admins promote to a real role via the Settings/Admin surface
+    // (lands once that surface ships in Phase 1).
+    role: userRoleEnum('role').notNull().default('pending'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

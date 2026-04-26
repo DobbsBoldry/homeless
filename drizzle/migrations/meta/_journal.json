@@ -29,6 +29,20 @@
       "when": 1777164429337,
       "tag": "0003_fine_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777165748182,
+      "tag": "0004_pink_dazzler",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1777165748183,
+      "tag": "0005_pending_default",
+      "breakpoints": true
     }
   ]
 }
