@@ -16,3 +16,9 @@ export async function listRecentFilings(
   const filtered = source ? base.where(eq(evictionFilings.source, source)) : base;
   return await filtered.orderBy(desc(evictionFilings.filedAt)).limit(limit);
 }
+
+/** Single filing by primary key. Returns null if not found. */
+export async function getFilingById(id: string): Promise<EvictionFiling | null> {
+  const rows = await db.select().from(evictionFilings).where(eq(evictionFilings.id, id)).limit(1);
+  return rows[0] ?? null;
+}
