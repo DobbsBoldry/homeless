@@ -141,7 +141,9 @@ async function main() {
   console.log(
     `\n[eval] overall: ${passedChecks}/${totalChecks} checks (${overallPct.toFixed(1)}%) — ${perfectPackets}/${data.filings.length} packets fully clean`,
   );
-  process.exit(0);
+  // Exit non-zero unless every packet passes every structural check, so
+  // CI / a manual run can spot regressions without reading the log.
+  process.exit(perfectPackets === data.filings.length ? 0 : 1);
 }
 
 main().catch((err) => {

@@ -99,11 +99,31 @@ export async function generateResponsePacket(
   }
   const parsed: ResponsePacketOutput = response.parsed_output;
 
-  if (!parsed.packet_md.includes(RESPONSE_PACKET_DISCLAIMER_PREFIX)) {
-    throw new Error('[response-packet] generated packet missing required disclaimer block');
+  // Tighter than substring-prefix: require the full canonical disclaimer
+  // wording, both placeholders (so fillDisclaimer can substitute), and the
+  // attorney-review sentence. Catches malformed/abbreviated disclaimers
+  // that pass a loose prefix check.
+  const requiredDisclaimerFragments = [
+    `${RESPONSE_PACKET_DISCLAIMER_PREFIX} REQUIRED BEFORE FILING.`,
+    'Generated {timestamp} model {model_version}.',
+    'not legal advice',
+  ];
+  for (const fragment of requiredDisclaimerFragments) {
+    if (!parsed.packet_md.includes(fragment)) {
+      throw new Error(
+        `[response-packet] disclaimer missing required fragment: ${fragment.slice(0, 60)}…`,
+      );
+    }
   }
 
   const filledPacket = fillDisclaimer(parsed.packet_md, new Date());
+
+  // Belt-and-braces: after filling, both placeholders must be gone.
+  // If the model self-substituted a timestamp or version string, fill
+  // wouldn't fire and the packet would carry a misleading value.
+  if (filledPacket.includes('{timestamp}') || filledPacket.includes('{model_version}')) {
+    throw new Error('[response-packet] disclaimer placeholders still present after fill');
+  }
 
   const newRow: NewEvictionResponsePacket = {
     filingId: filing.id,
