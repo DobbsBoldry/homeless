@@ -33,7 +33,12 @@ export async function listCrossOrgTouchpoints(
         'unique_orgs',
       ),
       latestEventAt: sql<Date>`MAX(${partnerServiceEvents.eventAt})`.as('latest_event_at'),
-      orgNames: sql<string[]>`array_agg(DISTINCT ${partnerOrgs.name})`.as('org_names'),
+      // Alphabetical order is deterministic — sorting by eventAt isn't
+      // legal alongside DISTINCT name without a subquery, and stable
+      // ordering matters more than the chronological story here.
+      orgNames: sql<string[]>`array_agg(DISTINCT ${partnerOrgs.name} ORDER BY ${partnerOrgs.name})`.as(
+        'org_names',
+      ),
     })
     .from(partnerServiceEvents)
     .innerJoin(partnerOrgs, eq(partnerOrgs.id, partnerServiceEvents.partnerOrgId))

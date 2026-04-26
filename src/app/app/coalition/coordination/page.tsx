@@ -8,6 +8,11 @@ const fmtDateTime = (d: Date) =>
   new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(d));
 
 export default async function CrossOrgCoordinationPage() {
+  // Role list intentionally broader than the issue's original AC
+  // (attorney/caseworker/admin). The cross-org coordination view is
+  // exactly the lens ed_coordinator and shelter_staff need — gating
+  // it away from them would be schema theatre when the platform's
+  // whole point is multi-disciplinary coordination.
   await requireRole(['attorney', 'caseworker', 'ed_coordinator', 'shelter_staff', 'admin']);
   const rows = await listCrossOrgTouchpoints({ windowDays: WINDOW_DAYS, limit: 50 });
   const crossOrg = rows.filter((r) => r.uniqueOrgs >= 2);

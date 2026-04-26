@@ -472,14 +472,6 @@ async function main() {
     .from(partnerServiceEvents)
     .limit(1);
   if (existingEvents.length === 0) {
-    const eventOrgSlugs = [
-      'boulware-mission',
-      'st-benedicts-shelter',
-      'catholic-charities-owensboro',
-      'audubon-area-community-services',
-      'crossroads-to-hope',
-      'daniel-pitino-shelter',
-    ] as const;
     const eventOrgs = await db
       .select({ id: partnerOrgs.id, slug: partnerOrgs.slug })
       .from(partnerOrgs);
@@ -638,8 +630,6 @@ async function main() {
       notes: e.notes,
       source: 'synthetic' as const,
     }));
-
-    void eventOrgSlugs; // imports cross-checked above; future work can drive seeding from this list
 
     await db.insert(partnerServiceEvents).values(events);
     console.log(
