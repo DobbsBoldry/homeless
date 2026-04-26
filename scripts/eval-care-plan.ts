@@ -41,10 +41,14 @@ interface CheckResult {
   detail?: string;
 }
 
+// Strict patterns that an invented patient name would match. We
+// avoid the bare "[A-Z][a-z]+ [A-Z][a-z]+" shape because legitimate
+// partner-org and section-header phrases ("Catholic Charities",
+// "Boulware Mission", "Owensboro Health", "Patient Summary",
+// "Risk Factors") match it and produce false failures. The honorific
+// + name shape is much higher-signal for actual PII leakage.
 const FORBIDDEN_NAME_PATTERNS = [
-  // First+last name patterns Claude might try to invent. Real Epic
-  // data should never reach this prompt anyway, but assert defense.
-  /\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}\b/, // "John Smith"-shaped
+  /\b(Mr|Mrs|Ms|Dr|Mr\.|Mrs\.|Ms\.|Dr\.)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/,
 ];
 
 function checkPlan(plan: string, row: EvalRow): CheckResult[] {
@@ -88,15 +92,11 @@ function checkPlan(plan: string, row: EvalRow): CheckResult[] {
   });
 
   // Defense in depth: a plan should NOT contain anything that looks
-  // like an invented patient name. The forbidden pattern matches the
-  // example we put IN the prompt, so we strip the example before
-  // checking — but the example case-id (SYN-PAT-009104) won't be
-  // in the actual outputs unless Claude copied it.
-  const planMinusExample = plan.replace(
-    /SYN-PAT-009104[\s\S]*?(end of example\)|# Patient summary)/g,
-    '',
-  );
-  const nameLikely = FORBIDDEN_NAME_PATTERNS.some((re) => re.test(planMinusExample));
+  // like an invented patient name (honorific + name shape). The
+  // generic two-titlecase-words pattern produces false positives on
+  // legitimate partner-org and section-header phrases — see the
+  // FORBIDDEN_NAME_PATTERNS comment above.
+  const nameLikely = FORBIDDEN_NAME_PATTERNS.some((re) => re.test(plan));
   checks.push({
     name: 'no invented name-like strings',
     ok: !nameLikely,

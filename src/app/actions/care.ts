@@ -58,11 +58,15 @@ const STATUSES: readonly EsucCarePlanStatus[] = esucCarePlanStatusEnum.enumValue
  * 'archived' is terminal — re-engaging a patient creates a new plan
  * (bump prompt_version, or after this draft re-iteration, run the
  * generator again with the new version key).
+ *
+ * 'active' (plan in effect) does NOT go back to 'approved'. Once a
+ * plan is in effect the legitimate moves are stay active or archive;
+ * to re-edit, push back to 'draft' for re-approval.
  */
 const ALLOWED_TRANSITIONS: Record<EsucCarePlanStatus, readonly EsucCarePlanStatus[]> = {
   draft: ['approved', 'archived'],
   approved: ['active', 'draft', 'archived'],
-  active: ['archived', 'approved'],
+  active: ['draft', 'archived'],
   archived: [],
 };
 

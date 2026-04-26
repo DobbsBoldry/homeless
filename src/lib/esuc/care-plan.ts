@@ -56,6 +56,30 @@ export function validateCarePlanDisclaimer(
   return { ok: true };
 }
 
+/**
+ * Defensive scrub of an encounter `notes` field before it enters the
+ * Claude prompt. Phase 1: synthetic data, this is mostly a no-op
+ * stub. **TODO(ESUC-002):** when Epic FHIR data flows post-BAA,
+ * replace with a proper de-identification pipeline (Microsoft Presidio
+ * or equivalent — name/address/phone/MRN/email recognition + redaction).
+ *
+ * Today's stub catches the most blatant patterns so a developer who
+ * accidentally pastes a real name into a synthetic fixture gets
+ * a "[REDACTED]" in the prompt rather than passing it through.
+ */
+function scrubClinicalNote(s: string | null): string | null {
+  if (!s) return s;
+  return s
+    // Phone numbers (US-shaped)
+    .replace(/\+?1?[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/g, '[REDACTED-PHONE]')
+    // Email-shaped
+    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[REDACTED-EMAIL]')
+    // SSN-shaped
+    .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[REDACTED-SSN]')
+    // Honorifics + name
+    .replace(/\b(Mr|Mrs|Ms|Dr|Mr\.|Mrs\.|Ms\.|Dr\.)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?/g, '[REDACTED-NAME]');
+}
+
 function fillDisclaimer(planMd: string, generatedAt: Date): string {
   return planMd
     .replace(/\{timestamp\}/g, generatedAt.toISOString())
@@ -102,7 +126,7 @@ export async function generateCarePlan(
       disposition: e.disposition,
       housing_status: e.housingStatus,
       charge_cents: e.chargeCents,
-      notes: e.notes,
+      notes: scrubClinicalNote(e.notes),
     })),
   };
 
