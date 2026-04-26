@@ -87,3 +87,21 @@ export const evictionCaseOutcomeEnum = pgEnum('eviction_case_outcome', [
 ]);
 
 export type EvictionCaseOutcome = (typeof evictionCaseOutcomeEnum.enumValues)[number];
+
+export const housingStatusEnum = pgEnum('housing_status', [
+  'housed',
+  'doubled_up',
+  'shelter',
+  'unsheltered',
+  'unknown',
+]);
+
+export type HousingStatus = (typeof housingStatusEnum.enumValues)[number];
+
+export const edEncounterSourceEnum = pgEnum('ed_encounter_source', [
+  'synthetic',
+  'epic_fhir',
+  'manual',
+]);
+
+export type EdEncounterSource = (typeof edEncounterSourceEnum.enumValues)[number];
