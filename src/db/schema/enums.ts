@@ -66,3 +66,13 @@ export const evictionFilingSourceEnum = pgEnum('eviction_filing_source', [
 ]);
 
 export type EvictionFilingSource = (typeof evictionFilingSourceEnum.enumValues)[number];
+
+export const evictionResponsePacketStatusEnum = pgEnum('eviction_response_packet_status', [
+  'draft',
+  'approved',
+  'filed',
+  'rejected',
+]);
+
+export type EvictionResponsePacketStatus =
+  (typeof evictionResponsePacketStatusEnum.enumValues)[number];

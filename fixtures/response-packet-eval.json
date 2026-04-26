@@ -1,0 +1,54 @@
+{
+  "filings": [
+    {
+      "case_number": "EVAL-26-CI-00101",
+      "court_division": "1st Division",
+      "plaintiff": "Riverbend Apartments, LLC",
+      "defendant_name": "Marcus Synthwell",
+      "cause_type": "non_payment",
+      "amount_claimed_cents": 145000,
+      "status": "filed",
+      "filed_at": "2026-04-22T09:00:00-05:00"
+    },
+    {
+      "case_number": "EVAL-26-CI-00102",
+      "court_division": "2nd Division",
+      "plaintiff": "Owensboro Housing Group",
+      "defendant_name": "Lina Fakeman",
+      "cause_type": "lease_violation",
+      "amount_claimed_cents": null,
+      "status": "served",
+      "filed_at": "2026-04-15T10:30:00-05:00"
+    },
+    {
+      "case_number": "EVAL-26-CI-00103",
+      "court_division": "1st Division",
+      "plaintiff": "Daviess Property Management",
+      "defendant_name": "Eli Mocksworth",
+      "cause_type": "holdover",
+      "amount_claimed_cents": null,
+      "status": "filed",
+      "filed_at": "2026-04-20T14:00:00-05:00"
+    },
+    {
+      "case_number": "EVAL-26-CI-00104",
+      "court_division": "3rd Division",
+      "plaintiff": "Westport Realty",
+      "defendant_name": "Priya Phantomson",
+      "cause_type": "non_payment",
+      "amount_claimed_cents": 285000,
+      "status": "judgment",
+      "filed_at": "2026-03-30T11:00:00-05:00"
+    },
+    {
+      "case_number": "EVAL-26-CI-00105",
+      "court_division": "2nd Division",
+      "plaintiff": "Bluegrass Holdings, LLC",
+      "defendant_name": "Tomas Imaginario",
+      "cause_type": "other",
+      "amount_claimed_cents": 50000,
+      "status": "filed",
+      "filed_at": "2026-04-23T08:45:00-05:00"
+    }
+  ]
+}
