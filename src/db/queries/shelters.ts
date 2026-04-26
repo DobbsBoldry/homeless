@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, max } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { type PartnerOrg, partnerOrgs } from '@/db/schema/partner-orgs';
 import { type BedCountUpdate, bedCountUpdates, type Shelter, shelters } from '@/db/schema/shelters';
@@ -53,4 +53,20 @@ export async function listRecentBedCountUpdates(
     .where(eq(bedCountUpdates.shelterId, shelterId))
     .orderBy(desc(bedCountUpdates.createdAt))
     .limit(limit);
+}
+
+/**
+ * Map of shelter id → most recent bed_count_updates.created_at. Used by
+ * the staff update UI to show "last updated" alongside each card. Returns
+ * `null` for shelters with no updates yet.
+ */
+export async function lastBedCountUpdateByShelter(): Promise<Map<string, Date | null>> {
+  const rows = await db
+    .select({
+      shelterId: bedCountUpdates.shelterId,
+      lastAt: max(bedCountUpdates.createdAt),
+    })
+    .from(bedCountUpdates)
+    .groupBy(bedCountUpdates.shelterId);
+  return new Map(rows.map((r) => [r.shelterId, r.lastAt ? new Date(r.lastAt) : null]));
 }
