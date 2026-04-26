@@ -197,6 +197,9 @@ export async function recordCaseOutcomeAction(
   if (!filing) return { ok: false, error: 'Filing not found.' };
 
   const trimmed = notes?.trim();
+  if (trimmed && trimmed.length > 4000) {
+    return { ok: false, error: 'Notes too long (max 4000 characters).' };
+  }
   const [row] = await db
     .insert(evictionCaseOutcomes)
     .values({
