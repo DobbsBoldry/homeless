@@ -93,6 +93,28 @@ Until the BAA with Owensboro Health is signed and the HIPAA infrastructure migra
 
 If a story is about to introduce a real PHI flow before the BAA is signed, **stop and flag it.** That's a sequencing bug.
 
+## Project board hygiene
+
+Bo manages the project at https://github.com/users/DobbsBoldry/projects/1
+and wants visibility into what's planned, active, and done. Move cards
+explicitly — don't jump from `Todo` straight to `Done` at merge.
+
+Use `scripts/set-card-status.py <issue#> <status>` for the four transitions:
+
+| When | Status |
+|---|---|
+| First commit on the story branch | `in progress` |
+| PR opened | `in review` |
+| PR merged | `done` |
+| Picked up but not yet started | (leave at `todo`) |
+
+The script is idempotent and case-insensitive. Examples:
+- `python3 scripts/set-card-status.py 24 "in progress"`
+- `python3 scripts/set-card-status.py 24 done`
+
+If you create new follow-up issues mid-PR, leave them at `todo` and
+unassigned to a Sprint until the next planning round.
+
 ## Working with Bo
 
 - Bo is the only developer. Be autonomous within a single story: branch, code, test, commit, show diff. Don't ask for permission step-by-step.
