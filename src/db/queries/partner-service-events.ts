@@ -36,9 +36,9 @@ export async function listCrossOrgTouchpoints(
       // Alphabetical order is deterministic — sorting by eventAt isn't
       // legal alongside DISTINCT name without a subquery, and stable
       // ordering matters more than the chronological story here.
-      orgNames: sql<string[]>`array_agg(DISTINCT ${partnerOrgs.name} ORDER BY ${partnerOrgs.name})`.as(
-        'org_names',
-      ),
+      orgNames: sql<
+        string[]
+      >`array_agg(DISTINCT ${partnerOrgs.name} ORDER BY ${partnerOrgs.name})`.as('org_names'),
     })
     .from(partnerServiceEvents)
     .innerJoin(partnerOrgs, eq(partnerOrgs.id, partnerServiceEvents.partnerOrgId))
