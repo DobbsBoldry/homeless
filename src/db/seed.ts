@@ -23,6 +23,7 @@ import {
   type NewRentalAssistanceProgram,
   rentalAssistancePrograms,
 } from './schema/rental-assistance-programs';
+import { type NewShelter, shelters } from './schema/shelters';
 import { users } from './schema/users';
 
 config({ path: ['.env.local', '.env'] });
@@ -464,6 +465,137 @@ async function main() {
   } else {
     console.log('[seed]   = rental-assistance programs (exist)');
   }
+
+  // Build a slug → id map once for downstream seed steps that resolve
+  // partner orgs by slug (COOR shelters, COAL service events).
+  const allPartnerOrgs = await db
+    .select({ id: partnerOrgs.id, slug: partnerOrgs.slug })
+    .from(partnerOrgs);
+  const orgIdBySlugLookup = new Map(allPartnerOrgs.map((o) => [o.slug, o.id]));
+  const orgIdLookup = (slug: string) => orgIdBySlugLookup.get(slug);
+
+  // ---- COOR-001: shelter facility seed ----
+  // Operational rows for the bed availability board. Capacity figures
+  // are illustrative — the real numbers come from each shelter during
+  // COOR-007 onboarding. Capacity-by-population fields default off and
+  // are flipped on per facility based on Daviess provider profiles.
+  const shelterSeeds: Array<Omit<NewShelter, 'partnerOrgId'> & { partnerOrgSlug: string }> = [
+    {
+      partnerOrgSlug: 'boulware-mission',
+      name: 'Boulware Mission',
+      slug: 'boulware-mission-main',
+      addressLine1: '423 W 3rd St',
+      city: 'Owensboro',
+      state: 'KY',
+      postalCode: '42301',
+      contactPhone: '+1-270-683-1505',
+      capacity: 60,
+      currentOccupancy: 42,
+      acceptsMen: true,
+      acceptsWomen: true,
+      acceptsFamilies: false,
+      petFriendly: false,
+      sudFriendly: false,
+    },
+    {
+      partnerOrgSlug: 'st-benedicts-shelter',
+      name: "St. Benedict's Homeless Shelter",
+      slug: 'st-benedicts-main',
+      addressLine1: '910 W 7th St',
+      city: 'Owensboro',
+      state: 'KY',
+      postalCode: '42301',
+      contactPhone: '+1-270-686-8410',
+      capacity: 64,
+      currentOccupancy: 58,
+      acceptsMen: true,
+      acceptsWomen: false,
+      acceptsFamilies: false,
+      petFriendly: false,
+      sudFriendly: false,
+    },
+    {
+      partnerOrgSlug: 'daniel-pitino-shelter',
+      name: 'Daniel Pitino Shelter',
+      slug: 'daniel-pitino-main',
+      addressLine1: '501 Walnut St',
+      city: 'Owensboro',
+      state: 'KY',
+      postalCode: '42301',
+      contactPhone: '+1-270-685-3747',
+      capacity: 40,
+      currentOccupancy: 24,
+      acceptsMen: false,
+      acceptsWomen: true,
+      acceptsFamilies: true,
+      petFriendly: true,
+      sudFriendly: false,
+    },
+    {
+      partnerOrgSlug: 'crossroads-to-hope',
+      name: 'CrossRoads to Hope',
+      slug: 'crossroads-to-hope-main',
+      city: 'Owensboro',
+      state: 'KY',
+      capacity: 24,
+      currentOccupancy: 18,
+      acceptsMen: false,
+      acceptsWomen: true,
+      acceptsFamilies: true,
+      petFriendly: false,
+      sudFriendly: false,
+    },
+    {
+      partnerOrgSlug: 'oasis-shelter',
+      name: 'OASIS Shelter (DV / SUD)',
+      slug: 'oasis-shelter-main',
+      // Address intentionally omitted — DV-confidential location.
+      city: 'Owensboro',
+      state: 'KY',
+      capacity: 20,
+      currentOccupancy: 12,
+      acceptsMen: false,
+      acceptsWomen: true,
+      acceptsFamilies: true,
+      petFriendly: false,
+      sudFriendly: true,
+      notes: 'Location-confidential per abuser-blind protocol; do not surface address.',
+    },
+    {
+      partnerOrgSlug: 'st-joseph-peace-mission',
+      name: 'St. Joseph Peace Mission for Children',
+      slug: 'st-joseph-peace-mission-main',
+      city: 'Owensboro',
+      state: 'KY',
+      capacity: 12,
+      currentOccupancy: 7,
+      acceptsMen: false,
+      acceptsWomen: false,
+      acceptsFamilies: true,
+      petFriendly: false,
+      sudFriendly: false,
+      notes: 'Licensed emergency shelter for children; intake handled by partner staff.',
+    },
+  ];
+
+  for (const candidate of shelterSeeds) {
+    const orgId = orgIdLookup(candidate.partnerOrgSlug);
+    if (!orgId) {
+      console.warn('[seed]   ! shelter skipped — missing partner org', candidate.partnerOrgSlug);
+      continue;
+    }
+    const [existing] = await db
+      .select({ slug: shelters.slug })
+      .from(shelters)
+      .where(eq(shelters.slug, candidate.slug))
+      .limit(1);
+    if (!existing) {
+      const { partnerOrgSlug: _drop, ...row } = candidate;
+      await db.insert(shelters).values({ ...row, partnerOrgId: orgId });
+      console.log('[seed]   + shelter', candidate.slug);
+    }
+  }
+  console.log(`[seed]   = ${shelterSeeds.length} shelters verified`);
 
   // ---- COAL-002: synthetic cross-org service events ----
   // Demonstrates the 'this person asked 3 ministries this week' view
