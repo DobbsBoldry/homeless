@@ -1,5 +1,6 @@
 import { MobileNav } from '@/components/app-shell/mobile-nav';
 import { navItemsForRole } from '@/components/app-shell/nav-config';
+import { PendingBanner } from '@/components/app-shell/pending-banner';
 import { Sidebar } from '@/components/app-shell/sidebar';
 import { Topbar } from '@/components/app-shell/topbar';
 import { requireUser } from '@/lib/auth';
@@ -22,6 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </aside>
       <div className="flex min-h-screen flex-col">
         <Topbar menuButton={<MobileNav items={items} brand={brand} />} />
+        {user.role === 'pending' ? <PendingBanner /> : null}
         <main id="main-content" tabIndex={-1} className="flex-1 bg-background">
           {children}
         </main>
