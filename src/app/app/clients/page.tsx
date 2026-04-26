@@ -1,6 +1,8 @@
 import { EmptyPage } from '@/components/app-shell/empty-page';
+import { requireRole } from '@/lib/auth';
 
-export default function ClientsPage() {
+export default async function ClientsPage() {
+  await requireRole(['caseworker', 'ed_coordinator', 'shelter_staff', 'admin']);
   return (
     <EmptyPage
       title="Clients"

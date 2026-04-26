@@ -1,7 +1,8 @@
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { eq } from 'drizzle-orm';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { db } from '@/db/client';
+import type { UserRole } from '@/db/schema/enums';
 import { type User, users } from '@/db/schema/users';
 
 /**
@@ -49,4 +50,17 @@ export async function requireUser(): Promise<User> {
 
   const [winner] = await db.select().from(users).where(eq(users.clerkUserId, userId)).limit(1);
   return winner;
+}
+
+/**
+ * Server-only: returns the current user only if their role is in `allowed`.
+ * Otherwise renders a 404 (don't leak which routes exist for which roles).
+ *
+ * Use as the FIRST line of any role-gated server component or server action.
+ * Sidebar visibility (navItemsForRole) is presentation only — server is authority.
+ */
+export async function requireRole(allowed: readonly UserRole[]): Promise<User> {
+  const user = await requireUser();
+  if (!allowed.includes(user.role)) notFound();
+  return user;
 }
