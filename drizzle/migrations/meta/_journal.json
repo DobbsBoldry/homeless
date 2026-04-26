@@ -127,6 +127,13 @@
       "when": 1777234082170,
       "tag": "0017_opposite_nitro",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1777234734701,
+      "tag": "0018_true_karma",
+      "breakpoints": true
     }
   ]
 }

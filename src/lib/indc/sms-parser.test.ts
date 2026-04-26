@@ -1,0 +1,55 @@
+import { describe, expect, it } from 'vitest';
+import { parseSmsCommand } from './sms-parser';
+
+describe('parseSmsCommand', () => {
+  it('treats bare BED as a request for any open bed', () => {
+    expect(parseSmsCommand('BED')).toEqual({ kind: 'bed', filter: { minFreeBeds: 1 } });
+  });
+
+  it('handles lowercase + leading whitespace', () => {
+    expect(parseSmsCommand('   bed family ')).toEqual({
+      kind: 'bed',
+      filter: { minFreeBeds: 1, population: 'families' },
+    });
+  });
+
+  it('stacks population + pet + sud modifiers', () => {
+    expect(parseSmsCommand('BED WOMEN PET SUD')).toEqual({
+      kind: 'bed',
+      filter: { minFreeBeds: 1, population: 'women', petFriendly: true, sudFriendly: true },
+    });
+  });
+
+  it('accepts BEDS and SHELTER as synonyms', () => {
+    expect(parseSmsCommand('BEDS').kind).toBe('bed');
+    expect(parseSmsCommand('SHELTER').kind).toBe('bed');
+  });
+
+  it('first population token wins when conflicting', () => {
+    expect(parseSmsCommand('BED MEN WOMEN')).toEqual({
+      kind: 'bed',
+      filter: { minFreeBeds: 1, population: 'men' },
+    });
+  });
+
+  it('ignores unknown modifier tokens but stays a BED command', () => {
+    const result = parseSmsCommand('BED ASAP PLEASE');
+    expect(result).toEqual({ kind: 'bed', filter: { minFreeBeds: 1 } });
+  });
+
+  it('recognizes STOP variants', () => {
+    expect(parseSmsCommand('STOP').kind).toBe('stop');
+    expect(parseSmsCommand('UNSUBSCRIBE').kind).toBe('stop');
+    expect(parseSmsCommand('cancel').kind).toBe('stop');
+  });
+
+  it('recognizes HELP variants', () => {
+    expect(parseSmsCommand('HELP').kind).toBe('help');
+    expect(parseSmsCommand('?').kind).toBe('help');
+  });
+
+  it('returns unknown for empty / unrecognized input', () => {
+    expect(parseSmsCommand('').kind).toBe('unknown');
+    expect(parseSmsCommand('hello there').kind).toBe('unknown');
+  });
+});

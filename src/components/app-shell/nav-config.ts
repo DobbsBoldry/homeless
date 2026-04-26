@@ -61,6 +61,11 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/app/coalition/beds/update',
     roles: ['shelter_staff', 'admin'],
   },
+  {
+    label: 'SMS bed-finder',
+    href: '/app/coalition/sms',
+    roles: ['admin', 'shelter_staff', 'caseworker', 'ed_coordinator'],
+  },
   { label: 'Settings', href: '/app/settings', roles: 'all' },
   { label: 'Admin · Users', href: '/app/admin/users', roles: ['admin'] },
 ];
