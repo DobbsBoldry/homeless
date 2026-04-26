@@ -46,6 +46,11 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['caseworker', 'shelter_staff', 'admin'],
   },
   {
+    label: 'Triage tier',
+    href: '/app/clients/triage',
+    roles: ['caseworker', 'shelter_staff', 'admin'],
+  },
+  {
     label: 'Outcomes',
     href: '/app/metrics',
     roles: ['attorney', 'admin'],
