@@ -141,6 +141,10 @@ export const smsConversationStateEnum = pgEnum('sms_conversation_state', [
 
 export type SmsConversationState = (typeof smsConversationStateEnum.enumValues)[number];
 
+export const triageTierEnum = pgEnum('triage_tier', ['high', 'medium', 'low']);
+
+export type TriageTierEnum = (typeof triageTierEnum.enumValues)[number];
+
 export const partnerServiceEventTypeEnum = pgEnum('partner_service_event_type', [
   'food_pantry',
   'shelter_intake',

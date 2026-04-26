@@ -94,6 +94,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Settings', href: '/app/settings', roles: 'all' },
   { label: 'Admin · Users', href: '/app/admin/users', roles: ['admin'] },
   { label: 'Admin · Audit log', href: '/app/admin/audit', roles: ['admin'] },
+  { label: 'Admin · Triage overrides', href: '/app/admin/triage-overrides', roles: ['admin'] },
 ];
 
 export function navItemsForRole(role: UserRole): NavItem[] {

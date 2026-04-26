@@ -1,7 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState, useTransition } from 'react';
+import { recordTriageOverrideAction } from '@/app/actions/triage';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { recommendTriageTier, type TriageInputs, type TriageTier } from '@/lib/cwt/triage';
 
 const TIER_BADGE: Record<TriageTier, string> = {
@@ -55,6 +58,31 @@ const blankInputs = (): TriageInputs => ({
 export function TriageTierTool() {
   const [inputs, setInputs] = useState<TriageInputs>(() => blankInputs());
   const result = useMemo(() => recommendTriageTier(inputs), [inputs]);
+  const [chosen, setChosen] = useState<TriageTier | null>(null);
+  const [reason, setReason] = useState('');
+  const [pending, startTransition] = useTransition();
+  const [recordError, setRecordError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<{ at: Date; isOverride: boolean } | null>(null);
+  const reasonId = useId();
+
+  const submit = (chosenTier: TriageTier) => {
+    setRecordError(null);
+    setChosen(chosenTier);
+    const isOverride = chosenTier !== result.tier;
+    if (isOverride && reason.trim().length === 0) {
+      setRecordError('Please write a brief reason for the override.');
+      return;
+    }
+    startTransition(async () => {
+      const r = await recordTriageOverrideAction(inputs, chosenTier, reason || null);
+      if (!r.ok) {
+        setRecordError(r.error);
+        return;
+      }
+      setSavedAt({ at: new Date(), isOverride: r.isOverride });
+      setReason('');
+    });
+  };
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
@@ -143,9 +171,60 @@ export function TriageTierTool() {
           <p className="font-medium">Rule-based v1.</p>
           <p className="mt-1 text-muted-foreground">
             Tier comes from a transparent additive score. Phase 2 replaces this with an ML model
-            trained on labeled outcomes from the pilot. Override the recommendation any time —
-            overrides themselves become training data.
+            trained on labeled outcomes from the pilot. Confirm or override below — both go into the
+            audit trail and become training data.
           </p>
+        </div>
+
+        <div className="space-y-3 rounded-md border border-border bg-card p-3 text-sm">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Record your decision
+          </p>
+          {savedAt ? (
+            <p className="text-emerald-700 dark:text-emerald-400">
+              {savedAt.isOverride ? 'Override' : 'Confirmation'} saved at{' '}
+              {new Intl.DateTimeFormat('en-US', { timeStyle: 'short' }).format(savedAt.at)}.
+            </p>
+          ) : null}
+          <div>
+            <Label htmlFor={reasonId} className="text-xs uppercase tracking-wide">
+              Reason (required when overriding)
+            </Label>
+            <Input
+              id={reasonId}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={280}
+              placeholder="e.g. recent eviction not in record yet"
+              disabled={pending}
+            />
+          </div>
+          {recordError ? <p className="text-xs text-destructive">{recordError}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={chosen === result.tier ? 'default' : 'outline'}
+              disabled={pending}
+              onClick={() => submit(result.tier)}
+            >
+              Confirm {TIER_LABEL[result.tier]}
+            </Button>
+            {(['high', 'medium', 'low'] as const)
+              .filter((t) => t !== result.tier)
+              .map((t) => (
+                <Button
+                  key={t}
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => submit(t)}
+                >
+                  Override → {TIER_LABEL[t]}
+                </Button>
+              ))}
+          </div>
         </div>
       </section>
     </div>

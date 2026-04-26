@@ -169,6 +169,13 @@
       "when": 1777240694967,
       "tag": "0023_curious_tarot",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1777247227040,
+      "tag": "0024_modern_hellcat",
+      "breakpoints": true
     }
   ]
 }
