@@ -4,20 +4,37 @@ AI-powered platform for the Daviess County, Kentucky coalition pilot to address 
 
 **Repo:** [github.com/DobbsBoldry/homeless](https://github.com/DobbsBoldry/homeless)
 
-**Status:** Pre-Sprint 1. Repo scaffolded, GitHub Issues seeded from `BACKLOG.md`. Application code begins with story FND-001.
+**Status:** Sprint 1 in progress (Phase 0 foundation). Application scaffolded and deployed to staging via Railway as stories land.
 
 **Sister docs repo:** the documentation site (Pilot Plan, Product Vision, Strategy) lives separately at `~/Documents/Claude/Projects/Homeless/` and is deployed to Railway.
 
 ## Quick start
 
 ```bash
-# After Sprint 1 ships, this section will read:
-# pnpm install
-# cp .env.example .env.local  # fill in keys
-# pnpm dev
+pnpm install
+cp .env.example .env.local       # fill in Supabase + Clerk keys (see comments)
+pnpm db:migrate                  # apply Drizzle migrations to your Supabase DB
+pnpm db:seed                     # idempotent — seeds 1 org + 5 users + 3 audit rows
+pnpm dev                         # http://localhost:3000
+
+# In a second terminal, for background jobs:
+pnpm inngest:dev                 # http://localhost:8288 (Inngest dev UI)
 ```
 
-For now, the only "code" here is the scaffolding to set up GitHub. See `scripts/` below.
+### Triggering Inngest events locally
+
+The Inngest dev server auto-discovers functions exposed at `/api/inngest`.
+With both `pnpm dev` and `pnpm inngest:dev` running, events fired from the
+app (e.g. by the Clerk webhook on `user.created`) will appear in the dev UI
+and run their handlers locally. To send a one-off test event:
+
+```ts
+import { inngest } from '@/inngest/client';
+await inngest.send({ name: 'user.signed_up', data: { clerkUserId: 'test_123' } });
+```
+
+The scheduled `daily-health-ping` (cron `0 9 * * *` UTC) can be invoked
+on-demand from the dev UI without waiting for the cron.
 
 ## Set up GitHub (one time)
 

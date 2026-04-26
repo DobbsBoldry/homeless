@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { Webhook } from 'svix';
 import { db } from '@/db/client';
 import { users } from '@/db/schema/users';
+import { inngest } from '@/inngest/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,6 +72,13 @@ export async function POST(req: Request) {
           target: users.clerkUserId,
           set: { email, firstName: u.first_name, lastName: u.last_name, updatedAt: new Date() },
         });
+
+      if (event.type === 'user.created') {
+        await inngest.send({
+          name: 'user.signed_up',
+          data: { clerkUserId: u.id, email, firstName: u.first_name, lastName: u.last_name },
+        });
+      }
     } else if (event.type === 'user.deleted') {
       await db.delete(users).where(eq(users.clerkUserId, event.data.id));
     }
