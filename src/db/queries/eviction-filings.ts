@@ -5,9 +5,11 @@ import type {
   EvictionCauseType,
   EvictionFilingSource,
   EvictionFilingStatus,
+  UserRole,
 } from '@/db/schema/enums';
 import { evictionFilingRiskScores } from '@/db/schema/eviction-filing-risk-scores';
 import { type EvictionFiling, evictionFilings } from '@/db/schema/eviction-filings';
+import { redactAddress, viewerCanSeeDvAddresses } from '@/lib/dtrs/dv-blind';
 import type { RankedDocketRow } from '@/lib/eviction/docket-ranking';
 
 /**
@@ -28,6 +30,34 @@ export async function listRecentFilings(
 export async function getFilingById(id: string): Promise<EvictionFiling | null> {
   const rows = await db.select().from(evictionFilings).where(eq(evictionFilings.id, id)).limit(1);
   return rows[0] ?? null;
+}
+
+/**
+ * Viewer-aware variants — DTRS-004 redaction baked into the query
+ * layer (issue #268). Every consumer of these helpers gets a row
+ * whose address fields are either real or `LOCATION_REDACTED`,
+ * decided server-side based on the caller's role and the row's
+ * `dv_flag`. New surfaces that fetch through these are safe by
+ * construction. The raw helpers above remain available for
+ * audit / admin use cases that need the un-redacted row.
+ */
+export async function getFilingByIdForViewer(
+  id: string,
+  viewerRole: UserRole,
+): Promise<EvictionFiling | null> {
+  const row = await getFilingById(id);
+  if (!row) return null;
+  const redact = row.dvFlag && !viewerCanSeeDvAddresses(viewerRole);
+  return redactAddress(row, redact);
+}
+
+export async function listRecentFilingsForViewer(
+  opts: { limit?: number; source?: EvictionFilingSource },
+  viewerRole: UserRole,
+): Promise<EvictionFiling[]> {
+  const rows = await listRecentFilings(opts);
+  if (viewerCanSeeDvAddresses(viewerRole)) return rows;
+  return rows.map((f) => (f.dvFlag ? redactAddress(f, true) : f));
 }
 
 /**
@@ -91,4 +121,19 @@ export async function listRankedDocket(
       desc(evictionFilings.filedAt),
     )
     .limit(limit);
+}
+
+/**
+ * Viewer-aware ranked docket. Mirrors `listRankedDocket` but redacts
+ * the embedded filing address for DV-flagged rows when the viewer
+ * lacks the permission. Same shape as the underlying type so the UI
+ * doesn't have to branch.
+ */
+export async function listRankedDocketForViewer(
+  opts: ListRankedDocketOpts,
+  viewerRole: UserRole,
+): Promise<RankedDocketRow[]> {
+  const rows = await listRankedDocket(opts);
+  if (viewerCanSeeDvAddresses(viewerRole)) return rows;
+  return rows.map((r) => (r.filing.dvFlag ? { ...r, filing: redactAddress(r.filing, true) } : r));
 }

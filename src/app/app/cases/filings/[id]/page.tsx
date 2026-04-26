@@ -5,11 +5,11 @@ import { CaseOutcomePanel } from '@/components/eviction/case-outcome-panel';
 import { FilingDetail } from '@/components/eviction/filing-detail';
 import { RentalAssistancePanel } from '@/components/eviction/rental-assistance-panel';
 import { listCaseOutcomes } from '@/db/queries/eviction-case-outcomes';
-import { getFilingById } from '@/db/queries/eviction-filings';
+import { getFilingByIdForViewer } from '@/db/queries/eviction-filings';
 import { matchAssistancePrograms } from '@/db/queries/rental-assistance';
 import { requireRole, userIsKlaAttorney } from '@/lib/auth';
 import { recordDataAccess } from '@/lib/dtrs/data-access';
-import { redactAddress, viewerCanSeeDvAddresses } from '@/lib/dtrs/dv-blind';
+import { viewerCanSeeDvAddresses } from '@/lib/dtrs/dv-blind';
 import { getLatestScore } from '@/lib/eviction/risk-score';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -21,7 +21,11 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
   // Cheap shape check before hitting the DB — pg would 22P02 on a malformed UUID
   if (!UUID_RE.test(id)) notFound();
 
-  const filing = await getFilingById(id);
+  // DV abuser-blind: redaction is baked into the query (#268). The
+  // returned row has address fields nulled / replaced with
+  // LOCATION_REDACTED for non-permitted viewers, no per-page work
+  // required.
+  const filing = await getFilingByIdForViewer(id, me.role);
   if (!filing) notFound();
 
   const [score, outcomes, canRecord, assistancePrograms] = await Promise.all([
@@ -31,12 +35,6 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
     matchAssistancePrograms(filing),
   ]);
 
-  // DV abuser-blind: filing.dv_flag is the per-record marker; the viewer
-  // role is the second axis. Attorneys + caseworkers see the address;
-  // everyone else sees LOCATION_REDACTED.
-  const showAddress = !filing.dvFlag || viewerCanSeeDvAddresses(me.role);
-  const safeFiling = redactAddress(filing, !showAddress);
-
   // DTRS-003: log this read. We log AFTER the row is fetched so the
   // log entry corresponds to a successful access.
   await recordDataAccess({
@@ -44,7 +42,10 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
     resourceType: 'eviction_filings',
     resourceId: filing.id,
     purpose: 'attorney_case_detail',
-    metadata: { dvFlag: filing.dvFlag, addressVisible: showAddress },
+    metadata: {
+      dvFlag: filing.dvFlag,
+      addressVisible: !filing.dvFlag || viewerCanSeeDvAddresses(me.role),
+    },
   });
 
   return (
@@ -54,7 +55,7 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
           ← Back to filings
         </Link>
       </div>
-      <FilingDetail filing={safeFiling} score={score} />
+      <FilingDetail filing={filing} score={score} />
       <div className="rounded-md border border-border bg-card p-4 text-sm">
         <p className="mb-2 font-medium">Response packet</p>
         <p className="mb-3 text-xs text-muted-foreground">

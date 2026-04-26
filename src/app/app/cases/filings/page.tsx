@@ -2,7 +2,7 @@ import { CaseFilingsRoles } from '@/components/eviction/case-filings-roles';
 import { FilingsTable } from '@/components/eviction/filings-table';
 import { SourceFilter } from '@/components/eviction/source-filter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { listRecentFilings } from '@/db/queries/eviction-filings';
+import { listRecentFilingsForViewer } from '@/db/queries/eviction-filings';
 import type { EvictionFilingSource } from '@/db/schema/enums';
 import { requireRole } from '@/lib/auth';
 
@@ -13,11 +13,11 @@ export default async function FilingsPage({
 }: {
   searchParams: Promise<{ source?: string }>;
 }) {
-  await requireRole(CaseFilingsRoles);
+  const me = await requireRole(CaseFilingsRoles);
 
   const params = await searchParams;
   const source = ALLOWED_SOURCES.find((s) => s === params.source);
-  const filings = await listRecentFilings({ limit: 50, source });
+  const filings = await listRecentFilingsForViewer({ limit: 50, source }, me.role);
 
   return (
     <div className="mx-auto max-w-6xl p-6 space-y-4">
