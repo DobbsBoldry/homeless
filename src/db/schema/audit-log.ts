@@ -5,6 +5,11 @@ import { users } from './users';
  * Immutable record of significant system actions. Append-only — never UPDATE
  * or DELETE rows here. Use `logAuditEvent` from src/lib/audit.ts to write.
  *
+ * Append-only is enforced at the DB level by triggers in migration
+ * 0008_audit_log_append_only — `db.delete(auditLog)` and
+ * `db.update(auditLog).set(...)` will raise `feature_not_supported`.
+ * The application code is the convention; the trigger is the guarantee.
+ *
  * Designed to outlive table renames: target_table + target_id are strings,
  * not foreign keys (polymorphic).
  */
