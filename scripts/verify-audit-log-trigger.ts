@@ -77,6 +77,8 @@ async function main() {
   allPassed =
     (await expectThrows(() => db.delete(auditLog).where(sql`id = ${inserted.id}`), 'DELETE')) &&
     allPassed;
+  allPassed =
+    (await expectThrows(() => db.execute(sql`TRUNCATE audit_log`), 'TRUNCATE')) && allPassed;
 
   // Clean up the test row by temporarily disabling triggers (table owner only).
   await db.execute(sql`ALTER TABLE audit_log DISABLE TRIGGER audit_log_no_delete`);
