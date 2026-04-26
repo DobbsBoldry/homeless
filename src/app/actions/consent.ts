@@ -18,16 +18,43 @@ const CONSENT_RATE_LIMIT = 6; // 6 ops/min per subject is plenty for legit use.
 export type ConsentResult = { ok: true } | { ok: false; error: string };
 
 /**
- * Phase-1 stub: anyone with the URL can revoke or re-grant. Real flow
- * needs a one-time-link / QR auth gate (caseworker-distributed). Logged
- * in audit_log without an actor since there is no signed-in user here.
+ * Verify the public consent surface is allowed to mutate. Either:
+ *   - a valid access token bound to the same synthetic_person_ref, OR
+ *   - INDC_CONSENT_OPEN_MODE=1 (dev/demo escape hatch)
+ *
+ * Returns null on success, or an error string. Mirrors the gate on
+ * grantConsentAction so the GRANT and EXISTING-CONSENT flows have
+ * identical security properties.
+ */
+async function checkPublicConsentAuth(
+  syntheticPersonRef: string,
+  accessToken?: string | null,
+): Promise<string | null> {
+  if (process.env.INDC_CONSENT_OPEN_MODE === '1') return null;
+  if (!accessToken) return 'Missing access link. Ask staff for a fresh link.';
+  const redeemed = await redeemConsentAccessToken(accessToken);
+  if (!redeemed || redeemed.syntheticPersonRef !== syntheticPersonRef) {
+    return 'This link is no longer valid. Ask staff for a fresh one.';
+  }
+  return null;
+}
+
+/**
+ * Public-surface server action: revoke an existing person/partner
+ * consent. Auth: the same access-token gate as grantConsentAction.
+ * Logged in audit_log without an actor since there is no signed-in
+ * user on this surface.
  */
 export async function revokeConsentAction(
   syntheticPersonRef: string,
   consentId: string,
+  accessToken?: string | null,
 ): Promise<ConsentResult> {
   if (!isValidSyntheticPersonRef(syntheticPersonRef))
     return { ok: false, error: 'Invalid identifier.' };
+
+  const authError = await checkPublicConsentAuth(syntheticPersonRef, accessToken);
+  if (authError) return { ok: false, error: authError };
 
   const limit = rateLimit(
     `revoke:${syntheticPersonRef}`,
@@ -198,9 +225,13 @@ export async function revokeVersionedConsentAction(
 export async function regrantConsentAction(
   syntheticPersonRef: string,
   consentId: string,
+  accessToken?: string | null,
 ): Promise<ConsentResult> {
   if (!isValidSyntheticPersonRef(syntheticPersonRef))
     return { ok: false, error: 'Invalid identifier.' };
+
+  const authError = await checkPublicConsentAuth(syntheticPersonRef, accessToken);
+  if (authError) return { ok: false, error: authError };
 
   const limit = rateLimit(
     `regrant:${syntheticPersonRef}`,

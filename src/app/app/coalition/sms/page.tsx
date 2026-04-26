@@ -28,12 +28,13 @@ export default async function SmsPlaygroundPage() {
 
       <Card className="border-amber-500/40 bg-amber-500/5">
         <CardContent className="text-xs">
-          <p className="font-medium">Phase-1 stub.</p>
+          <p className="font-medium">Pre-launch checklist.</p>
           <p className="mt-1 text-muted-foreground">
-            Replies use seeded shelter data. The webhook is wired up but does nothing in production
-            until <code className="font-mono">TWILIO_AUTH_TOKEN</code> is set and a Twilio number is
-            pointed at the route. Enable this for real client traffic only after the HIPAA-eligible
-            Twilio account migration (ESUC-004).
+            Webhook is built and the pipeline runs against live shelter data. To accept real client
+            traffic: set <code className="font-mono">TWILIO_AUTH_TOKEN</code>, point a Twilio number
+            at <code className="font-mono">/api/webhooks/twilio/sms</code>, and complete the
+            HIPAA-eligible Twilio account migration (ESUC-004) before any real callers are invited.
+            Until then, this playground is the only entry point.
           </p>
         </CardContent>
       </Card>

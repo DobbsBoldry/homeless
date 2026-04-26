@@ -15,9 +15,12 @@ const fmtDate = (d: Date | null) =>
 export function ConsentRow({
   syntheticPersonRef,
   summary,
+  accessToken,
 }: {
   syntheticPersonRef: string;
   summary: PersonPartnerSummary;
+  /** Forwarded to the server action — the action is the auth boundary. */
+  accessToken?: string | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +31,7 @@ export function ConsentRow({
     if (!summary.consentId) return;
     startTransition(async () => {
       const action = isRevoked ? regrantConsentAction : revokeConsentAction;
-      const r = await action(syntheticPersonRef, summary.consentId!);
+      const r = await action(syntheticPersonRef, summary.consentId!, accessToken ?? null);
       if (!r.ok) setError(r.error);
     });
   };
