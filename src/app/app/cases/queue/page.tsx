@@ -41,6 +41,7 @@ export default async function DocketQueuePage({
   const search = params.search?.trim() || undefined;
 
   const values: DocketFilterValues = { search, status, cause, minScore };
+  const filtersActive = Boolean(search || status || cause || typeof minScore === 'number');
 
   const rows = await listRankedDocket({ limit: 50, status, cause, minScore, search });
 
@@ -58,14 +59,23 @@ export default async function DocketQueuePage({
       {rows.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>No filings match these filters</CardTitle>
-            <CardDescription>
-              No filings ingested yet — see{' '}
-              <Link href="/app/cases/filings" className="underline hover:text-primary">
-                Filings
-              </Link>{' '}
-              page, or relax the filter criteria above.
-            </CardDescription>
+            {filtersActive ? (
+              <>
+                <CardTitle>No filings match these filters</CardTitle>
+                <CardDescription>Relax the filter criteria above and try again.</CardDescription>
+              </>
+            ) : (
+              <>
+                <CardTitle>No filings ingested yet</CardTitle>
+                <CardDescription>
+                  See the{' '}
+                  <Link href="/app/cases/filings" className="underline hover:text-primary">
+                    Filings page
+                  </Link>{' '}
+                  to load synthetic data, or wait for the daily scraper to populate.
+                </CardDescription>
+              </>
+            )}
           </CardHeader>
           <CardContent />
         </Card>

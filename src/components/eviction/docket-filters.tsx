@@ -4,6 +4,14 @@ import type { EvictionCauseType, EvictionFilingStatus } from '@/db/schema/enums'
 const STATUSES: EvictionFilingStatus[] = ['filed', 'served', 'judgment', 'dismissed', 'sealed'];
 const CAUSES: EvictionCauseType[] = ['non_payment', 'lease_violation', 'holdover', 'other'];
 
+const statusLabel: Record<EvictionFilingStatus, string> = {
+  filed: 'Filed',
+  served: 'Served',
+  judgment: 'Judgment',
+  dismissed: 'Dismissed',
+  sealed: 'Sealed',
+};
+
 const causeLabel: Record<EvictionCauseType, string> = {
   non_payment: 'Non-payment',
   lease_violation: 'Lease violation',
@@ -51,7 +59,7 @@ export function DocketFilters({ values }: { values: DocketFilterValues }) {
           <option value="">Any</option>
           {STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {statusLabel[s]}
             </option>
           ))}
         </select>
