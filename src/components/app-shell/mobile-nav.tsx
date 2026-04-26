@@ -1,55 +1,48 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import type { NavItem } from './nav-config';
 import { Sidebar } from './sidebar';
 
+/**
+ * Mobile-only navigation drawer. Built on shadcn Sheet (Base UI Dialog) so
+ * focus trap, focus restore, ESC-close, click-outside-close, and `inert`
+ * siblings are handled by the primitive — no hand-rolled keyboard plumbing.
+ *
+ * Auto-closes on route change because each nav <Link> click triggers a
+ * client-side navigation, which Base UI Dialog ignores; we use `controlled`
+ * state and clear it from the parent of each link via the global onClick.
+ */
 export function MobileNav({ items, brand }: { items: NavItem[]; brand: string }) {
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
-
   return (
-    <>
-      <Button
-        variant="ghost"
-        size="sm"
-        aria-label="Open navigation"
-        aria-expanded={open}
-        aria-controls="mobile-nav-drawer"
-        onClick={() => setOpen(true)}
-        className="md:hidden"
-      >
-        ☰
-      </Button>
-
-      {open && (
-        <div
-          id="mobile-nav-drawer"
-          className="fixed inset-0 z-40 md:hidden"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Primary navigation"
-        >
-          <button
-            type="button"
-            aria-label="Close navigation"
-            className="absolute inset-0 h-full w-full bg-black/40"
-            onClick={() => setOpen(false)}
-          />
-          <div className="relative h-full w-72 max-w-[80vw] bg-sidebar shadow-xl">
-            <Sidebar items={items} brand={brand} />
-          </div>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger
+        render={
+          <Button variant="ghost" size="sm" aria-label="Open navigation" className="md:hidden">
+            ☰
+          </Button>
+        }
+      />
+      <SheetContent side="left" className="w-72 p-0">
+        <SheetHeader className="sr-only">
+          <SheetTitle>Primary navigation</SheetTitle>
+          <SheetDescription>Choose a section to navigate to.</SheetDescription>
+        </SheetHeader>
+        <div onClickCapture={() => setOpen(false)}>
+          <Sidebar items={items} brand={brand} />
         </div>
-      )}
-    </>
+      </SheetContent>
+    </Sheet>
   );
 }
