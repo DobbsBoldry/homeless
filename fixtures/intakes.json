@@ -1,0 +1,832 @@
+{
+  "generated_at": "2026-04-26T01:17:39.076Z",
+  "seed": 42,
+  "count": 10,
+  "intakes": [
+    {
+      "intake_id": "SYN-INT-481203",
+      "presenting_issue": "eviction filing",
+      "urgency": "within_7_days",
+      "client_pseudonym": "Marisol Synthwell",
+      "household_composition": "single parent with two school-age children",
+      "started_at": "2026-04-14T09:12:00-05:00",
+      "turns": [
+        {
+          "role": "caseworker",
+          "text": "Hi Marisol, thanks for coming in this morning. Before we get into anything, can I get you some water or coffee?",
+          "offset_seconds": 0
+        },
+        {
+          "role": "client",
+          "text": "Water's fine. I'm sorry, I haven't really slept. I got the papers Friday.",
+          "offset_seconds": 11
+        },
+        {
+          "role": "caseworker",
+          "text": "No need to apologize. Take your time. Can you tell me what the papers said?",
+          "offset_seconds": 24
+        },
+        {
+          "role": "client",
+          "text": "It's a forcible detainer. Court date is next Tuesday. I'm three months behind. My hours got cut at the warehouse in February and I just couldn't catch up.",
+          "offset_seconds": 33
+        },
+        {
+          "role": "caseworker",
+          "text": "Okay, that's a tight timeline but it's workable. Who's in the household with you?",
+          "offset_seconds": 52
+        },
+        {
+          "role": "client",
+          "text": "My two kids. My son's in third grade, my daughter just turned six. Their dad isn't in the picture.",
+          "offset_seconds": 61
+        },
+        {
+          "role": "caseworker",
+          "text": "Got it. And the apartment — do you want to try to stay there, or are you thinking it's time to move regardless?",
+          "offset_seconds": 74
+        },
+        {
+          "role": "client",
+          "text": "I want to stay. The kids are settled. I just need someone to help me talk to the landlord. He won't return my calls anymore.",
+          "offset_seconds": 86
+        },
+        {
+          "role": "caseworker",
+          "text": "That makes sense. We have a tenant attorney who comes in on Wednesdays — I want to get you on her calendar before your court date. Have you ever applied for emergency rental assistance?",
+          "offset_seconds": 102
+        },
+        {
+          "role": "client",
+          "text": "I tried in January. Got denied because I didn't have one of the forms. I never figured out which one.",
+          "offset_seconds": 120
+        },
+        {
+          "role": "caseworker",
+          "text": "We can re-do that application together today. The denial doesn't bar you from reapplying. How much is the back rent?",
+          "offset_seconds": 134
+        },
+        {
+          "role": "client",
+          "text": "It's around twenty-two hundred. Plus late fees, but the lease says those cap out.",
+          "offset_seconds": 150
+        },
+        {
+          "role": "caseworker",
+          "text": "Okay. That's within range for the program. Do the kids know what's going on?",
+          "offset_seconds": 162
+        },
+        {
+          "role": "client",
+          "text": "My son knows something's wrong. I haven't told him details. I just want to keep them in their school.",
+          "offset_seconds": 172
+        },
+        {
+          "role": "caseworker",
+          "text": "We'll do everything we can. Let's start the paperwork and I'll call the attorney's office while you fill it out.",
+          "offset_seconds": 186
+        }
+      ]
+    },
+    {
+      "intake_id": "SYN-INT-552914",
+      "presenting_issue": "ED super-utilizer",
+      "urgency": "same_night",
+      "client_pseudonym": "Dwight Fakeman",
+      "household_composition": "single adult",
+      "started_at": "2026-04-22T16:45:00-05:00",
+      "turns": [
+        {
+          "role": "caseworker",
+          "text": "Mr. Fakeman? I'm Reina, one of the caseworkers here. The hospital social worker called and said you'd be coming over.",
+          "offset_seconds": 0
+        },
+        {
+          "role": "client",
+          "text": "Yeah. They discharged me about an hour ago. I walked.",
+          "offset_seconds": 9
+        },
+        {
+          "role": "caseworker",
+          "text": "That's a hike. How are you feeling right now?",
+          "offset_seconds": 17
+        },
+        {
+          "role": "client",
+          "text": "Tired. My legs are swollen up again. They gave me the water pills but I can't take them if I don't have a bathroom.",
+          "offset_seconds": 24
+        },
+        {
+          "role": "caseworker",
+          "text": "That's a real problem and I hear you. Where have you been staying the last few weeks?",
+          "offset_seconds": 40
+        },
+        {
+          "role": "client",
+          "text": "The encampment by the rail yard, mostly. Sometimes the bus station when it rains. I'm not gonna lie, I've been to the ER six, seven times this year.",
+          "offset_seconds": 51
+        },
+        {
+          "role": "caseworker",
+          "text": "You don't have to justify that to me. Bodies break down when there's no safe place to rest. Are you on any medications besides the diuretic?",
+          "offset_seconds": 68
+        },
+        {
+          "role": "client",
+          "text": "Heart stuff. Blood thinner. There's an inhaler too but I lost it.",
+          "offset_seconds": 86
+        },
+        {
+          "role": "caseworker",
+          "text": "Okay. Tonight my priority is getting you a bed where you can elevate your legs and take your meds on schedule. We have a medical respite partnership — six beds, and I think one's open.",
+          "offset_seconds": 96
+        },
+        {
+          "role": "client",
+          "text": "I've heard about that place. They make you do groups?",
+          "offset_seconds": 115
+        },
+        {
+          "role": "caseworker",
+          "text": "There's a daily check-in with the nurse, but no group therapy requirement. It's medically focused.",
+          "offset_seconds": 124
+        },
+        {
+          "role": "client",
+          "text": "Alright. I'll try it. I just don't want to end up back in the ER tomorrow.",
+          "offset_seconds": 138
+        },
+        {
+          "role": "caseworker",
+          "text": "That's exactly what we're trying to prevent. Let me make the call. While I do, can you write down or tell me the medications you remember?",
+          "offset_seconds": 150
+        },
+        {
+          "role": "client",
+          "text": "I've got the discharge paper in my bag. It's all on there.",
+          "offset_seconds": 165
+        }
+      ]
+    },
+    {
+      "intake_id": "SYN-INT-307188",
+      "presenting_issue": "domestic violence",
+      "urgency": "same_night",
+      "client_pseudonym": "Janelle Dummond",
+      "household_composition": "adult with one toddler",
+      "started_at": "2026-04-19T20:08:00-05:00",
+      "turns": [
+        {
+          "role": "caseworker",
+          "text": "Janelle, you're safe here. The doors are locked from the outside. Take whatever time you need.",
+          "offset_seconds": 0
+        },
+        {
+          "role": "client",
+          "text": "He doesn't know I left. I told him I was going to my sister's. My sister doesn't even live here anymore.",
+          "offset_seconds": 10
+        },
+        {
+          "role": "caseworker",
+          "text": "Okay. Is the little one with you?",
+          "offset_seconds": 24
+        },
+        {
+          "role": "client",
+          "text": "She's right here. She's two. She slept through most of the drive.",
+          "offset_seconds": 30
+        },
+        {
+          "role": "caseworker",
+          "text": "She's beautiful. Are either of you hurt right now, anything that needs medical attention?",
+          "offset_seconds": 40
+        },
+        {
+          "role": "client",
+          "text": "I'm okay. He grabbed my arm but it's just bruised. He didn't hit her. He's never hit her.",
+          "offset_seconds": 50
+        },
+        {
+          "role": "caseworker",
+          "text": "I'm glad she wasn't hurt, and I'm sorry about your arm. Have you been to a DV shelter before, or is this your first time reaching out?",
+          "offset_seconds": 63
+        },
+        {
+          "role": "client",
+          "text": "First time. I called the hotline last year but I hung up. I wasn't ready.",
+          "offset_seconds": 78
+        },
+        {
+          "role": "caseworker",
+          "text": "Reaching out is hard, and you did it tonight. That matters. Our DV partner has a confidential location — I can have someone meet us in about twenty minutes for transport. Is that okay?",
+          "offset_seconds": 89
+        },
+        {
+          "role": "client",
+          "text": "Yeah. Yes. Is there a way he can find out where it is?",
+          "offset_seconds": 108
+        },
+        {
+          "role": "caseworker",
+          "text": "The address isn't public. Your file here will be flagged confidential — even within our coalition, only the DV advocate sees it. Your name won't show in the regular system.",
+          "offset_seconds": 118
+        },
+        {
+          "role": "client",
+          "text": "Okay. Thank you. I have her diaper bag and my phone. That's it.",
+          "offset_seconds": 135
+        },
+        {
+          "role": "caseworker",
+          "text": "That's enough for tonight. They'll have clothes, formula, anything she needs. Let me start the warm handoff.",
+          "offset_seconds": 146
+        }
+      ]
+    },
+    {
+      "intake_id": "SYN-INT-619472",
+      "presenting_issue": "youth aging out of foster care",
+      "urgency": "within_7_days",
+      "client_pseudonym": "Trey Placholder",
+      "household_composition": "single young adult",
+      "started_at": "2026-04-08T13:30:00-05:00",
+      "turns": [
+        {
+          "role": "caseworker",
+          "text": "Hey Trey, come on in. Your worker from the independent living program said you might stop by.",
+          "offset_seconds": 0
+        },
+        {
+          "role": "client",
+          "text": "Yeah she said y'all do housing stuff. My placement ends on the thirtieth.",
+          "offset_seconds": 8
+        },
+        {
+          "role": "caseworker",
+          "text": "Right, your eighteenth birthday. How are you feeling about it?",
+          "offset_seconds": 17
+        },
+        {
+          "role": "client",
+          "text": "I don't know. Kinda ready to be done with the system. But also like, where am I supposed to go?",
+          "offset_seconds": 24
+        },
+        {
+          "role": "caseworker",
+          "text": "That's the right question to be asking, and it's the one we can actually work on. Are you working or in school?",
+          "offset_seconds": 36
+        },
+        {
+          "role": "client",
+          "text": "I work part-time at the car wash. I was gonna start at the community college in the fall but I haven't done the financial aid yet.",
+          "offset_seconds": 48
+        },
+        {
+          "role": "caseworker",
+          "text": "Okay. Good news — there's a transitional housing program specifically for former foster youth, up to age 21. Bedroom of your own, you pay 30% of income for rent, case management is required but light.",
+          "offset_seconds": 63
+        },
+        {
+          "role": "client",
+          "text": "How long is the wait?",
+          "offset_seconds": 82
+        },
+        {
+          "role": "caseworker",
+          "text": "For aging-out youth there's a priority track. Usually three to ten days if you have your documents ready. Do you have your ID, social security card, birth certificate?",
+          "offset_seconds": 89
+        },
+        {
+          "role": "client",
+          "text": "I have my ID and my social. The birth certificate I'm not sure. My worker might have it.",
+          "offset_seconds": 105
+        },
+        {
+          "role": "caseworker",
+          "text": "We can request a copy today, takes about 48 hours. While we wait on that, let's get the housing application started. Any pets, any partner who'd be moving in with you?",
+          "offset_seconds": 118
+        },
+        {
+          "role": "client",
+          "text": "Nah. Just me.",
+          "offset_seconds": 135
+        },
+        {
+          "role": "caseworker",
+          "text": "Easy. And just so I know what you want — is staying in the area important, or are you open to other towns in the network?",
+          "offset_seconds": 141
+        },
+        {
+          "role": "client",
+          "text": "I'd rather stay close. My little brother's still in care here and I want to be able to see him.",
+          "offset_seconds": 156
+        },
+        {
+          "role": "caseworker",
+          "text": "Got it. We'll prioritize local. Let's pull up the application.",
+          "offset_seconds": 170
+        }
+      ]
+    },
+    {
+      "intake_id": "SYN-INT-744029",
+      "presenting_issue": "working poor cost-burdened",
+      "urgency": "exploring",
+      "client_pseudonym": "Carla Mockton",
+      "household_composition": "two working adults plus teenage daughter",
+      "started_at": "2026-04-02T11:15:00-06:00",
+      "turns": [
+        {
+          "role": "caseworker",
+          "text": "Hi Carla, thanks for making the appointment. I understand from your intake form you're not in a crisis right now but you wanted to talk through some options?",
+          "offset_seconds": 0
+        },
+        {
+          "role": "client",
+          "text": "Right. We're not behind on anything. But the rent went up two hundred dollars on the renewal and I just don't see how we keep doing this.",
+          "offset_seconds": 13
+        },
+        {
+          "role": "caseworker",
+          "text": "That's a really common situation and I'm glad you came in before things got tight. Tell me about the household.",
+          "offset_seconds": 28
+        },
+        {
+          "role": "client",
+          "text": "It's me, my husband, and our daughter. She's fifteen. He drives a route for a beverage company, I'm a CNA at the nursing home off the parkway.",
+          "offset_seconds": 41
+        },
+        {
+          "role": "caseworker",
+          "text": "Two solid jobs. What does the rent look like now after the increase?",
+          "offset_seconds": 58
+        },
+        {
+          "role": "client",
+          "text": "Eighteen-fifty for a two bedroom. With utilities we're at like twenty-one hundred a month. We bring home about thirty-six hundred between us.",
+          "offset_seconds": 69
+        },
+        {
+          "role": "caseworker",
+          "text": "So you're at roughly 58% of take-home on housing. That's well past cost-burdened. Is your current building privately owned or part of a larger management company?",
+          "offset_seconds": 86
+        },
+        {
+          "role": "client",
+          "text": "Big company. They own a bunch of complexes around here.",
+          "offset_seconds": 103
+        },
+        {
+          "role": "caseworker",
+          "text": "Got it. Have you ever applied for a housing choice voucher or looked at the LIHTC tax-credit properties?",
+          "offset_seconds": 112
+        },
+        {
+          "role": "client",
+          "text": "The voucher list I heard is closed. Tax credit, no, I don't really know what that is.",
+          "offset_seconds": 126
+        },
+        {
+          "role": "caseworker",
+          "text": "Voucher list is closed for general applicants right now, but there are tax-credit properties where rent is capped based on income — no waitlist at a couple of them. With your earnings you'd likely qualify and the rent on a two-bedroom would be around eleven to twelve hundred.",
+          "offset_seconds": 140
+        },
+        {
+          "role": "client",
+          "text": "That would change everything. What's the catch?",
+          "offset_seconds": 162
+        },
+        {
+          "role": "caseworker",
+          "text": "Honest answer — the units go fast when they open up, the application process is paperwork-heavy, and not all the buildings are in neighborhoods people want. But some are fine. Want me to pull up which ones have openings or short waits this month?",
+          "offset_seconds": 172
+        },
+        {
+          "role": "client",
+          "text": "Yes, please. And can my daughter stay in her school if we move?",
+          "offset_seconds": 192
+        },
+        {
+          "role": "caseworker",
+          "text": "Depends on the district line, but the school system has a transfer process for families relocating mid-year. We can map the addresses against her school zone before you apply anywhere.",
+          "offset_seconds": 204
+        }
+      ]
+    },
+    {
+      "intake_id": "SYN-INT-892013",
+      "presenting_issue": "justice-involved re-entering",
+      "urgency": "within_7_days",
+      "client_pseudonym": "Marcus Stubbs",
+      "household_composition": "single adult",
+      "started_at": "2026-04-16T10:00:00-05:00",
+      "turns": [
+        {
+          "role": "caseworker",
+          "text": "Marcus, welcome. I see your re-entry coordinator referred you. When's your release date?",
+          "offset_seconds": 0
+        },
+        {
+          "role": "client",
+          "text": "Next Thursday. They let me come over today on a pass for housing planning.",
+          "offset_seconds": 8
+        },
+        {
+          "role": "caseworker",
+          "text": "Smart to start now. How long have you been in?",
+          "offset_seconds": 18
+        },
+        {
+          "role": "client",
+          "text": "Almost four years this stretch. Before that I was out for about eighteen months.",
+          "offset_seconds": 25
+        },
+        {
+          "role": "caseworker",
+          "text": "Okay. And before incarceration, where were you living?",
+          "offset_seconds": 36
+        },
+        {
+          "role": "client",
+          "text": "With my mom. She passed in 2024. House went to my sister and her husband and they've made it clear there's no room.",
+          "offset_seconds": 44
+        },
+        {
+          "role": "caseworker",
+          "text": "I'm sorry about your mom. That's a lot to come home to. What's the offense on your record, just so I know what programs you're eligible for?",
+          "offset_seconds": 60
+        },
+        {
+          "role": "client",
+          "text": "It's a drug charge. Possession with intent. No violence on my record, no sex offense.",
+          "offset_seconds": 76
+        },
+        {
+          "role": "caseworker",
+          "text": "That actually opens up most of our options. The hardest doors are closed for violent and sex offenses; you're not in either category. Are you on parole or probation after release?",
+          "offset_seconds": 89
+        },
+        {
+          "role": "client",
+          "text": "Parole. Two years. I have to report within 24 hours and I need an approved address.",
+          "offset_seconds": 106
+        },
+        {
+          "role": "caseworker",
+          "text": "Right, that's the piece we have to nail down before Thursday. We have a re-entry transitional housing program — six month stay, sober environment, employment support. They work directly with parole to approve the address.",
+          "offset_seconds": 119
+        },
+        {
+          "role": "client",
+          "text": "Six months sober environment, like no drinking either?",
+          "offset_seconds": 138
+        },
+        {
+          "role": "caseworker",
+          "text": "Correct. Random testing. Is that going to work for you, honestly?",
+          "offset_seconds": 146
+        },
+        {
+          "role": "client",
+          "text": "Yeah. I did the program inside. I'm not trying to mess this up.",
+          "offset_seconds": 156
+        },
+        {
+          "role": "caseworker",
+          "text": "Good. Let's start the application now and I'll fax the conditional acceptance letter to your re-entry coordinator by end of day so parole has it.",
+          "offset_seconds": 166
+        }
+      ]
+    },
+    {
+      "intake_id": "SYN-INT-105538",
+      "presenting_issue": "veteran with VA gap",
+      "urgency": "exploring",
+      "client_pseudonym": "Donald Paperton",
+      "household_composition": "single older adult",
+      "started_at": "2026-04-10T14:22:00-05:00",
+      "turns": [
+        {
+          "role": "caseworker",
+          "text": "Mr. Paperton, thanks for coming in. I see you served — Army?",
+          "offset_seconds": 0
+        },
+        {
+          "role": "client",
+          "text": "Yeah. Late seventies into the early eighties. Mostly Germany.",
+          "offset_seconds": 7
+        },
+        {
+          "role": "caseworker",
+          "text": "Thank you for your service. What brings you in today?",
+          "offset_seconds": 15
+        },
+        {
+          "role": "client",
+          "text": "I've been staying with a buddy since November. His wife's getting tired of me. I tried the VA but they said something about my discharge code and I got confused and walked out.",
+          "offset_seconds": 22
+        },
+        {
+          "role": "caseworker",
+          "text": "That happens a lot, and it's fixable more often than people think. Do you remember the type of discharge?",
+          "offset_seconds": 40
+        },
+        {
+          "role": "client",
+          "text": "It was a general, under honorable conditions. Not dishonorable. There was an incident at the end but it wasn't a court martial.",
+          "offset_seconds": 54
+        },
+        {
+          "role": "caseworker",
+          "text": "Okay — that's important. General under honorable usually qualifies you for HUD-VASH and SSVF. The intake person at the VA may have been looking at the wrong line. We have a veterans' navigator on staff Tuesdays and Thursdays who can go with you to the appointment.",
+          "offset_seconds": 70
+        },
+        {
+          "role": "client",
+          "text": "Someone would actually go with me?",
+          "offset_seconds": 92
+        },
+        {
+          "role": "caseworker",
+          "text": "Yes. He's a veteran himself. He knows the building, knows the staff, and he won't let you get bounced.",
+          "offset_seconds": 99
+        },
+        {
+          "role": "client",
+          "text": "That'd be a help. I'm not good at those places anymore. The fluorescent lights, the lines.",
+          "offset_seconds": 112
+        },
+        {
+          "role": "caseworker",
+          "text": "Understood. While we work on the VA side, are you safe at your friend's place this week?",
+          "offset_seconds": 126
+        },
+        {
+          "role": "client",
+          "text": "Yeah. She's annoyed but she's not gonna throw me out. I just don't want to wear out the welcome.",
+          "offset_seconds": 138
+        },
+        {
+          "role": "caseworker",
+          "text": "Got it. So we're not in same-night territory, we're working a 30-to-60 day plan to get you into HUD-VASH. Sound right?",
+          "offset_seconds": 151
+        },
+        {
+          "role": "client",
+          "text": "Sounds right. What do I need to bring Tuesday?",
+          "offset_seconds": 167
+        },
+        {
+          "role": "caseworker",
+          "text": "Your DD-214 if you have it, your ID, and any VA correspondence even if it's the denial. If you don't have the DD-214, the navigator can request it — takes about ten days.",
+          "offset_seconds": 175
+        }
+      ]
+    },
+    {
+      "intake_id": "SYN-INT-238750",
+      "presenting_issue": "mental health crisis",
+      "urgency": "same_night",
+      "client_pseudonym": "Reina Voidman",
+      "household_composition": "single adult",
+      "started_at": "2026-04-24T22:40:00-05:00",
+      "turns": [
+        {
+          "role": "caseworker",
+          "text": "Reina, I'm Marcus, the overnight caseworker. The mobile crisis team called ahead. How are you doing right now?",
+          "offset_seconds": 0
+        },
+        {
+          "role": "client",
+          "text": "I don't know. I'm tired. They said I had to come here or go to the hospital and I don't want the hospital.",
+          "offset_seconds": 10
+        },
+        {
+          "role": "caseworker",
+          "text": "Okay. You're not in the hospital, you're with me. Are you having thoughts of hurting yourself right now, in this moment?",
+          "offset_seconds": 24
+        },
+        {
+          "role": "client",
+          "text": "Not right now. Earlier today, yes. That's why I called. But not right now.",
+          "offset_seconds": 38
+        },
+        {
+          "role": "caseworker",
+          "text": "I'm really glad you called. That took a lot. Are you connected with a therapist or psychiatrist?",
+          "offset_seconds": 50
+        },
+        {
+          "role": "client",
+          "text": "I was. I lost my insurance in February when I lost the job. I have meds for like four more days.",
+          "offset_seconds": 62
+        },
+        {
+          "role": "caseworker",
+          "text": "Okay. So we have a few things to stabilize — somewhere to sleep tonight, getting your meds bridged, and reconnecting you to a prescriber. The shelter has a quiet wing tonight — only three other people in it. Would that feel manageable?",
+          "offset_seconds": 76
+        },
+        {
+          "role": "client",
+          "text": "Three is okay. The big rooms — I can't do the big rooms.",
+          "offset_seconds": 97
+        },
+        {
+          "role": "caseworker",
+          "text": "Then we'll do the quiet wing. Tomorrow morning the community mental health team has a same-day intake at 9 a.m. They have a sliding scale and they'll bridge your prescription that day.",
+          "offset_seconds": 107
+        },
+        {
+          "role": "client",
+          "text": "Same day? Last time I tried it was a six week wait.",
+          "offset_seconds": 126
+        },
+        {
+          "role": "caseworker",
+          "text": "They opened a same-day slot in February specifically for crisis referrals like yours. I'll walk you over at 8:45.",
+          "offset_seconds": 137
+        },
+        {
+          "role": "client",
+          "text": "Okay. Thank you. I'm sorry I'm a mess.",
+          "offset_seconds": 150
+        },
+        {
+          "role": "caseworker",
+          "text": "You're not a mess. You're a person having a hard night who made the right call. Let's get you settled.",
+          "offset_seconds": 158
+        }
+      ]
+    },
+    {
+      "intake_id": "SYN-INT-466281",
+      "presenting_issue": "family separation",
+      "urgency": "within_7_days",
+      "client_pseudonym": "Anthony Synthwell",
+      "household_composition": "father seeking reunification with two children",
+      "started_at": "2026-04-06T15:50:00-05:00",
+      "turns": [
+        {
+          "role": "caseworker",
+          "text": "Mr. Synthwell, thanks for waiting. I know the lobby was full. What's going on?",
+          "offset_seconds": 0
+        },
+        {
+          "role": "client",
+          "text": "My kids are at my mother-in-law's. CPS placed them there in January when their mom went into treatment. I have a hearing next week and the judge said I need a stable address with bedrooms for the kids before they'll consider placing them with me.",
+          "offset_seconds": 8
+        },
+        {
+          "role": "caseworker",
+          "text": "Okay. So this isn't about whether you have somewhere to sleep tonight — you do — it's about getting an apartment that meets the court's standard. Is that right?",
+          "offset_seconds": 32
+        },
+        {
+          "role": "client",
+          "text": "Right. I'm at a friend's. I have a bed. But there's no room for the kids and the friend has a record so the caseworker said no anyway.",
+          "offset_seconds": 48
+        },
+        {
+          "role": "caseworker",
+          "text": "Got it. How old are the kids and same gender or different?",
+          "offset_seconds": 64
+        },
+        {
+          "role": "client",
+          "text": "Boy who's nine, girl who's six. So they need separate rooms once she's a little older but right now the worker said one bedroom for them is fine if I'm in another.",
+          "offset_seconds": 74
+        },
+        {
+          "role": "caseworker",
+          "text": "Two-bedroom minimum then. What's your income look like?",
+          "offset_seconds": 91
+        },
+        {
+          "role": "client",
+          "text": "I do HVAC. About fifty-two thousand a year. My credit is rough though, and I have an eviction from 2022.",
+          "offset_seconds": 100
+        },
+        {
+          "role": "caseworker",
+          "text": "The eviction is the biggest barrier on the private market. We have a rapid rehousing program with a landlord risk-mitigation fund — they'll cover up to two months rent if a landlord takes a chance, and we have four landlords who specifically work with reunification cases.",
+          "offset_seconds": 116
+        },
+        {
+          "role": "client",
+          "text": "Four landlords. Real ones, not slumlords?",
+          "offset_seconds": 138
+        },
+        {
+          "role": "caseworker",
+          "text": "Real ones. We inspect the units before we refer. They're not luxury but they're decent and they pass CPS walkthroughs.",
+          "offset_seconds": 148
+        },
+        {
+          "role": "client",
+          "text": "How fast can this happen? My hearing is the fourteenth.",
+          "offset_seconds": 162
+        },
+        {
+          "role": "caseworker",
+          "text": "If we apply today, I can probably have you viewing units by Wednesday or Thursday and signing a lease early next week. I can also write a letter for the hearing documenting that placement is in progress, in case you sign after the fourteenth.",
+          "offset_seconds": 172
+        },
+        {
+          "role": "client",
+          "text": "That letter would matter. The judge said she needed something concrete.",
+          "offset_seconds": 192
+        },
+        {
+          "role": "caseworker",
+          "text": "Then let's start there. I'll need pay stubs, ID, the case number, and the name of the CPS worker.",
+          "offset_seconds": 202
+        }
+      ]
+    },
+    {
+      "intake_id": "SYN-INT-573904",
+      "presenting_issue": "substance use disorder",
+      "urgency": "same_night",
+      "client_pseudonym": "Brittany Fakeman",
+      "household_composition": "single adult, pregnant",
+      "started_at": "2026-04-20T08:30:00-05:00",
+      "turns": [
+        {
+          "role": "caseworker",
+          "text": "Brittany, come sit down. I'm Tasha. Take your time.",
+          "offset_seconds": 0
+        },
+        {
+          "role": "client",
+          "text": "I'm sick. I'm trying. I went to detox on Friday but I left the second day. I came here because I don't have anywhere and I'm pregnant and I can't keep doing this.",
+          "offset_seconds": 7
+        },
+        {
+          "role": "caseworker",
+          "text": "Okay. First thing — I hear you, and I'm not going anywhere. How far along are you?",
+          "offset_seconds": 24
+        },
+        {
+          "role": "client",
+          "text": "About twenty weeks. I've had two prenatal appointments. They know I use.",
+          "offset_seconds": 37
+        },
+        {
+          "role": "caseworker",
+          "text": "Good that you're connected with prenatal care. That's a real strength. What were you using, if you're comfortable telling me?",
+          "offset_seconds": 50
+        },
+        {
+          "role": "client",
+          "text": "Fentanyl mostly. Sometimes meth. I haven't used since yesterday morning and I'm starting to feel it.",
+          "offset_seconds": 65
+        },
+        {
+          "role": "caseworker",
+          "text": "Okay. Withdrawal during pregnancy needs medical management — going cold turkey isn't actually safe for the baby. There's a program at the medical center, MAT for pregnant women, inpatient. They have a partnership with us and they take same-day admits.",
+          "offset_seconds": 78
+        },
+        {
+          "role": "client",
+          "text": "Inpatient? Like locked?",
+          "offset_seconds": 100
+        },
+        {
+          "role": "caseworker",
+          "text": "No, voluntary. You can leave but they'd really prefer you don't, obviously. It's a women-only floor. Average stay is about three weeks, and they discharge you to a recovery house that takes pregnant women and moms with infants.",
+          "offset_seconds": 108
+        },
+        {
+          "role": "client",
+          "text": "A recovery house that takes the baby after?",
+          "offset_seconds": 127
+        },
+        {
+          "role": "caseworker",
+          "text": "Yes. Up to two years, mom and baby together. Most of the women who complete the inpatient piece transition there.",
+          "offset_seconds": 135
+        },
+        {
+          "role": "client",
+          "text": "Nobody told me about that before.",
+          "offset_seconds": 150
+        },
+        {
+          "role": "caseworker",
+          "text": "It's a newer program. Can I call them right now while you're sitting with me?",
+          "offset_seconds": 157
+        },
+        {
+          "role": "client",
+          "text": "Yes. Please. Before I change my mind.",
+          "offset_seconds": 169
+        },
+        {
+          "role": "caseworker",
+          "text": "I'm dialing. Stay right here. If you start feeling worse before they get here, tell me — we have a nurse on call.",
+          "offset_seconds": 177
+        }
+      ]
+    }
+  ]
+}

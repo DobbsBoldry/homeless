@@ -48,15 +48,19 @@ fixtures we can iterate against safely.
 # Eviction filings (Daviess District Court shape — public record domain)
 pnpm tsx scripts/gen-synthetic-filings.ts --count 50 --out fixtures/eviction-filings.json
 pnpm tsx scripts/gen-synthetic-filings.ts --count 10 --seed 42 --out fixtures/sample.json
+
+# Shelter-intake conversation transcripts (CWT + INDC test foundation)
+pnpm tsx scripts/gen-synthetic-intake.ts --count 10 --out fixtures/intakes.json
 ```
 
 Generated rows are clearly labelled synthetic — case numbers prefixed `SYN-`,
-fake-dictionary names (`Synthwell`, `Fakeman`, etc.), no real Daviess
-addresses. Safe to commit; safe to load into the staging DB.
+intake IDs prefixed `SYN-INT-`, fake-dictionary names (`Synthwell`, `Fakeman`,
+etc.), no real Daviess addresses, RFC-reserved fictional phone numbers
+(555-01XX). Safe to commit; safe to load into the staging DB.
 
-A baseline fixture (50 records, seed=42) is committed at
-`fixtures/eviction-filings.json` so contributors don't all need to spend
-API credits to get started.
+Baseline fixtures (committed so contributors don't all need API credits):
+- `fixtures/eviction-filings.json` — 50 filings, seed=42
+- `fixtures/intakes.json` — 10 intakes, seed=42
 
 ## Set up GitHub (one time)
 
