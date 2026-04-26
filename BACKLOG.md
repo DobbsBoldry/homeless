@@ -211,7 +211,8 @@ Phase 0 is mostly coalition relationship-building (per the strategy site), not c
 | EVDT-002 | Spike: Daviess District Court Clerk's office relationship + manual export feasibility | 3 | Phone call + memo on what they'll provide |
 | EVDT-003 | Build first manual scrape (today's docket → JSON) | 5 | Disposable code OK; goal is proving access |
 | EVDT-004 | Define Eviction Filing data model | 3 | filings table: case_num, household, filed_at, status, etc. |
-| **Total** | | **16** | |
+| EVDT-024 | Synthetic KY eviction filings generator (Claude API) | 5 | Realistic Daviess District Court dockets; unblocks parser/dashboard/scoring work without hitting real CourtNet |
+| **Total** | | **21** | |
 
 ## Sprint 5: Eviction Defense — daily ingestion pipeline
 
