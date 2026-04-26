@@ -3,8 +3,10 @@ import { notFound } from 'next/navigation';
 import { CaseFilingsRoles } from '@/components/eviction/case-filings-roles';
 import { CaseOutcomePanel } from '@/components/eviction/case-outcome-panel';
 import { FilingDetail } from '@/components/eviction/filing-detail';
+import { RentalAssistancePanel } from '@/components/eviction/rental-assistance-panel';
 import { listCaseOutcomes } from '@/db/queries/eviction-case-outcomes';
 import { getFilingById } from '@/db/queries/eviction-filings';
+import { matchAssistancePrograms } from '@/db/queries/rental-assistance';
 import { requireRole, userIsKlaAttorney } from '@/lib/auth';
 import { getLatestScore } from '@/lib/eviction/risk-score';
 
@@ -20,10 +22,11 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
   const filing = await getFilingById(id);
   if (!filing) notFound();
 
-  const [score, outcomes, canRecord] = await Promise.all([
+  const [score, outcomes, canRecord, assistancePrograms] = await Promise.all([
     getLatestScore(filing.id),
     listCaseOutcomes(filing.id),
     userIsKlaAttorney(me),
+    matchAssistancePrograms(filing),
   ]);
 
   return (
@@ -48,6 +51,7 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
         </Link>
       </div>
       <CaseOutcomePanel filingId={filing.id} history={outcomes} canRecord={canRecord} />
+      <RentalAssistancePanel programs={assistancePrograms} />
     </div>
   );
 }

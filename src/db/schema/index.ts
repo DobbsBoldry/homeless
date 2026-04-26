@@ -8,4 +8,5 @@ export * from './eviction-response-packets';
 export * from './health-check';
 export * from './org-memberships';
 export * from './partner-orgs';
+export * from './rental-assistance-programs';
 export * from './users';
