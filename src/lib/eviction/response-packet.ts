@@ -48,6 +48,42 @@ function fillDisclaimer(packet: string, generatedAt: Date): string {
 }
 
 /**
+ * Single source of truth for the disclaimer-block contract. Used both
+ * after generation (placeholder form, before fill) and on attorney save
+ * (filled form). Pass `phase` so the right post-fill fragment is checked.
+ *
+ * Returns ok+error rather than throwing so server actions can surface
+ * the message to the user; the generator wraps in throw().
+ */
+export function validateDisclaimer(
+  packetMd: string,
+  phase: 'generation' | 'edit',
+): { ok: true } | { ok: false; error: string } {
+  const required = [
+    `${RESPONSE_PACKET_DISCLAIMER_PREFIX} REQUIRED BEFORE FILING.`,
+    'not legal advice',
+  ];
+  if (phase === 'generation') {
+    required.push('Generated {timestamp} model {model_version}.');
+  } else {
+    // After fillDisclaimer the placeholders are gone but the literal
+    // 'Generated ' + ' model ' anchors must remain so the attorney can
+    // see when/with-what the draft was produced.
+    required.push('Generated ');
+    required.push(' model ');
+  }
+  for (const fragment of required) {
+    if (!packetMd.includes(fragment)) {
+      return {
+        ok: false,
+        error: `Disclaimer missing required fragment: "${fragment.slice(0, 60)}${fragment.length > 60 ? '…' : ''}"`,
+      };
+    }
+  }
+  return { ok: true };
+}
+
+/**
  * Generate (or retrieve) the AI-drafted Answer for a filing. Idempotent:
  * (filing_id, prompt_version) pairs return the cached row instead of
  * re-calling Claude.
@@ -99,21 +135,9 @@ export async function generateResponsePacket(
   }
   const parsed: ResponsePacketOutput = response.parsed_output;
 
-  // Tighter than substring-prefix: require the full canonical disclaimer
-  // wording, both placeholders (so fillDisclaimer can substitute), and the
-  // attorney-review sentence. Catches malformed/abbreviated disclaimers
-  // that pass a loose prefix check.
-  const requiredDisclaimerFragments = [
-    `${RESPONSE_PACKET_DISCLAIMER_PREFIX} REQUIRED BEFORE FILING.`,
-    'Generated {timestamp} model {model_version}.',
-    'not legal advice',
-  ];
-  for (const fragment of requiredDisclaimerFragments) {
-    if (!parsed.packet_md.includes(fragment)) {
-      throw new Error(
-        `[response-packet] disclaimer missing required fragment: ${fragment.slice(0, 60)}…`,
-      );
-    }
+  const generationCheck = validateDisclaimer(parsed.packet_md, 'generation');
+  if (!generationCheck.ok) {
+    throw new Error(`[response-packet] ${generationCheck.error}`);
   }
 
   const filledPacket = fillDisclaimer(parsed.packet_md, new Date());
