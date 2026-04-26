@@ -16,6 +16,10 @@ import { orgMemberships } from './schema/org-memberships';
 import { type NewPartnerOrg, partnerOrgs } from './schema/partner-orgs';
 import { type NewPartnerServiceEvent, partnerServiceEvents } from './schema/partner-service-events';
 import {
+  type NewPersonPartnerConsent,
+  personPartnerConsents,
+} from './schema/person-partner-consents';
+import {
   type NewRentalAssistanceProgram,
   rentalAssistancePrograms,
 } from './schema/rental-assistance-programs';
@@ -637,6 +641,40 @@ async function main() {
     );
   } else {
     console.log('[seed]   = partner service events (exist)');
+  }
+
+  // ---- INDC-017: default consent grants for the synthetic persons ----
+  // Every (person, partner) pair with at least one event gets a granted
+  // consent row so /p/[ref]/consent shows realistic state.
+  const existingConsents = await db
+    .select({ id: personPartnerConsents.id })
+    .from(personPartnerConsents)
+    .limit(1);
+  if (existingConsents.length === 0) {
+    const allEvents = await db
+      .select({
+        ref: partnerServiceEvents.syntheticPersonRef,
+        orgId: partnerServiceEvents.partnerOrgId,
+      })
+      .from(partnerServiceEvents);
+    const seen = new Set<string>();
+    const consentRows: NewPersonPartnerConsent[] = [];
+    for (const row of allEvents) {
+      const key = `${row.ref}::${row.orgId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      consentRows.push({
+        syntheticPersonRef: row.ref,
+        partnerOrgId: row.orgId,
+        notes: 'Granted via Phase-1 stub seed; real consent flow lands in INDC follow-up.',
+      });
+    }
+    if (consentRows.length > 0) {
+      await db.insert(personPartnerConsents).values(consentRows);
+      console.log(`[seed]   + ${consentRows.length} person-partner consent grants`);
+    }
+  } else {
+    console.log('[seed]   = person-partner consents (exist)');
   }
 
   // ---- 3 sample audit entries ----
