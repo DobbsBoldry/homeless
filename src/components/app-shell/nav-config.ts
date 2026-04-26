@@ -41,6 +41,21 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['caseworker', 'ed_coordinator', 'shelter_staff', 'admin'],
   },
   {
+    label: 'Benefits screener',
+    href: '/app/clients/screener',
+    roles: ['caseworker', 'shelter_staff', 'admin'],
+  },
+  {
+    label: 'Triage tier',
+    href: '/app/clients/triage',
+    roles: ['caseworker', 'shelter_staff', 'admin'],
+  },
+  {
+    label: 'Consent link',
+    href: '/app/clients/consent-link',
+    roles: ['caseworker', 'shelter_staff', 'admin'],
+  },
+  {
     label: 'Outcomes',
     href: '/app/metrics',
     roles: ['attorney', 'admin'],
@@ -51,8 +66,34 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/app/coalition/coordination',
     roles: ['attorney', 'caseworker', 'ed_coordinator', 'shelter_staff', 'admin'],
   },
+  {
+    label: 'Bed availability',
+    href: '/app/coalition/beds',
+    roles: ['attorney', 'caseworker', 'ed_coordinator', 'shelter_staff', 'admin'],
+  },
+  {
+    label: 'Update beds',
+    href: '/app/coalition/beds/update',
+    roles: ['shelter_staff', 'admin'],
+  },
+  {
+    label: 'SMS bed-finder',
+    href: '/app/coalition/sms',
+    roles: ['admin', 'shelter_staff', 'caseworker', 'ed_coordinator'],
+  },
+  {
+    label: 'SMS metrics',
+    href: '/app/coalition/sms/metrics',
+    roles: ['admin'],
+  },
+  {
+    label: 'SMS handout',
+    href: '/app/coalition/sms/handout',
+    roles: ['admin', 'shelter_staff', 'caseworker', 'ed_coordinator'],
+  },
   { label: 'Settings', href: '/app/settings', roles: 'all' },
   { label: 'Admin · Users', href: '/app/admin/users', roles: ['admin'] },
+  { label: 'Admin · Audit log', href: '/app/admin/audit', roles: ['admin'] },
 ];
 
 export function navItemsForRole(role: UserRole): NavItem[] {

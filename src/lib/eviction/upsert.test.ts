@@ -16,6 +16,7 @@ const baseExisting: EvictionFiling = {
   status: 'filed',
   source: 'synthetic',
   rawJson: null,
+  dvFlag: false,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
