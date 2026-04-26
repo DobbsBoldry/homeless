@@ -70,6 +70,24 @@ erDiagram
         uuid id PK
         timestamptz created_at
     }
+
+    EVICTION_FILINGS {
+        uuid id PK
+        text case_number
+        timestamptz filed_at
+        text court_division
+        text plaintiff
+        text defendant_first_name
+        text defendant_last_name
+        text defendant_address
+        eviction_cause_type cause_type
+        int amount_claimed_cents
+        eviction_filing_status status
+        eviction_filing_source source
+        jsonb raw_json
+        timestamptz created_at
+        timestamptz updated_at
+    }
 ```
 
 ## Tables
@@ -82,6 +100,7 @@ erDiagram
 | `audit_log` | Append-only record of significant system actions | none — never log PHI in `metadata` |
 | `consents` | Subject consent records (PHI sharing, SMS, etc.). Subject linkage is by external ID until clients table lands in Phase 1. | non-PHI |
 | `health_check` | DB roundtrip target for `/api/health` | none |
+| `eviction_filings` | Public court records of filed eviction cases. Source-tagged so we can land synthetic, manual, and CourtNet rows side-by-side. | non-PHI (public record) |
 
 ## Enums
 
@@ -91,6 +110,9 @@ erDiagram
 | `partner_org_type` | hospital, legal_aid, shelter, community_org, government, other |
 | `consent_type` | phi_share_within_coalition, sms_communication, data_for_program_eval |
 | `consent_channel` | sms, in_person, web_form, phone, paper |
+| `eviction_cause_type` | non_payment, lease_violation, holdover, other |
+| `eviction_filing_status` | filed, served, judgment, dismissed, sealed |
+| `eviction_filing_source` | courtnet, manual, synthetic |
 
 ## Conventions
 
