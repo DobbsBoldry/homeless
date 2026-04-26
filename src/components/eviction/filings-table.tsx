@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { EvictionFiling } from '@/db/schema/eviction-filings';
@@ -79,7 +80,11 @@ export function FilingsTable({ filings }: { filings: EvictionFiling[] }) {
           <tbody>
             {filings.map((f) => (
               <tr key={f.id} className="border-t border-border align-top">
-                <td className="px-3 py-2 font-mono text-xs">{f.caseNumber}</td>
+                <td className="px-3 py-2 font-mono text-xs">
+                  <Link href={`/app/cases/filings/${f.id}`} className="hover:underline">
+                    {f.caseNumber}
+                  </Link>
+                </td>
                 <td className="px-3 py-2 whitespace-nowrap">{fmtDate(f.filedAt)}</td>
                 <td className="px-3 py-2">{f.plaintiff}</td>
                 <td className="px-3 py-2">
