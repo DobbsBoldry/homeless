@@ -38,6 +38,21 @@ await inngest.send({ name: 'user.signed_up', data: { clerkUserId: 'test_123' } }
 The scheduled `daily-health-ping` (cron `0 9 * * *` UTC) can be invoked
 on-demand from the dev UI without waiting for the cron.
 
+### Daily attorney email digest (EVDT-019)
+
+The `daily-attorney-digest` Inngest cron (12:00 UTC weekdays = 7am Central)
+sends each KLA attorney the top-10 ranked eviction filings via Resend.
+
+Set `RESEND_API_KEY` in `.env.local` (free tier from
+[resend.com](https://resend.com) is enough for staging). Optionally set
+`RESEND_FROM` to a verified-domain sender — defaults to Resend's
+`onboarding@resend.dev` which works without DNS.
+
+While iterating in dev, set `EVDT_DIGEST_TEST_EMAIL=you@example.com` to
+route the digest to a single recipient instead of doing the DB lookup;
+that lets you trigger the cron from the Inngest dev UI without seeding
+real attorneys.
+
 ### Generating synthetic test data
 
 We never use real PHI or real eviction-defendant data in development. The
