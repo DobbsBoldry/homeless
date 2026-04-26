@@ -10,6 +10,8 @@ export type AuditAction =
   | 'consent.revoked'
   | 'org_membership.added'
   | 'org_membership.removed'
+  | 'person_partner_consent.revoked'
+  | 'person_partner_consent.regranted'
   | (string & {}); // allow new actions without enum churn — keep narrow types for known ones
 
 export interface LogAuditEventInput {
