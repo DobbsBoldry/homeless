@@ -69,15 +69,20 @@ export function validateCarePlanDisclaimer(
  */
 function scrubClinicalNote(s: string | null): string | null {
   if (!s) return s;
-  return s
-    // Phone numbers (US-shaped)
-    .replace(/\+?1?[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/g, '[REDACTED-PHONE]')
-    // Email-shaped
-    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[REDACTED-EMAIL]')
-    // SSN-shaped
-    .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[REDACTED-SSN]')
-    // Honorifics + name
-    .replace(/\b(Mr|Mrs|Ms|Dr|Mr\.|Mrs\.|Ms\.|Dr\.)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?/g, '[REDACTED-NAME]');
+  return (
+    s
+      // Phone numbers (US-shaped)
+      .replace(/\+?1?[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/g, '[REDACTED-PHONE]')
+      // Email-shaped
+      .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[REDACTED-EMAIL]')
+      // SSN-shaped
+      .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[REDACTED-SSN]')
+      // Honorifics + name
+      .replace(
+        /\b(Mr|Mrs|Ms|Dr|Mr\.|Mrs\.|Ms\.|Dr\.)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?/g,
+        '[REDACTED-NAME]',
+      )
+  );
 }
 
 function fillDisclaimer(planMd: string, generatedAt: Date): string {
