@@ -13,12 +13,20 @@ import type { BedFilter } from '@/lib/coordination/bed-availability';
  */
 export type ParsedSmsCommand =
   | { kind: 'bed'; filter: BedFilter }
+  | { kind: 'food' }
+  | { kind: 'story' }
+  | { kind: 'hold'; resultIndex: number }
+  | { kind: 'release' }
   | { kind: 'help' }
   | { kind: 'stop' }
   | { kind: 'unknown'; raw: string };
 
-const STOP_WORDS = new Set(['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']);
+const STOP_WORDS = new Set(['STOP', 'STOPALL', 'UNSUBSCRIBE', 'END', 'QUIT']);
 const HELP_WORDS = new Set(['HELP', 'INFO', '?']);
+const FOOD_WORDS = new Set(['FOOD', 'EAT', 'PANTRY', 'MEAL', 'MEALS', 'HUNGRY']);
+const STORY_WORDS = new Set(['STORY', 'ABOUT', 'WHO', 'WHAT']);
+const HOLD_WORDS = new Set(['HOLD', 'RESERVE', 'CONFIRM']);
+const RELEASE_WORDS = new Set(['RELEASE', 'CANCEL', 'NEVERMIND']);
 
 const POPULATION_TOKENS: Record<string, NonNullable<BedFilter['population']>> = {
   MEN: 'men',
@@ -47,6 +55,22 @@ export function parseSmsCommand(raw: string): ParsedSmsCommand {
 
   if (STOP_WORDS.has(head)) return { kind: 'stop' };
   if (HELP_WORDS.has(head)) return { kind: 'help' };
+  if (FOOD_WORDS.has(head)) return { kind: 'food' };
+  if (STORY_WORDS.has(head)) return { kind: 'story' };
+
+  if (HOLD_WORDS.has(head)) {
+    // Accept `HOLD 1`, `HOLD #2`, `RESERVE 3`. Default to slot 1 when
+    // unspecified — the most-recent top result.
+    const arg = tokens[1];
+    let n = 1;
+    if (arg) {
+      const cleaned = arg.replace(/[^0-9]/g, '');
+      const parsed = Number.parseInt(cleaned, 10);
+      if (Number.isInteger(parsed) && parsed >= 1) n = parsed;
+    }
+    return { kind: 'hold', resultIndex: n - 1 };
+  }
+  if (RELEASE_WORDS.has(head)) return { kind: 'release' };
 
   if (head === 'BED' || head === 'BEDS' || head === 'SHELTER') {
     const filter: BedFilter = { minFreeBeds: 1 };

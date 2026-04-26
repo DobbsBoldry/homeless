@@ -37,15 +37,39 @@ describe('parseSmsCommand', () => {
     expect(result).toEqual({ kind: 'bed', filter: { minFreeBeds: 1 } });
   });
 
-  it('recognizes STOP variants', () => {
+  it('recognizes STOP variants (CANCEL routed to release instead)', () => {
     expect(parseSmsCommand('STOP').kind).toBe('stop');
     expect(parseSmsCommand('UNSUBSCRIBE').kind).toBe('stop');
-    expect(parseSmsCommand('cancel').kind).toBe('stop');
+    expect(parseSmsCommand('quit').kind).toBe('stop');
   });
 
   it('recognizes HELP variants', () => {
     expect(parseSmsCommand('HELP').kind).toBe('help');
     expect(parseSmsCommand('?').kind).toBe('help');
+  });
+
+  it('recognizes shorthand info commands', () => {
+    expect(parseSmsCommand('FOOD').kind).toBe('food');
+    expect(parseSmsCommand('hungry').kind).toBe('food');
+    expect(parseSmsCommand('STORY').kind).toBe('story');
+    expect(parseSmsCommand('about').kind).toBe('story');
+  });
+
+  it('parses HOLD with numeric arg into 0-indexed resultIndex', () => {
+    expect(parseSmsCommand('HOLD 1')).toEqual({ kind: 'hold', resultIndex: 0 });
+    expect(parseSmsCommand('HOLD 3')).toEqual({ kind: 'hold', resultIndex: 2 });
+    expect(parseSmsCommand('hold #2')).toEqual({ kind: 'hold', resultIndex: 1 });
+  });
+
+  it('defaults bare HOLD to slot 1', () => {
+    expect(parseSmsCommand('HOLD')).toEqual({ kind: 'hold', resultIndex: 0 });
+    expect(parseSmsCommand('RESERVE')).toEqual({ kind: 'hold', resultIndex: 0 });
+  });
+
+  it('routes RELEASE / CANCEL / NEVERMIND to release', () => {
+    expect(parseSmsCommand('RELEASE').kind).toBe('release');
+    expect(parseSmsCommand('cancel').kind).toBe('release');
+    expect(parseSmsCommand('Nevermind').kind).toBe('release');
   });
 
   it('returns unknown for empty / unrecognized input', () => {

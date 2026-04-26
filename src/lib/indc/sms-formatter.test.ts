@@ -4,9 +4,16 @@ import type { BedFinderResult } from './bed-finder';
 import {
   formatBedResults,
   SMS_MAX_LEN,
+  smsFood,
   smsHelp,
+  smsHoldConfirmed,
+  smsHoldFailed,
+  smsHoldReleased,
   smsLocationPrompt,
+  smsNoActiveHold,
+  smsNoHoldContext,
   smsStop,
+  smsStory,
   smsUnknown,
 } from './sms-formatter';
 
@@ -76,14 +83,52 @@ describe('formatBedResults', () => {
 
 describe('canned replies', () => {
   it('all stay within SMS_MAX_LEN', () => {
-    expect(smsHelp().length).toBeLessThanOrEqual(SMS_MAX_LEN);
-    expect(smsStop().length).toBeLessThanOrEqual(SMS_MAX_LEN);
-    expect(smsUnknown().length).toBeLessThanOrEqual(SMS_MAX_LEN);
-    expect(smsLocationPrompt().length).toBeLessThanOrEqual(SMS_MAX_LEN);
+    for (const reply of [
+      smsHelp(),
+      smsStop(),
+      smsUnknown(),
+      smsLocationPrompt(),
+      smsFood(),
+      smsStory(),
+      smsNoActiveHold(),
+      smsNoHoldContext(),
+    ]) {
+      expect(reply.length).toBeLessThanOrEqual(SMS_MAX_LEN);
+    }
   });
 
   it('location prompt mentions ANYWHERE escape hatch', () => {
     expect(smsLocationPrompt()).toMatch(/ANYWHERE/);
+  });
+
+  it('food reply names actual coalition partners', () => {
+    expect(smsFood()).toMatch(/Catholic Charities/);
+    expect(smsFood()).toMatch(/Boulware/);
+  });
+});
+
+describe('hold reply formatters', () => {
+  it('confirms a hold with shelter name + clock + phone', () => {
+    const expires = new Date('2026-04-26T15:30:00Z');
+    const reply = smsHoldConfirmed('Boulware Mission', '+1-270-683-1505', expires);
+    expect(reply).toContain('Boulware Mission');
+    expect(reply).toContain('270-683-1505');
+    expect(reply).toMatch(/RELEASE/);
+    expect(reply.length).toBeLessThanOrEqual(SMS_MAX_LEN);
+  });
+
+  it('drops phone fragment cleanly when shelter has no phone', () => {
+    const reply = smsHoldConfirmed('Anon Shelter', null, new Date());
+    expect(reply).not.toMatch(/Call/);
+  });
+
+  it('hold-released reply names the shelter', () => {
+    expect(smsHoldReleased('Daniel Pitino')).toContain('Daniel Pitino');
+  });
+
+  it('hold-failed reply ≤ SMS_MAX_LEN even with long reason', () => {
+    const reply = smsHoldFailed('a'.repeat(400));
+    expect(reply.length).toBeLessThanOrEqual(SMS_MAX_LEN);
   });
 });
 

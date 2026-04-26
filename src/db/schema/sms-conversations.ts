@@ -22,6 +22,14 @@ export const smsConversations = pgTable(
     pendingFilter: jsonb('pending_filter').$type<BedFilter | null>(),
     /** Captured location text from the last 'awaiting_location' reply. Free-form. */
     lastLocation: text('last_location'),
+    /**
+     * The shelter ids and display order from the most recent bed-finder
+     * reply, in the same order they appeared. Lets `HOLD <#>` map a
+     * line number back to a shelter without re-running the search.
+     */
+    lastResults: jsonb('last_results').$type<Array<{ shelterId: string; name: string }>>(),
+    /** Most recent active hold the user created via SMS, for RELEASE shortcuts. */
+    lastHoldId: uuid('last_hold_id'),
     /** When the conversation auto-expires back to 'idle'. */
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     lastMessageAt: timestamp('last_message_at', { withTimezone: true }).notNull().defaultNow(),

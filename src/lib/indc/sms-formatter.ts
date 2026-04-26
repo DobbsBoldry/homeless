@@ -9,7 +9,7 @@ import type { BedFinderResult } from './bed-finder';
 export const SMS_MAX_LEN = 320;
 
 const HELP_REPLY =
-  'Coalition bed-finder. Reply BED for an open shelter bed. Add MEN, WOMEN, FAMILY, PET, or SUD to filter (e.g. BED FAMILY PET). HELP repeats this. STOP to opt out.';
+  'Coalition bed-finder. BED (+ MEN/WOMEN/FAMILY/PET/SUD) for an open bed. HOLD <#> to hold one. FOOD for pantries. STORY about this service. STOP to opt out.';
 
 const STOP_REPLY = "You're opted out. Reply START to opt back in.";
 
@@ -18,6 +18,17 @@ const UNKNOWN_REPLY =
 
 const NO_MATCH_REPLY =
   'No open beds match right now. Try BED for any open bed, or call 211 for live help.';
+
+const FOOD_REPLY =
+  'Food in Daviess Co: Catholic Charities Feeding Our Friends 270-683-1545. St Benedicts day meals 270-686-8410. Boulware Mission daily meals 270-683-1505. Call 211 for current hours.';
+
+const STORY_REPLY =
+  'This is the Daviess coalition bed-finder. Free, confidential, run with local partners. Texts go to staff during pilot; only HELP/STOP messages and bed counts are kept. Reply BED to start.';
+
+const NO_HOLD_CONTEXT_REPLY =
+  'No recent bed list to hold against. Reply BED first, then HOLD <#> against the list we send back.';
+
+const NO_ACTIVE_HOLD_REPLY = 'No active hold to release. Reply BED to look for a new bed.';
 
 function describeFilter(filter: BedFilter): string {
   const parts: string[] = [];
@@ -95,4 +106,53 @@ export function smsStop(): string {
 
 export function smsUnknown(): string {
   return UNKNOWN_REPLY;
+}
+
+export function smsFood(): string {
+  return FOOD_REPLY;
+}
+
+export function smsStory(): string {
+  return STORY_REPLY;
+}
+
+export function smsNoHoldContext(): string {
+  return NO_HOLD_CONTEXT_REPLY;
+}
+
+export function smsNoActiveHold(): string {
+  return NO_ACTIVE_HOLD_REPLY;
+}
+
+const fmtClock = (d: Date) =>
+  new Intl.DateTimeFormat('en-US', { timeStyle: 'short' }).format(new Date(d));
+
+/**
+ * Inline confirmation for a hold a caller just placed via SMS. Includes
+ * the shelter name, expiry clock, and a one-tap call link. The caller
+ * can text RELEASE to undo.
+ */
+export function smsHoldConfirmed(
+  shelterName: string,
+  phone: string | null,
+  expiresAt: Date,
+): string {
+  const callPart = phone ? ` Call ${phone} or` : '';
+  return `Bed held at ${shelterName} until ${fmtClock(expiresAt)}.${callPart} walk in to take it. Reply RELEASE to cancel.`.slice(
+    0,
+    SMS_MAX_LEN,
+  );
+}
+
+export function smsHoldReleased(shelterName: string): string {
+  return `Hold at ${shelterName} released. Reply BED to look for another open bed.`.slice(
+    0,
+    SMS_MAX_LEN,
+  );
+}
+
+export function smsHoldFailed(reason: string): string {
+  // Reason copy should already be user-safe — we cap to MAX_LEN as a
+  // defense against an unexpectedly long server message.
+  return `Couldn't hold a bed: ${reason} Reply BED to try again.`.slice(0, SMS_MAX_LEN);
 }
