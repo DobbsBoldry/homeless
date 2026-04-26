@@ -141,6 +141,13 @@
       "when": 1777235054698,
       "tag": "0019_safe_paladin",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1777238311241,
+      "tag": "0020_quiet_metal_master",
+      "breakpoints": true
     }
   ]
 }

@@ -68,15 +68,21 @@ export async function setAwaitingLocation(
 
 export async function markIdle(
   fromNumber: string,
-  capturedLocation?: string | null,
+  opts: {
+    capturedLocation?: string | null;
+    lastResults?: Array<{ shelterId: string; name: string }> | null;
+  } = {},
 ): Promise<void> {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + CONVERSATION_TTL_MS);
+  const lastLocation = opts.capturedLocation ?? null;
+  const lastResults = opts.lastResults ?? null;
   const values: NewSmsConversation = {
     fromNumber,
     state: 'idle',
     pendingFilter: null,
-    lastLocation: capturedLocation ?? null,
+    lastLocation,
+    lastResults,
     lastMessageAt: now,
     expiresAt,
   };
@@ -88,12 +94,22 @@ export async function markIdle(
       set: {
         state: 'idle',
         pendingFilter: null,
-        lastLocation: capturedLocation ?? null,
+        lastLocation,
+        lastResults,
         lastMessageAt: now,
         expiresAt,
         updatedAt: now,
       },
     });
+}
+
+export async function setLastHoldId(fromNumber: string, holdId: string | null): Promise<void> {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + CONVERSATION_TTL_MS);
+  await db
+    .update(smsConversations)
+    .set({ lastHoldId: holdId, lastMessageAt: now, expiresAt, updatedAt: now })
+    .where(eq(smsConversations.fromNumber, fromNumber));
 }
 
 export async function clearConversation(fromNumber: string): Promise<void> {
