@@ -100,6 +100,9 @@ export default async function PublicOutcomesPage() {
                 <th scope="col" className="px-3 py-2 text-right">
                   Default judgments
                 </th>
+                <th scope="col" className="px-3 py-2 text-right">
+                  Report
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -110,6 +113,14 @@ export default async function PublicOutcomesPage() {
                   <td className="px-3 py-2 text-right">{fmt(e.filingsWithPacket)}</td>
                   <td className="px-3 py-2 text-right">{fmt(e.outcomesRecorded)}</td>
                   <td className="px-3 py-2 text-right">{fmt(e.defaultJudgments)}</td>
+                  <td className="px-3 py-2 text-right">
+                    <Link
+                      href={`/outcomes/q/${e.quarter.year}/${e.quarter.quarter}`}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      View →
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

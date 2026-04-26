@@ -179,3 +179,30 @@ export async function getGovernanceCounts(): Promise<GovernanceCounts> {
     dataAccessEvents90d: suppress(Number(row.access)),
   };
 }
+
+export type GovernanceCountsForQuarter = {
+  consentGrants: number | null;
+  consentRevocations: number | null;
+  dataAccessEvents: number | null;
+};
+
+/** Quarter-scoped variant of governance counts for the transparency report. */
+export async function getGovernanceCountsForQuarter(
+  q: Quarter,
+): Promise<GovernanceCountsForQuarter> {
+  const start = new Date(Date.UTC(q.year, (q.quarter - 1) * 3, 1));
+  const end = new Date(Date.UTC(q.year, q.quarter * 3, 1));
+  const [row] = await db.execute<{ grants: number; revocations: number; access: number }>(sql`
+    SELECT
+      COUNT(*) FILTER (WHERE action = 'consent.granted')::int AS grants,
+      COUNT(*) FILTER (WHERE action = 'consent.revoked')::int AS revocations,
+      COUNT(*) FILTER (WHERE action = 'data.accessed')::int AS access
+    FROM ${auditLog}
+    WHERE created_at >= ${start} AND created_at < ${end}
+  `);
+  return {
+    consentGrants: suppress(Number(row.grants)),
+    consentRevocations: suppress(Number(row.revocations)),
+    dataAccessEvents: suppress(Number(row.access)),
+  };
+}
