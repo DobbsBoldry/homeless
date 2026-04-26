@@ -53,17 +53,20 @@ the platform. Specifically:
   ATTORNEY REQUIRED BEFORE FILING" header that cannot be edited away
   (the system rejects saves that strip it).
 - **Status flow:** every packet is `draft` until you approve it,
-  `approved` until you mark it filed, then `filed`. The PDF export
-  is gated on `approved` status, so a draft that hasn't been reviewed
-  cannot leave the system as a court-ready document.
+  `approved` until you mark it filed, then `filed` (plus a `rejected`
+  terminal state for packets that shouldn't be filed). The PDF export
+  is gated on `approved` or `filed` status, so a draft that hasn't
+  been reviewed cannot leave the system as a court-ready document.
 - **No confidential client data is sent to Claude.** The risk-scoring
   prompt sees only the public filing facts (case number, plaintiff,
   cause type, amount, status, court, filed-at). Defendant addresses are
   scrubbed; defendant names are included only on the answer caption
   (where the court requires them).
-- **Audit log:** every status transition, every export, every outcome
-  recording is captured with the responsible attorney's id and a
-  timestamp. Tampering is blocked at the database level.
+- **Audit log:** every status transition, every export, and every
+  outcome recording is captured with the responsible attorney's id
+  and a timestamp. The audit-log table is append-only at the database
+  level — UPDATE and DELETE on it are blocked by Postgres triggers,
+  so the trail can't be silently rewritten.
 
 [Bo: if the audience is risk-averse, lead with the audit log and the
 "no confidential client data to Claude" point. If the audience is
