@@ -125,6 +125,15 @@ export const dataSharingTierEnum = pgEnum('data_sharing_tier', ['none', 'aggrega
 
 export type DataSharingTier = (typeof dataSharingTierEnum.enumValues)[number];
 
+export const bedHoldStatusEnum = pgEnum('bed_hold_status', [
+  'active',
+  'released',
+  'expired',
+  'converted',
+]);
+
+export type BedHoldStatus = (typeof bedHoldStatusEnum.enumValues)[number];
+
 export const partnerServiceEventTypeEnum = pgEnum('partner_service_event_type', [
   'food_pantry',
   'shelter_intake',

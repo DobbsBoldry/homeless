@@ -59,6 +59,19 @@ export function freeBeds(shelter: Pick<Shelter, 'capacity' | 'currentOccupancy'>
   return Math.max(0, shelter.capacity - shelter.currentOccupancy);
 }
 
+/**
+ * Effective free beds, accounting for active soft holds. A hold reserves
+ * a bed for the holder for `expires_at` minutes; until released or
+ * expired it should not be advertised as available. Capped at the raw
+ * free count so a stale hold count never makes free go negative.
+ */
+export function effectiveFreeBeds(
+  shelter: Pick<Shelter, 'capacity' | 'currentOccupancy'>,
+  activeHolds: number,
+): number {
+  return Math.max(0, freeBeds(shelter) - Math.max(0, activeHolds));
+}
+
 /** Occupancy rate as a fraction in [0, 1]. Capacity 0 → 1 (treat as full). */
 export function occupancyRate(shelter: Pick<Shelter, 'capacity' | 'currentOccupancy'>): number {
   if (shelter.capacity <= 0) return 1;
