@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -40,6 +41,14 @@ export const evictionFilings = pgTable(
     status: evictionFilingStatusEnum('status').notNull().default('filed'),
     source: evictionFilingSourceEnum('source').notNull(),
     rawJson: jsonb('raw_json').$type<Record<string, unknown>>(),
+    /**
+     * DV abuser-blind flag (DTRS-004). When true, queries that surface
+     * filings to non-attorney roles must redact the defendant's address
+     * (the platform's threat model is the abuser obtaining the survivor's
+     * new location through a coalition data leak). Toggled by DV-trained
+     * staff during intake; default false.
+     */
+    dvFlag: boolean('dv_flag').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

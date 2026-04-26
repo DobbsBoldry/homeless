@@ -1,5 +1,6 @@
 export * from './audit-log';
 export * from './consents';
+export * from './dv-flags';
 export * from './ed-encounters';
 export * from './enums';
 export * from './esuc-care-plans';

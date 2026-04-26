@@ -78,6 +78,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { label: 'Settings', href: '/app/settings', roles: 'all' },
   { label: 'Admin · Users', href: '/app/admin/users', roles: ['admin'] },
+  { label: 'Admin · Audit log', href: '/app/admin/audit', roles: ['admin'] },
 ];
 
 export function navItemsForRole(role: UserRole): NavItem[] {
