@@ -35,6 +35,11 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/app/clients',
     roles: ['caseworker', 'ed_coordinator', 'shelter_staff', 'admin'],
   },
+  {
+    label: 'Outcomes',
+    href: '/app/metrics',
+    roles: ['attorney', 'admin'],
+  },
   { label: 'Settings', href: '/app/settings', roles: 'all' },
   { label: 'Admin · Users', href: '/app/admin/users', roles: ['admin'] },
 ];
