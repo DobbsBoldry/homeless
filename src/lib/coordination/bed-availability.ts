@@ -20,6 +20,26 @@ export function occupancyRate(shelter: Pick<Shelter, 'capacity' | 'currentOccupa
   return Math.min(1, Math.max(0, shelter.currentOccupancy / shelter.capacity));
 }
 
+export type BedCountValidation = { ok: true; value: number } | { ok: false; error: string };
+
+/**
+ * Validates a proposed `newOccupancy` against `capacity`. Mirrors what
+ * the server action accepts; pulled out as a pure function so unit
+ * tests can cover the rule set without spinning up a database.
+ */
+export function validateBedCount(newOccupancy: number, capacity: number): BedCountValidation {
+  if (!Number.isInteger(newOccupancy) || newOccupancy < 0) {
+    return { ok: false, error: 'Bed count must be a whole number ≥ 0.' };
+  }
+  if (capacity < 0) {
+    return { ok: false, error: 'Shelter capacity is invalid.' };
+  }
+  if (newOccupancy > capacity) {
+    return { ok: false, error: `Bed count cannot exceed capacity (${capacity}).` };
+  }
+  return { ok: true, value: newOccupancy };
+}
+
 /**
  * True iff a shelter satisfies every populated criterion in `filter`.
  * Empty filter matches every active shelter.

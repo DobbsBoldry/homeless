@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { freeBeds, matchesFilter, occupancyRate } from './bed-availability';
+import { freeBeds, matchesFilter, occupancyRate, validateBedCount } from './bed-availability';
 
 const baseShelter = {
   capacity: 60,
@@ -62,5 +62,30 @@ describe('matchesFilter', () => {
   it('rejects when minFreeBeds is not met', () => {
     expect(matchesFilter({ ...baseShelter, currentOccupancy: 60 }, { minFreeBeds: 1 })).toBe(false);
     expect(matchesFilter({ ...baseShelter, currentOccupancy: 50 }, { minFreeBeds: 1 })).toBe(true);
+  });
+});
+
+describe('validateBedCount', () => {
+  it('accepts integer occupancies in [0, capacity]', () => {
+    expect(validateBedCount(0, 10)).toEqual({ ok: true, value: 0 });
+    expect(validateBedCount(10, 10)).toEqual({ ok: true, value: 10 });
+    expect(validateBedCount(7, 10)).toEqual({ ok: true, value: 7 });
+  });
+
+  it('rejects negative occupancy', () => {
+    const r = validateBedCount(-1, 10);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/whole number/);
+  });
+
+  it('rejects fractional occupancy', () => {
+    const r = validateBedCount(3.5, 10);
+    expect(r.ok).toBe(false);
+  });
+
+  it('rejects occupancy above capacity with the capacity in the message', () => {
+    const r = validateBedCount(11, 10);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain('10');
   });
 });
