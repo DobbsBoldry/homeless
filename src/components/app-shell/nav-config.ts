@@ -36,6 +36,7 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['caseworker', 'ed_coordinator', 'shelter_staff', 'admin'],
   },
   { label: 'Settings', href: '/app/settings', roles: 'all' },
+  { label: 'Admin · Users', href: '/app/admin/users', roles: ['admin'] },
 ];
 
 export function navItemsForRole(role: UserRole): NavItem[] {
