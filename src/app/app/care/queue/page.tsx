@@ -71,8 +71,8 @@ export default async function CareQueuePage({
               <>
                 <CardTitle>No patients match these filters</CardTitle>
                 <CardDescription>
-                  Try lowering the minimum-visits threshold or selecting more housing
-                  statuses above.
+                  Try lowering the minimum-visits threshold or selecting more housing statuses
+                  above.
                 </CardDescription>
               </>
             ) : (
@@ -84,10 +84,7 @@ export default async function CareQueuePage({
                     <>
                       {' '}
                       Or load synthetic ED data with{' '}
-                      <code className="font-mono">
-                        pnpm tsx scripts/load-ed-encounters.ts
-                      </code>
-                      .
+                      <code className="font-mono">pnpm tsx scripts/load-ed-encounters.ts</code>.
                     </>
                   ) : null}
                 </CardDescription>
