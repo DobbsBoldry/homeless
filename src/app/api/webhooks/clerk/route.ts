@@ -2,24 +2,37 @@ import { eq } from 'drizzle-orm';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { Webhook } from 'svix';
+import { z } from 'zod';
 import { db } from '@/db/client';
 import { users } from '@/db/schema/users';
 import { inngest } from '@/inngest/client';
 
 export const dynamic = 'force-dynamic';
 
-type ClerkEmailAddress = { id: string; email_address: string };
-type ClerkUserPayload = {
-  id: string;
-  email_addresses: ClerkEmailAddress[];
-  primary_email_address_id: string | null;
-  first_name: string | null;
-  last_name: string | null;
-};
+/**
+ * Runtime shape guard for the Clerk webhook payload.
+ * Svix's verify() proves the body came from Clerk; this guard proves the body
+ * has the fields we read. Otherwise a benign-but-malformed payload would crash
+ * the handler at access time and Svix would retry forever (sevt loop).
+ */
+const ClerkEmailAddressSchema = z.object({
+  id: z.string(),
+  email_address: z.string(),
+});
 
-type ClerkEvent =
-  | { type: 'user.created' | 'user.updated'; data: ClerkUserPayload }
-  | { type: 'user.deleted'; data: { id: string } };
+const ClerkUserPayloadSchema = z.object({
+  id: z.string(),
+  email_addresses: z.array(ClerkEmailAddressSchema),
+  primary_email_address_id: z.string().nullable(),
+  first_name: z.string().nullable(),
+  last_name: z.string().nullable(),
+});
+
+const ClerkEventSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('user.created'), data: ClerkUserPayloadSchema }),
+  z.object({ type: z.literal('user.updated'), data: ClerkUserPayloadSchema }),
+  z.object({ type: z.literal('user.deleted'), data: z.object({ id: z.string() }) }),
+]);
 
 /**
  * Clerk webhook for production user sync (mirrors lazy upsert in src/lib/auth.ts).
@@ -41,17 +54,32 @@ export async function POST(req: Request) {
   }
 
   const body = await req.text();
-  let event: ClerkEvent;
+  let verifiedRaw: unknown;
   try {
-    event = new Webhook(secret).verify(body, {
+    verifiedRaw = new Webhook(secret).verify(body, {
       'svix-id': svixId,
       'svix-timestamp': svixTs,
       'svix-signature': svixSig,
-    }) as ClerkEvent;
+    });
   } catch (err) {
     console.error('[clerk webhook] signature verification failed:', err);
     return NextResponse.json({ error: 'invalid signature' }, { status: 400 });
   }
+
+  // Shape-check the verified payload — Svix verifies the source, not the
+  // contract. A user.created event missing email_addresses would crash on
+  // access without this guard, and Svix would retry the broken payload forever.
+  const parsed = ClerkEventSchema.safeParse(verifiedRaw);
+  if (!parsed.success) {
+    // 200 (not 400) so Svix doesn't keep retrying a structurally-broken payload.
+    // We logged it; investigate via Sentry / dashboard.
+    console.warn('[clerk webhook] unexpected payload shape', {
+      issues: parsed.error.issues,
+      raw: typeof verifiedRaw === 'object' ? Object.keys(verifiedRaw ?? {}) : typeof verifiedRaw,
+    });
+    return NextResponse.json({ ok: true, ignored: 'unrecognized_payload' });
+  }
+  const event = parsed.data;
 
   try {
     if (event.type === 'user.created' || event.type === 'user.updated') {
