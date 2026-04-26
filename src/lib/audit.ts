@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs';
 import { db } from '@/db/client';
 import { auditLog } from '@/db/schema/audit-log';
 
@@ -27,9 +28,9 @@ export interface LogAuditEventInput {
  * Append-only audit log writer. Use from server components, server actions,
  * and webhooks to record significant events.
  *
- * Failures are logged but never throw — audit must never break the user-facing
- * action. (We trade observability for availability; an alert on missing-audit
- * dropouts comes in FND-006.)
+ * Failures are logged + reported to Sentry as a tagged warning, but never
+ * thrown — audit must never break the user-facing action. Set up a Sentry
+ * alert on tag `audit_write=failed` to catch silent dropouts.
  */
 export async function logAuditEvent(input: LogAuditEventInput): Promise<void> {
   try {
@@ -42,5 +43,12 @@ export async function logAuditEvent(input: LogAuditEventInput): Promise<void> {
     });
   } catch (err) {
     console.error('[audit] write failed', { input, err });
+    Sentry.captureException(err, {
+      level: 'warning',
+      tags: { audit_write: 'failed', audit_action: input.action },
+      // Action name is safe to attach (a controlled enum). Don't attach
+      // metadata — it may contain PHI-shaped fields once Phase 1 lands.
+      extra: { audit_action: input.action },
+    });
   }
 }
