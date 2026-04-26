@@ -38,6 +38,21 @@ await inngest.send({ name: 'user.signed_up', data: { clerkUserId: 'test_123' } }
 The scheduled `daily-health-ping` (cron `0 9 * * *` UTC) can be invoked
 on-demand from the dev UI without waiting for the cron.
 
+### Demo seed (DEMO-001)
+
+To pre-load staging with a realistic end-to-end demo state — synthetic
+filings, risk scores, response packets in mixed statuses, and a demo
+attorney user with KLA membership — run:
+
+```bash
+DEMO_ATTORNEY_EMAIL=demo@example.com pnpm tsx scripts/seed-demo.ts
+```
+
+Idempotent — re-running adds nothing. Costs ~$0.50–1 in Anthropic API
+spend on the first run; cached after that. The demo user has a fake
+Clerk ID (DB-only); to give your real Clerk account attorney access,
+use the admin promote-to-attorney UI (ADMIN-001) once that ships.
+
 ### Daily attorney email digest (EVDT-019)
 
 The `daily-attorney-digest` Inngest cron (12:00 UTC weekdays = 7am Central)
