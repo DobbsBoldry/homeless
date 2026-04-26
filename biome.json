@@ -15,7 +15,9 @@
       "!**/build",
       "!**/*.css",
       "!src/components/ui",
-      "!drizzle/migrations"
+      "!drizzle/migrations",
+      "!docs/research",
+      "!fixtures"
     ]
   },
   "formatter": {
