@@ -23,10 +23,15 @@ const TIER_LABEL: Record<DataSharingTier, string> = {
   individual: 'Individual (consented)',
 };
 
+// Color signals data-sensitivity, not workflow-success. `individual`
+// is the most-sensitive tier (consent-gated PHI flow); it gets the
+// most-intense badge so a directory reviewer's eye lands there.
+// `aggregate` is anonymized public-ish counts; muted info-color.
+// `none` is the default "no agreement yet" state; quiet grey.
 const TIER_BADGE: Record<DataSharingTier, string> = {
   none: 'bg-muted text-muted-foreground',
-  aggregate: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
-  individual: 'bg-emerald-600/15 text-emerald-700 dark:text-emerald-400',
+  aggregate: 'bg-secondary text-secondary-foreground',
+  individual: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
 };
 
 export function PartnerDirectory({ orgs }: { orgs: PartnerOrg[] }) {
