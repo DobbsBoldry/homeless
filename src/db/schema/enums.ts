@@ -38,3 +38,30 @@ export const consentChannelEnum = pgEnum('consent_channel', [
 ]);
 
 export type ConsentChannel = (typeof consentChannelEnum.enumValues)[number];
+
+export const evictionCauseTypeEnum = pgEnum('eviction_cause_type', [
+  'non_payment',
+  'lease_violation',
+  'holdover',
+  'other',
+]);
+
+export type EvictionCauseType = (typeof evictionCauseTypeEnum.enumValues)[number];
+
+export const evictionFilingStatusEnum = pgEnum('eviction_filing_status', [
+  'filed',
+  'served',
+  'judgment',
+  'dismissed',
+  'sealed',
+]);
+
+export type EvictionFilingStatus = (typeof evictionFilingStatusEnum.enumValues)[number];
+
+export const evictionFilingSourceEnum = pgEnum('eviction_filing_source', [
+  'courtnet',
+  'manual',
+  'synthetic',
+]);
+
+export type EvictionFilingSource = (typeof evictionFilingSourceEnum.enumValues)[number];
