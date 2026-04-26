@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { freeBeds, matchesFilter, occupancyRate, validateBedCount } from './bed-availability';
+import {
+  freeBeds,
+  hasActiveFilter,
+  matchesFilter,
+  occupancyRate,
+  parseBedFilterParams,
+  validateBedCount,
+} from './bed-availability';
 
 const baseShelter = {
   capacity: 60,
@@ -62,6 +69,79 @@ describe('matchesFilter', () => {
   it('rejects when minFreeBeds is not met', () => {
     expect(matchesFilter({ ...baseShelter, currentOccupancy: 60 }, { minFreeBeds: 1 })).toBe(false);
     expect(matchesFilter({ ...baseShelter, currentOccupancy: 50 }, { minFreeBeds: 1 })).toBe(true);
+  });
+});
+
+describe('matchesFilter — query', () => {
+  it('matches case-insensitively against searchableText', () => {
+    expect(matchesFilter(baseShelter, { query: 'BENED' }, 'St. Benedict\u2019s — Owensboro')).toBe(
+      true,
+    );
+  });
+
+  it('rejects when query has no match', () => {
+    expect(matchesFilter(baseShelter, { query: 'zzz' }, 'St. Benedict\u2019s')).toBe(false);
+  });
+
+  it('rejects when searchableText is undefined and query is set', () => {
+    expect(matchesFilter(baseShelter, { query: 'foo' })).toBe(false);
+  });
+
+  it('ignores whitespace-only queries', () => {
+    // parseBedFilterParams strips these; matchesFilter only acts on
+    // non-empty queries (passes when query.trim() is empty).
+    expect(matchesFilter(baseShelter, { query: '   ' })).toBe(true);
+  });
+});
+
+describe('parseBedFilterParams', () => {
+  it('returns empty filter for empty params', () => {
+    expect(parseBedFilterParams({})).toEqual({});
+  });
+
+  it('parses a populated query string', () => {
+    expect(
+      parseBedFilterParams({
+        population: 'families',
+        pet: '1',
+        sud: 'true',
+        minFree: '3',
+        q: '  Boulware ',
+      }),
+    ).toEqual({
+      population: 'families',
+      petFriendly: true,
+      sudFriendly: true,
+      minFreeBeds: 3,
+      query: 'Boulware',
+    });
+  });
+
+  it('drops invalid population values', () => {
+    expect(parseBedFilterParams({ population: 'aliens' }).population).toBeUndefined();
+  });
+
+  it('drops zero / negative / non-numeric minFree', () => {
+    expect(parseBedFilterParams({ minFree: '0' }).minFreeBeds).toBeUndefined();
+    expect(parseBedFilterParams({ minFree: '-2' }).minFreeBeds).toBeUndefined();
+    expect(parseBedFilterParams({ minFree: 'abc' }).minFreeBeds).toBeUndefined();
+  });
+
+  it('caps long search queries to 64 chars', () => {
+    const long = 'a'.repeat(200);
+    expect(parseBedFilterParams({ q: long }).query?.length).toBe(64);
+  });
+});
+
+describe('hasActiveFilter', () => {
+  it('returns false for empty filter', () => {
+    expect(hasActiveFilter({})).toBe(false);
+  });
+
+  it('returns true when any dimension is set', () => {
+    expect(hasActiveFilter({ petFriendly: true })).toBe(true);
+    expect(hasActiveFilter({ query: 'foo' })).toBe(true);
+    expect(hasActiveFilter({ minFreeBeds: 1 })).toBe(true);
   });
 });
 
