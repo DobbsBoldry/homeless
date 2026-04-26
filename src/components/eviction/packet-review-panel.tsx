@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import ReactMarkdown from 'react-markdown';
 import {
   changePacketStatusAction,
+  exportPacketPdfAction,
   generatePacketAction,
   savePacketAction,
 } from '@/app/actions/eviction';
@@ -100,6 +101,30 @@ function HasPacket({ packet, filing }: { packet: EvictionResponsePacket; filing:
     });
   };
 
+  const onExport = () => {
+    setError(null);
+    startTransition(async () => {
+      const r = await exportPacketPdfAction(packet.id);
+      if (!r.ok) {
+        setError(r.error);
+        return;
+      }
+      // Trigger browser download via blob URL
+      const bytes = Uint8Array.from(atob(r.base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = r.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+  };
+
+  const canExport = packet.status === 'approved' || packet.status === 'filed';
+
   return (
     <div className="space-y-4">
       <Card>
@@ -159,6 +184,16 @@ function HasPacket({ packet, filing }: { packet: EvictionResponsePacket; filing:
               ) : null}
             </>
           )}
+          <span className="ml-auto" />
+          <Button
+            size="sm"
+            variant={canExport ? 'default' : 'outline'}
+            disabled={pending || !canExport}
+            onClick={onExport}
+            title={canExport ? 'Download as PDF' : 'Approve the packet first to enable export'}
+          >
+            Export PDF
+          </Button>
           {error ? <span className="text-destructive text-xs">{error}</span> : null}
         </CardContent>
       </Card>
