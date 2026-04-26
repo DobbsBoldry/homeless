@@ -14,7 +14,19 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req: Request) {
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const skipSignature = process.env.INDC_SKIP_TWILIO_SIGNATURE === '1';
+  // Production fail-safe: the dev bypass is reachable ONLY when NODE_ENV !==
+  // 'production'. An env-var leak (or a misconfigured deploy) on prod would
+  // otherwise turn this route into an open relay.
+  const skipSignature =
+    process.env.INDC_SKIP_TWILIO_SIGNATURE === '1' && process.env.NODE_ENV !== 'production';
+  if (
+    process.env.INDC_SKIP_TWILIO_SIGNATURE === '1' &&
+    process.env.NODE_ENV === 'production'
+  ) {
+    console.error(
+      '[twilio sms] INDC_SKIP_TWILIO_SIGNATURE=1 set in production — bypass refused',
+    );
+  }
 
   const hdrs = await headers();
   const signature = hdrs.get('x-twilio-signature') ?? '';
