@@ -11,7 +11,6 @@ const FONT_MONO = 'Courier';
 interface RenderOpts {
   packetMd: string;
   filing: EvictionFiling;
-  generatedAt?: Date;
 }
 
 /**
@@ -28,7 +27,7 @@ interface RenderOpts {
  * - Footer on every page: case number + AI-DRAFTED reminder.
  */
 export async function renderPacketPdf(opts: RenderOpts): Promise<Buffer> {
-  const { packetMd, filing, generatedAt = new Date() } = opts;
+  const { packetMd, filing } = opts;
   const doc = new PDFDocument({
     size: 'LETTER',
     margins: { top: PAGE_MARGIN, bottom: PAGE_MARGIN + 24, left: PAGE_MARGIN, right: PAGE_MARGIN },
@@ -39,7 +38,6 @@ export async function renderPacketPdf(opts: RenderOpts): Promise<Buffer> {
       Keywords: 'eviction answer ai-drafted attorney-review-required',
     },
   });
-  void generatedAt;
 
   const chunks: Buffer[] = [];
   doc.on('data', (chunk) => chunks.push(chunk as Buffer));
@@ -159,7 +157,9 @@ function renderList(doc: PDFKit.PDFDocument, list: Tokens.List) {
       bullet = `${counter}.`;
       counter += 1;
     } else if (item.task) {
-      bullet = item.checked ? '☒' : '☐';
+      // ASCII rather than Unicode box glyphs — Helvetica doesn't carry
+      // U+2610/U+2612 and they extract as junk.
+      bullet = item.checked ? '[X]' : '[ ]';
     } else {
       bullet = '•';
     }

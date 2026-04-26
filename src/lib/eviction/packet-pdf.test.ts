@@ -1,6 +1,13 @@
+import { PDFParse } from 'pdf-parse';
 import { describe, expect, it } from 'vitest';
 import type { EvictionFiling } from '@/db/schema/eviction-filings';
 import { renderPacketPdf } from './packet-pdf';
+
+async function extractText(bytes: Buffer): Promise<string> {
+  const p = new PDFParse({ data: bytes });
+  const r = await p.getText();
+  return r.text;
+}
 
 const filing: EvictionFiling = {
   id: '00000000-0000-0000-0000-000000000001',
@@ -65,5 +72,30 @@ describe('renderPacketPdf', () => {
     const bytes = await renderPacketPdf({ packetMd: samplePacket, filing });
     // Title is in the doc info dict — appears as plain text in the binary
     expect(bytes.includes(Buffer.from(filing.caseNumber, 'utf8'))).toBe(true);
+  });
+
+  it('preserves the disclaimer, defenses checkboxes, and signature line in the rendered text', async () => {
+    const bytes = await renderPacketPdf({ packetMd: samplePacket, filing });
+    const text = await extractText(bytes);
+    // Disclaimer (the legally important reminder)
+    expect(text).toContain('AI-DRAFTED');
+    expect(text).toContain('REQUIRED BEFORE FILING');
+    expect(text).toContain('not legal advice');
+    // Defendant name in caption
+    expect(text).toContain('Marcus Synthwell');
+    // Defenses checklist rendered as ASCII boxes (Helvetica lacks U+2610)
+    expect(text).toMatch(/\[\s\]|\[X\]/);
+    // Signature line
+    expect(text.toLowerCase()).toContain('defendant signature');
+  });
+
+  it('produces semantically deterministic output for the same input', async () => {
+    // pdfkit injects timestamp fields into /Info and /ID, so byte-equality
+    // is not expected. AC#7 is about the BODY content not embedding
+    // timestamps — verify by extracting text from two renders.
+    const a = await renderPacketPdf({ packetMd: samplePacket, filing });
+    const b = await renderPacketPdf({ packetMd: samplePacket, filing });
+    const [ta, tb] = await Promise.all([extractText(a), extractText(b)]);
+    expect(ta).toBe(tb);
   });
 });
