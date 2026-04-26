@@ -10,6 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { bedHoldStatusEnum } from './enums';
 import { partnerOrgs } from './partner-orgs';
 
 /**
@@ -96,3 +97,46 @@ export const bedCountUpdates = pgTable(
 
 export type BedCountUpdate = typeof bedCountUpdates.$inferSelect;
 export type NewBedCountUpdate = typeof bedCountUpdates.$inferInsert;
+
+/**
+ * Soft 90-minute reservation against a shelter bed (COOR-005). A hold
+ * decrements effective free beds (free = capacity − occupancy − active
+ * holds) without touching `current_occupancy` itself — the bed is still
+ * unoccupied until the person arrives and the staff bumps occupancy.
+ *
+ * Identity is opaque on purpose: `personLabel` is whatever the dispatcher
+ * wrote ("211 caller #1234", "Phone: 270-555-0100"). No real PHI lands
+ * here pre-BAA.
+ *
+ * Lifecycle:
+ *  - active   → released   (manual release, person didn't show)
+ *  - active   → expired    (auto-released by Inngest after expires_at)
+ *  - active   → converted  (intake completed; occupancy bumped manually)
+ */
+export const bedHolds = pgTable(
+  'bed_holds',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    shelterId: uuid('shelter_id')
+      .notNull()
+      .references(() => shelters.id, { onDelete: 'cascade' }),
+    /** Internal user who created the hold. */
+    heldByUserId: uuid('held_by_user_id').notNull(),
+    /** Free-text label for the requesting party. NEVER PHI. */
+    personLabel: text('person_label').notNull(),
+    status: bedHoldStatusEnum('status').notNull().default('active'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    releasedAt: timestamp('released_at', { withTimezone: true }),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('bed_holds_shelter_idx').on(t.shelterId),
+    index('bed_holds_status_idx').on(t.status),
+    index('bed_holds_expires_idx').on(t.expiresAt),
+  ],
+);
+
+export type BedHold = typeof bedHolds.$inferSelect;
+export type NewBedHold = typeof bedHolds.$inferInsert;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  effectiveFreeBeds,
   freeBeds,
   hasActiveFilter,
   matchesFilter,
@@ -29,6 +30,20 @@ describe('freeBeds', () => {
 
   it('returns 0 when at capacity', () => {
     expect(freeBeds({ capacity: 10, currentOccupancy: 10 })).toBe(0);
+  });
+});
+
+describe('effectiveFreeBeds', () => {
+  it('subtracts active holds from raw free', () => {
+    expect(effectiveFreeBeds({ capacity: 10, currentOccupancy: 4 }, 2)).toBe(4);
+  });
+
+  it('clamps to 0 when holds exceed raw free', () => {
+    expect(effectiveFreeBeds({ capacity: 10, currentOccupancy: 8 }, 5)).toBe(0);
+  });
+
+  it('treats negative hold counts as 0', () => {
+    expect(effectiveFreeBeds({ capacity: 10, currentOccupancy: 4 }, -1)).toBe(6);
   });
 });
 

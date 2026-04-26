@@ -1,6 +1,7 @@
+import { BedHoldControls } from '@/components/coordination/bed-hold-controls';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { ShelterWithOrg } from '@/db/queries/shelters';
-import { freeBeds, occupancyRate } from '@/lib/coordination/bed-availability';
+import type { BedHoldWithHolder, ShelterWithOrg } from '@/db/queries/shelters';
+import { effectiveFreeBeds, freeBeds, occupancyRate } from '@/lib/coordination/bed-availability';
 
 const fmtTime = (d: Date) =>
   new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(d));
@@ -18,11 +19,16 @@ function popChips(shelter: ShelterWithOrg): string[] {
 export function BedBoardCard({
   shelter,
   lastUpdatedAt,
+  activeHolds,
+  canHold,
 }: {
   shelter: ShelterWithOrg;
   lastUpdatedAt: Date | null;
+  activeHolds: BedHoldWithHolder[];
+  canHold: boolean;
 }) {
-  const free = freeBeds(shelter);
+  const rawFree = freeBeds(shelter);
+  const free = effectiveFreeBeds(shelter, activeHolds.length);
   const rate = occupancyRate(shelter);
   const isFull = free === 0;
   const isTight = !isFull && rate >= 0.85;
@@ -47,6 +53,11 @@ export function BedBoardCard({
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Free</p>
             <p className={`text-3xl font-semibold ${freeColor}`}>{free}</p>
+            {activeHolds.length > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {rawFree} unoccupied · {activeHolds.length} on hold
+              </p>
+            ) : null}
           </div>
           <p className="text-sm text-muted-foreground">
             {shelter.currentOccupancy} / {shelter.capacity} occupied
@@ -94,6 +105,14 @@ export function BedBoardCard({
         <p className="text-xs text-muted-foreground">
           {lastUpdatedAt ? `Last update ${fmtTime(lastUpdatedAt)}` : 'No updates yet'}
         </p>
+
+        <BedHoldControls
+          shelterId={shelter.id}
+          shelterName={shelter.name}
+          freeBeds={free}
+          activeHolds={activeHolds}
+          canHold={canHold}
+        />
       </CardContent>
     </Card>
   );
