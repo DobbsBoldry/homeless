@@ -14,6 +14,7 @@ import { auditLog } from './schema/audit-log';
 import type { UserRole } from './schema/enums';
 import { orgMemberships } from './schema/org-memberships';
 import { type NewPartnerOrg, partnerOrgs } from './schema/partner-orgs';
+import { type NewPartnerServiceEvent, partnerServiceEvents } from './schema/partner-service-events';
 import {
   type NewRentalAssistanceProgram,
   rentalAssistancePrograms,
@@ -458,6 +459,194 @@ async function main() {
     console.log(`[seed]   + ${programs.length} rental-assistance programs`);
   } else {
     console.log('[seed]   = rental-assistance programs (exist)');
+  }
+
+  // ---- COAL-002: synthetic cross-org service events ----
+  // Demonstrates the 'this person asked 3 ministries this week' view
+  // without any real cross-org data flow. Every synthetic_person_ref
+  // is opaque (SYN-PERSON-*), and the events are spread across a
+  // small set of seeded partner orgs to make the coordination view
+  // demo-able. Phase 2 replaces this with real partner ingest.
+  const existingEvents = await db
+    .select({ id: partnerServiceEvents.id })
+    .from(partnerServiceEvents)
+    .limit(1);
+  if (existingEvents.length === 0) {
+    const eventOrgSlugs = [
+      'boulware-mission',
+      'st-benedicts-shelter',
+      'catholic-charities-owensboro',
+      'audubon-area-community-services',
+      'crossroads-to-hope',
+      'daniel-pitino-shelter',
+    ] as const;
+    const eventOrgs = await db
+      .select({ id: partnerOrgs.id, slug: partnerOrgs.slug })
+      .from(partnerOrgs);
+    const orgIdBySlug = new Map(eventOrgs.map((o) => [o.slug, o.id]));
+
+    // 8 synthetic persons. Some appear at multiple orgs (the
+    // coordination story), some at only one (typical population).
+    const persons = [
+      'SYN-PERSON-001',
+      'SYN-PERSON-002',
+      'SYN-PERSON-003',
+      'SYN-PERSON-004',
+      'SYN-PERSON-005',
+      'SYN-PERSON-006',
+      'SYN-PERSON-007',
+      'SYN-PERSON-008',
+    ];
+
+    const now = new Date();
+    const daysAgo = (n: number) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - n);
+      return d;
+    };
+
+    const events: NewPartnerServiceEvent[] = [
+      // SYN-PERSON-001: cross-org pattern (3 orgs in 7 days) — the demo's hero case
+      {
+        person: 'SYN-PERSON-001',
+        org: 'catholic-charities-owensboro',
+        type: 'food_pantry',
+        day: 0,
+        notes: 'food box pickup',
+      },
+      {
+        person: 'SYN-PERSON-001',
+        org: 'audubon-area-community-services',
+        type: 'utility_assistance',
+        day: 3,
+        notes: 'KU bill assistance request',
+      },
+      {
+        person: 'SYN-PERSON-001',
+        org: 'boulware-mission',
+        type: 'shelter_intake',
+        day: 6,
+        notes: 'walk-in intake, bed assigned',
+      },
+      // SYN-PERSON-002: cross-org pattern (4 events at 2 orgs)
+      {
+        person: 'SYN-PERSON-002',
+        org: 'st-benedicts-shelter',
+        type: 'shelter_bed_night',
+        day: 1,
+        notes: null,
+      },
+      {
+        person: 'SYN-PERSON-002',
+        org: 'st-benedicts-shelter',
+        type: 'shelter_bed_night',
+        day: 2,
+        notes: null,
+      },
+      {
+        person: 'SYN-PERSON-002',
+        org: 'catholic-charities-owensboro',
+        type: 'food_pantry',
+        day: 4,
+        notes: null,
+      },
+      {
+        person: 'SYN-PERSON-002',
+        org: 'st-benedicts-shelter',
+        type: 'shelter_bed_night',
+        day: 5,
+        notes: null,
+      },
+      // SYN-PERSON-003: families-with-children pattern
+      {
+        person: 'SYN-PERSON-003',
+        org: 'daniel-pitino-shelter',
+        type: 'shelter_intake',
+        day: 10,
+        notes: 'mother + 2 children',
+      },
+      {
+        person: 'SYN-PERSON-003',
+        org: 'crossroads-to-hope',
+        type: 'counseling_visit',
+        day: 12,
+        notes: 'child welfare referral',
+      },
+      {
+        person: 'SYN-PERSON-003',
+        org: 'audubon-area-community-services',
+        type: 'rent_assistance',
+        day: 15,
+        notes: 'security deposit help',
+      },
+      // SYN-PERSON-004 through 008: single-org touchpoints (typical population)
+      {
+        person: 'SYN-PERSON-004',
+        org: 'boulware-mission',
+        type: 'shelter_bed_night',
+        day: 2,
+        notes: null,
+      },
+      {
+        person: 'SYN-PERSON-005',
+        org: 'catholic-charities-owensboro',
+        type: 'food_pantry',
+        day: 5,
+        notes: null,
+      },
+      {
+        person: 'SYN-PERSON-006',
+        org: 'audubon-area-community-services',
+        type: 'utility_assistance',
+        day: 8,
+        notes: null,
+      },
+      {
+        person: 'SYN-PERSON-007',
+        org: 'crossroads-to-hope',
+        type: 'shelter_intake',
+        day: 1,
+        notes: 'overnight, single night stay',
+      },
+      {
+        person: 'SYN-PERSON-008',
+        org: 'st-benedicts-shelter',
+        type: 'shelter_bed_night',
+        day: 0,
+        notes: null,
+      },
+      // Extra cross-org touches to make the recent-week view interesting
+      {
+        person: 'SYN-PERSON-001',
+        org: 'boulware-mission',
+        type: 'counseling_visit',
+        day: 7,
+        notes: 'case-management intake',
+      },
+      {
+        person: 'SYN-PERSON-002',
+        org: 'st-benedicts-shelter',
+        type: 'shelter_bed_night',
+        day: 6,
+        notes: null,
+      },
+    ].map((e) => ({
+      partnerOrgId: orgIdBySlug.get(e.org)!,
+      syntheticPersonRef: e.person,
+      eventType: e.type as NewPartnerServiceEvent['eventType'],
+      eventAt: daysAgo(e.day),
+      notes: e.notes,
+      source: 'synthetic' as const,
+    }));
+
+    void eventOrgSlugs; // imports cross-checked above; future work can drive seeding from this list
+
+    await db.insert(partnerServiceEvents).values(events);
+    console.log(
+      `[seed]   + ${events.length} partner service events (${persons.length} synthetic persons)`,
+    );
+  } else {
+    console.log('[seed]   = partner service events (exist)');
   }
 
   // ---- 3 sample audit entries ----
