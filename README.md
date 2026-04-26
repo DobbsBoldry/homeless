@@ -38,6 +38,26 @@ await inngest.send({ name: 'user.signed_up', data: { clerkUserId: 'test_123' } }
 The scheduled `daily-health-ping` (cron `0 9 * * *` UTC) can be invoked
 on-demand from the dev UI without waiting for the cron.
 
+### Generating synthetic test data
+
+We never use real PHI or real eviction-defendant data in development. The
+`scripts/gen-synthetic-*.ts` scripts use the Claude API to produce realistic
+fixtures we can iterate against safely.
+
+```bash
+# Eviction filings (Daviess District Court shape — public record domain)
+pnpm tsx scripts/gen-synthetic-filings.ts --count 50 --out fixtures/eviction-filings.json
+pnpm tsx scripts/gen-synthetic-filings.ts --count 10 --seed 42 --out fixtures/sample.json
+```
+
+Generated rows are clearly labelled synthetic — case numbers prefixed `SYN-`,
+fake-dictionary names (`Synthwell`, `Fakeman`, etc.), no real Daviess
+addresses. Safe to commit; safe to load into the staging DB.
+
+A baseline fixture (50 records, seed=42) is committed at
+`fixtures/eviction-filings.json` so contributors don't all need to spend
+API credits to get started.
+
 ## Set up GitHub (one time)
 
 This bulk-creates the repo, labels, milestones, project board, and ~180 issues from `BACKLOG.md`.
