@@ -71,17 +71,25 @@ export default async function CareQueuePage({
               <>
                 <CardTitle>No patients match these filters</CardTitle>
                 <CardDescription>
-                  Note: the underlying flag list is already filtered to housing-unstable patients
-                  (shelter / unsheltered / doubled_up). Filtering on 'housed' or 'unknown' returns
-                  nothing here.
+                  Try lowering the minimum-visits threshold or selecting more housing
+                  statuses above.
                 </CardDescription>
               </>
             ) : (
               <>
                 <CardTitle>No super-utilizers detected in the last 180 days</CardTitle>
                 <CardDescription>
-                  Try lowering the visit threshold above, or load synthetic ED data via
-                  <code className="ml-1 font-mono">pnpm tsx scripts/load-ed-encounters.ts</code>.
+                  Try lowering the visit threshold above.
+                  {process.env.NODE_ENV !== 'production' ? (
+                    <>
+                      {' '}
+                      Or load synthetic ED data with{' '}
+                      <code className="font-mono">
+                        pnpm tsx scripts/load-ed-encounters.ts
+                      </code>
+                      .
+                    </>
+                  ) : null}
                 </CardDescription>
               </>
             )}

@@ -1,13 +1,12 @@
 import Link from 'next/link';
 import type { HousingStatus } from '@/db/schema/enums';
 
-const HOUSING_OPTIONS: HousingStatus[] = [
-  'shelter',
-  'unsheltered',
-  'doubled_up',
-  'housed',
-  'unknown',
-];
+// Only the housing-instability statuses appear in the strict
+// super-utilizer flag list (`housed` and `unknown` are excluded by
+// design — see HOUSING_INSTABILITY_FLAGS in super-utilizer-ranking.ts).
+// We don't expose them as filter chips because toggling them would
+// always produce zero results.
+const HOUSING_OPTIONS: HousingStatus[] = ['shelter', 'unsheltered', 'doubled_up'];
 
 export interface CareQueueFilterValues {
   minVisits?: number;
