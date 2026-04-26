@@ -8,7 +8,11 @@ import { type ConsentChannel, type ConsentType, consentChannelEnum } from '@/db/
 import { personPartnerConsents } from '@/db/schema/person-partner-consents';
 import { logAuditEvent } from '@/lib/audit';
 import { CURRENT_CONSENT_VERSION, DATA_CLASSES } from '@/lib/dtrs/consent-text';
+import { rateLimit } from '@/lib/dtrs/rate-limit';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
+
+const CONSENT_RATE_WINDOW_MS = 60_000;
+const CONSENT_RATE_LIMIT = 6; // 6 ops/min per subject is plenty for legit use.
 
 export type ConsentResult = { ok: true } | { ok: false; error: string };
 
@@ -23,6 +27,15 @@ export async function revokeConsentAction(
 ): Promise<ConsentResult> {
   if (!isValidSyntheticPersonRef(syntheticPersonRef))
     return { ok: false, error: 'Invalid identifier.' };
+
+  const limit = rateLimit(
+    `revoke:${syntheticPersonRef}`,
+    CONSENT_RATE_LIMIT,
+    CONSENT_RATE_WINDOW_MS,
+  );
+  if (!limit.ok) {
+    return { ok: false, error: 'Too many attempts. Please wait a minute and try again.' };
+  }
 
   const [updated] = await db
     .update(personPartnerConsents)
@@ -78,6 +91,11 @@ export type GrantConsentResult = { ok: true; id: string } | { ok: false; error: 
 export async function grantConsentAction(input: GrantConsentInput): Promise<GrantConsentResult> {
   const subject = input.subjectExternalId.trim();
   if (subject.length === 0) return { ok: false, error: 'Missing subject identifier.' };
+
+  const limit = rateLimit(`grant:${subject}`, CONSENT_RATE_LIMIT, CONSENT_RATE_WINDOW_MS);
+  if (!limit.ok) {
+    return { ok: false, error: 'Too many attempts. Please wait a minute and try again.' };
+  }
 
   if (!VALID_CHANNELS.has(input.grantedVia)) {
     return { ok: false, error: 'Invalid consent channel.' };
@@ -161,6 +179,15 @@ export async function regrantConsentAction(
 ): Promise<ConsentResult> {
   if (!isValidSyntheticPersonRef(syntheticPersonRef))
     return { ok: false, error: 'Invalid identifier.' };
+
+  const limit = rateLimit(
+    `regrant:${syntheticPersonRef}`,
+    CONSENT_RATE_LIMIT,
+    CONSENT_RATE_WINDOW_MS,
+  );
+  if (!limit.ok) {
+    return { ok: false, error: 'Too many attempts. Please wait a minute and try again.' };
+  }
 
   const [updated] = await db
     .update(personPartnerConsents)

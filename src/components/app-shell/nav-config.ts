@@ -51,6 +51,11 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['caseworker', 'shelter_staff', 'admin'],
   },
   {
+    label: 'Consent link',
+    href: '/app/clients/consent-link',
+    roles: ['caseworker', 'shelter_staff', 'admin'],
+  },
+  {
     label: 'Outcomes',
     href: '/app/metrics',
     roles: ['attorney', 'admin'],

@@ -3,6 +3,7 @@ import { ConsentForm } from '@/components/consent/consent-form';
 import { Card, CardContent } from '@/components/ui/card';
 import { type ConsentType, consentTypeEnum } from '@/db/schema/enums';
 import { consentTextFor } from '@/lib/dtrs/consent-text';
+import { redeemConsentAccessToken } from '@/lib/dtrs/consent-token';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export const metadata = {
@@ -11,6 +12,17 @@ export const metadata = {
 
 const VALID_TYPES = new Set<ConsentType>(consentTypeEnum.enumValues);
 
+/**
+ * Public consent grant surface. Two access modes:
+ *   1. Token mode (preferred, post-#251): URL has `?token=<opaque>`
+ *      and the token resolves server-side to the ref. Phase-1 prod use.
+ *   2. Open mode (legacy, demo only): no token, but the URL itself
+ *      is the secret. Locked behind INDC_CONSENT_OPEN_MODE=1 so we
+ *      don't accidentally ship open-mode to a real domain.
+ *
+ * If neither path validates, return 404 — don't leak that the route
+ * pattern exists.
+ */
 export default async function GrantConsentPage({
   params,
   searchParams,
@@ -21,6 +33,21 @@ export default async function GrantConsentPage({
   const { ref } = await params;
   const sp = await searchParams;
   if (!isValidSyntheticPersonRef(ref)) notFound();
+
+  const rawToken = Array.isArray(sp.token) ? sp.token[0] : sp.token;
+  const openMode = process.env.INDC_CONSENT_OPEN_MODE === '1';
+
+  let authorized = false;
+  if (rawToken) {
+    const redeemed = await redeemConsentAccessToken(rawToken);
+    if (redeemed && redeemed.syntheticPersonRef === ref) {
+      authorized = true;
+    }
+  } else if (openMode) {
+    authorized = true;
+  }
+
+  if (!authorized) notFound();
 
   const rawType = Array.isArray(sp.type) ? sp.type[0] : sp.type;
   const consentType: ConsentType =
@@ -43,16 +70,18 @@ export default async function GrantConsentPage({
         </CardContent>
       </Card>
 
-      <Card className="border-amber-500/40 bg-amber-500/5">
-        <CardContent className="text-xs">
-          <p className="font-medium">Phase-1 stub.</p>
-          <p className="mt-1 text-muted-foreground">
-            This page is open to anyone with the URL today. A one-time-link auth gate (#251) is the
-            follow-up that scopes write access to the right person. The wording itself is reviewed
-            in DTRS-005 advisor sessions before any client traffic flows.
-          </p>
-        </CardContent>
-      </Card>
+      {openMode ? (
+        <Card className="border-amber-500/40 bg-amber-500/5">
+          <CardContent className="text-xs">
+            <p className="font-medium">Open mode is active.</p>
+            <p className="mt-1 text-muted-foreground">
+              <code className="font-mono">INDC_CONSENT_OPEN_MODE=1</code> is set, so this URL is
+              reachable without a token. Used for staff demos. Disable in any environment that
+              touches real callers.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

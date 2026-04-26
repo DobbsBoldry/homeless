@@ -162,6 +162,13 @@
       "when": 1777239540035,
       "tag": "0022_woozy_black_panther",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1777240694967,
+      "tag": "0023_curious_tarot",
+      "breakpoints": true
     }
   ]
 }
