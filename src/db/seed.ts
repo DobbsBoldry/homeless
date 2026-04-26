@@ -139,11 +139,17 @@ async function main() {
   }
 
   // ---- rental-assistance program catalog (EVDT-014) ----
-  // Hand-curated KY programs. Eligibility text is illustrative only —
-  // verify with each agency before referring. Source notes for each.
+  // SAMPLE catalog. Names are real KY agencies but contact info and
+  // eligibility text are NOT independently verified — every entry is
+  // prefixed [SAMPLE] in the UI so attorneys don't act on it before
+  // a real catalog refresh ships. The UI banner reinforces this.
+  // TODO: replace with verified catalog (and drop the [SAMPLE] prefix)
+  //       before any KLA attorney sees this in production.
+  // TODO: switch to upsert-by-(agency,name) once the catalog stabilizes
+  //       so seed re-runs can update fields without resetting the table.
   const programs: NewRentalAssistanceProgram[] = [
     {
-      name: 'Healthy at Home Eviction Relief Fund',
+      name: '[SAMPLE] Healthy at Home Eviction Relief Fund',
       agency: 'Kentucky Housing Corporation (KHC)',
       phone: '+1-502-564-7630',
       website: 'https://www.kyhousing.org',
@@ -153,7 +159,7 @@ async function main() {
       sourceNote: 'KHC public site (illustrative wording, verify per cycle)',
     },
     {
-      name: 'Emergency Rental Assistance',
+      name: '[SAMPLE] Emergency Rental Assistance',
       agency: 'Audubon Area Community Services',
       phone: '+1-270-686-1600',
       website: 'https://www.audubon-area.com',
@@ -163,7 +169,7 @@ async function main() {
       sourceNote: 'Audubon Area program inventory (illustrative)',
     },
     {
-      name: 'Emergency Aid (Rent / Utilities)',
+      name: '[SAMPLE] Emergency Aid (Rent / Utilities)',
       agency: 'Catholic Charities of the Diocese of Owensboro',
       phone: '+1-270-683-1545',
       website: 'https://owensborodiocese.org/catholic-charities',
@@ -173,7 +179,7 @@ async function main() {
       sourceNote: 'Diocese of Owensboro Catholic Charities (illustrative)',
     },
     {
-      name: 'Outreach Fund (Rent / Move-in / Utilities)',
+      name: '[SAMPLE] Outreach Fund (Rent / Move-in / Utilities)',
       agency: 'Boulware Mission',
       phone: '+1-270-683-1505',
       website: 'https://www.boulwaremission.org',
@@ -183,7 +189,7 @@ async function main() {
       sourceNote: 'Boulware Mission (illustrative)',
     },
     {
-      name: 'TANF Family Crisis Funds',
+      name: '[SAMPLE] TANF Family Crisis Funds',
       agency: 'Daviess County Department for Community Based Services (DCBS)',
       phone: '+1-270-687-7300',
       website: 'https://www.chfs.ky.gov/agencies/dcbs',
@@ -193,9 +199,10 @@ async function main() {
       sourceNote: 'KY DCBS family assistance (illustrative)',
     },
     {
-      name: '211 Resource Navigation',
+      name: '[SAMPLE] 211 Resource Navigation',
       agency: 'United Way of the Ohio Valley',
-      phone: '+1-211',
+      // 211 is dialed bare; do NOT prefix with +1.
+      phone: '211',
       website: 'https://uw211.org',
       eligibilitySummary:
         'Not direct rental assistance — phone-based navigation to currently-funded local programs, food banks, utility assistance. First call when other funds are exhausted.',

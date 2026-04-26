@@ -18,9 +18,10 @@ export function RentalAssistancePanel({ programs }: { programs: RentalAssistance
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <p className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs">
-          <strong>Eligibility caveat:</strong> these summaries are illustrative. Eligibility depends
-          on household specifics (income, composition, documentation) that aren't in the filing.
-          Verify with the agency before referring.
+          <strong>SAMPLE catalog — verify before referring.</strong> Agency names are real but
+          contact info, max-award figures, and eligibility text in this list have NOT been
+          independently verified for this Phase-1 build. Confirm phone, hours, and current
+          eligibility rules with each agency before sending a client.
         </p>
         {programs.length === 0 ? (
           <p className="text-muted-foreground">No active programs in the catalog.</p>
