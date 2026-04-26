@@ -4,6 +4,12 @@ import { evictionCaseOutcomes } from '@/db/schema/eviction-case-outcomes';
 import { evictionFilings } from '@/db/schema/eviction-filings';
 import { evictionResponsePackets } from '@/db/schema/eviction-response-packets';
 
+// TODO(multi-org): Phase 1 has a single legal-aid partner (KLA Owensboro),
+// so every filing in the system is implicitly that cohort's. When a
+// second partner org joins, every query in this file needs an explicit
+// JOIN to filter by partner_org. See docs/access-control.md for the
+// Phase-1 single-org assumption.
+
 export interface MetricsKpis {
   /** Filings ingested in the last `windowDays` days. */
   filingsInWindow: number;
@@ -50,6 +56,10 @@ export async function getMetricsKpis(windowDays = 30): Promise<MetricsKpis> {
     .from(evictionFilings)
     .where(gte(evictionFilings.filedAt, since));
 
+  // Note: window is on filing.filed_at, not packet.created_at. A packet
+  // generated this week for a 60-day-old filing does NOT count toward
+  // filingsWithPacket — the rate this feeds (representation rate) reads
+  // 'of filings ingested in this window, how many got a draft answer.'
   const [withPacketRow] = await db
     .select({ value: countDistinct(evictionResponsePackets.filingId) })
     .from(evictionResponsePackets)

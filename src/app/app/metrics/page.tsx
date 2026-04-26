@@ -1,15 +1,9 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { DailyChart } from '@/components/metrics/daily-chart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  type DailyPoint,
-  getDailySeries,
-  getMetricsKpis,
-  getMetricsRates,
-  type MetricsKpis,
-  type MetricsRates,
-} from '@/db/queries/metrics';
-import { requireRole } from '@/lib/auth';
+import { getDailySeries, getMetricsKpis, getMetricsRates } from '@/db/queries/metrics';
+import { requireRole, userIsKlaAttorney } from '@/lib/auth';
 
 const WINDOW_DAYS = 30;
 
@@ -31,13 +25,19 @@ function Kpi({ label, value, hint }: { label: string; value: string; hint?: stri
 }
 
 export default async function MetricsPage() {
-  await requireRole(['attorney', 'admin']);
+  const me = await requireRole(['attorney', 'admin']);
+  // The page header / KPIs claim 'Phase-1 cohort: KLA Owensboro'. We
+  // can't enforce per-org scoping in the queries yet (single-org
+  // assumption — see TODO in src/db/queries/metrics.ts when multi-org
+  // lands), so at minimum gate attorney access on KLA membership so
+  // the label is true. Admins pass without the membership check.
+  if (me.role === 'attorney' && !(await userIsKlaAttorney(me))) notFound();
 
-  const [kpis, rates, series] = (await Promise.all([
+  const [kpis, rates, series] = await Promise.all([
     getMetricsKpis(WINDOW_DAYS),
     getMetricsRates(WINDOW_DAYS),
     getDailySeries(WINDOW_DAYS),
-  ])) as [MetricsKpis, MetricsRates, DailyPoint[]];
+  ]);
 
   const noOutcomes = kpis.outcomesRecorded === 0;
 
@@ -91,7 +91,31 @@ export default async function MetricsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <DailyChart data={series} />
+          <div
+            role="img"
+            aria-label={`Line chart, two series. Daily eviction filings and approved response packets over the last ${WINDOW_DAYS} days.`}
+          >
+            <DailyChart data={series} />
+          </div>
+          <table className="sr-only">
+            <caption>Daily filings and packets approved, last {WINDOW_DAYS} days.</caption>
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Filings</th>
+                <th>Packets approved</th>
+              </tr>
+            </thead>
+            <tbody>
+              {series.map((p) => (
+                <tr key={p.day}>
+                  <td>{p.day}</td>
+                  <td>{p.filings}</td>
+                  <td>{p.packetsApproved}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </CardContent>
       </Card>
 
