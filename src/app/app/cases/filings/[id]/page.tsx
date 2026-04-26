@@ -28,6 +28,19 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
         </Link>
       </div>
       <FilingDetail filing={filing} score={score} />
+      <div className="rounded-md border border-border bg-card p-4 text-sm">
+        <p className="mb-2 font-medium">Response packet</p>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Draft, review, and approve the AI-generated Answer to Forcible Detainer Complaint (KLA
+          attorneys only).
+        </p>
+        <Link
+          href={`/app/cases/filings/${id}/packet`}
+          className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm text-primary-foreground hover:bg-primary/90"
+        >
+          Open packet workspace →
+        </Link>
+      </div>
     </div>
   );
 }
