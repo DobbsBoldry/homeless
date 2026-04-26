@@ -1,4 +1,11 @@
-import { count, desc, gte, inArray, max, sql } from 'drizzle-orm';
+// PERF (post-BAA): the array_agg-over-GROUP-BY pattern in
+// listSuperUtilizers is fine at Phase-1 scale (synthetic 30-row
+// fixture, real Daviess-County volume in the low thousands). At
+// 500K+ encounters it will hash-aggregate the whole window — at
+// that point migrate to DISTINCT ON (patient_id) CTE for "latest
+// row per patient" + a separate count CTE, joined. A composite
+// index (patient_id, arrived_at DESC) helps either way.
+import { count, desc, eq, gte, max, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { edEncounters } from '@/db/schema/ed-encounters';
 import {
@@ -52,13 +59,15 @@ export async function listSuperUtilizers(
       patientId: edEncounters.patientId,
       visitCount: count(edEncounters.id).as('visit_count'),
       latestVisitAt: max(edEncounters.arrivedAt).as('latest_visit_at'),
+      // Tie-break on `id` so two encounters at the exact same `arrived_at`
+      // produce a deterministic "latest" value across SELECT and HAVING.
       housingStatus: sql<
         SuperUtilizerRow['housingStatus']
-      >`(array_agg(${edEncounters.housingStatus} ORDER BY ${edEncounters.arrivedAt} DESC))[1]`.as(
+      >`(array_agg(${edEncounters.housingStatus} ORDER BY ${edEncounters.arrivedAt} DESC, ${edEncounters.id} DESC))[1]`.as(
         'latest_housing_status',
       ),
       lastChiefComplaint:
-        sql<string>`(array_agg(${edEncounters.chiefComplaint} ORDER BY ${edEncounters.arrivedAt} DESC))[1]`.as(
+        sql<string>`(array_agg(${edEncounters.chiefComplaint} ORDER BY ${edEncounters.arrivedAt} DESC, ${edEncounters.id} DESC))[1]`.as(
           'last_chief_complaint',
         ),
     })
@@ -66,7 +75,7 @@ export async function listSuperUtilizers(
     .where(gte(edEncounters.arrivedAt, since))
     .groupBy(edEncounters.patientId)
     .having(
-      sql`COUNT(${edEncounters.id}) >= ${visitsThreshold} AND (array_agg(${edEncounters.housingStatus} ORDER BY ${edEncounters.arrivedAt} DESC))[1] IN (${housingList})`,
+      sql`COUNT(${edEncounters.id}) >= ${visitsThreshold} AND (array_agg(${edEncounters.housingStatus} ORDER BY ${edEncounters.arrivedAt} DESC, ${edEncounters.id} DESC))[1] IN (${housingList})`,
     )
     .orderBy(desc(sql`visit_count`), desc(sql`latest_visit_at`))
     .limit(limit);
@@ -92,6 +101,6 @@ export async function listEncountersForPatient(patientId: string) {
   return await db
     .select()
     .from(edEncounters)
-    .where(inArray(edEncounters.patientId, [patientId]))
+    .where(eq(edEncounters.patientId, patientId))
     .orderBy(desc(edEncounters.arrivedAt));
 }
