@@ -13,4 +13,5 @@ export * from './partner-orgs';
 export * from './partner-service-events';
 export * from './person-partner-consents';
 export * from './rental-assistance-programs';
+export * from './shelters';
 export * from './users';
