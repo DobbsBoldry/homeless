@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { listCrossOrgTouchpoints } from '@/db/queries/partner-service-events';
+import { listCrossOrgTouchpointsForViewer } from '@/db/queries/partner-service-events';
 import { requireRole } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -9,8 +9,8 @@ const fmtDateTime = (d: Date) =>
   new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(d));
 
 export default async function ClientsPage() {
-  await requireRole(['caseworker', 'ed_coordinator', 'shelter_staff', 'admin']);
-  const touchpoints = await listCrossOrgTouchpoints({ windowDays: 14, limit: 8 });
+  const me = await requireRole(['caseworker', 'ed_coordinator', 'shelter_staff', 'admin']);
+  const touchpoints = await listCrossOrgTouchpointsForViewer({ windowDays: 14, limit: 8 }, me.role);
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-6">

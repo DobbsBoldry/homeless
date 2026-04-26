@@ -1,7 +1,9 @@
 import { count, desc, eq, gte, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
+import type { UserRole } from '@/db/schema/enums';
 import { partnerOrgs } from '@/db/schema/partner-orgs';
 import { partnerServiceEvents } from '@/db/schema/partner-service-events';
+import { dvFlaggedSubset, viewerCanSeeDvAddresses } from '@/lib/dtrs/dv-blind';
 
 export interface PersonAggregate {
   syntheticPersonRef: string;
@@ -57,4 +59,25 @@ export async function listCrossOrgTouchpoints(
         : new Date(r.latestEventAt as unknown as string),
     orgNames: r.orgNames ?? [],
   }));
+}
+
+/**
+ * Viewer-aware variant. DV-flagged refs are HIDDEN from viewers who
+ * can't see addresses (DTRS-004 threat model: an abuser browsing the
+ * coordination view to find their survivor's location). The listing
+ * page renders attorneys and caseworkers see the survivor's row;
+ * shelter staff and ED coordinators see the cross-org pattern with
+ * the survivor's row absent — they still get the rest of the
+ * coalition view.
+ */
+export async function listCrossOrgTouchpointsForViewer(
+  opts: { windowDays?: number; limit?: number },
+  viewerRole: UserRole,
+): Promise<PersonAggregate[]> {
+  const all = await listCrossOrgTouchpoints(opts);
+  if (viewerCanSeeDvAddresses(viewerRole)) return all;
+
+  const refs = all.map((r) => r.syntheticPersonRef);
+  const flagged = await dvFlaggedSubset(refs);
+  return all.filter((r) => !flagged.has(r.syntheticPersonRef));
 }

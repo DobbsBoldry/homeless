@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { DocketFilters, type DocketFilterValues } from '@/components/eviction/docket-filters';
 import { DocketTable } from '@/components/eviction/docket-table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { listRankedDocket } from '@/db/queries/eviction-filings';
+import { listRankedDocketForViewer } from '@/db/queries/eviction-filings';
 import type { EvictionCauseType, EvictionFilingStatus } from '@/db/schema/enums';
 import { requireKlaAttorney } from '@/lib/auth';
 
@@ -32,7 +32,7 @@ export default async function DocketQueuePage({
     min_score?: string;
   }>;
 }) {
-  await requireKlaAttorney();
+  const me = await requireKlaAttorney();
 
   const params = await searchParams;
   const status = ALLOWED_STATUSES.find((s) => s === params.status);
@@ -43,7 +43,10 @@ export default async function DocketQueuePage({
   const values: DocketFilterValues = { search, status, cause, minScore };
   const filtersActive = Boolean(search || status || cause || typeof minScore === 'number');
 
-  const rows = await listRankedDocket({ limit: 50, status, cause, minScore, search });
+  const rows = await listRankedDocketForViewer(
+    { limit: 50, status, cause, minScore, search },
+    me.role,
+  );
 
   return (
     <div className="mx-auto max-w-6xl p-6 space-y-4">
