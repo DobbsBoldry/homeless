@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { db } from '@/db/client';
 import type { UserRole } from '@/db/schema/enums';
 import { type User, users } from '@/db/schema/users';
+import { logAuditEvent } from './audit';
 
 /**
  * Server-only helper: returns the current user from our DB, lazy-creating
@@ -46,7 +47,16 @@ export async function requireUser(): Promise<User> {
     .values({ clerkUserId: userId, email: primaryEmail, firstName, lastName })
     .onConflictDoNothing({ target: users.clerkUserId })
     .returning();
-  if (created) return created;
+  if (created) {
+    await logAuditEvent({
+      actorUserId: created.id,
+      action: 'user.created',
+      targetTable: 'users',
+      targetId: created.id,
+      metadata: { source: 'clerk_lazy_upsert', clerkUserId: userId },
+    });
+    return created;
+  }
 
   const [winner] = await db.select().from(users).where(eq(users.clerkUserId, userId)).limit(1);
   return winner;
