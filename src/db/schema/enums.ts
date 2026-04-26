@@ -124,3 +124,18 @@ export type EsucCarePlanStatus = (typeof esucCarePlanStatusEnum.enumValues)[numb
 export const dataSharingTierEnum = pgEnum('data_sharing_tier', ['none', 'aggregate', 'individual']);
 
 export type DataSharingTier = (typeof dataSharingTierEnum.enumValues)[number];
+
+export const partnerServiceEventTypeEnum = pgEnum('partner_service_event_type', [
+  'food_pantry',
+  'shelter_intake',
+  'shelter_bed_night',
+  'utility_assistance',
+  'rent_assistance',
+  'counseling_visit',
+  'medical_visit',
+  'school_attendance_flag',
+  'volunteer_hours',
+  'other',
+]);
+
+export type PartnerServiceEventType = (typeof partnerServiceEventTypeEnum.enumValues)[number];
