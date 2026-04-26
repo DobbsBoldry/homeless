@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { EvictionFilingRiskScore } from '@/db/schema/eviction-filing-risk-scores';
 import type { EvictionFiling } from '@/db/schema/eviction-filings';
+import { riskBandClass, riskBandLabel } from '@/lib/eviction/risk-band';
 
 const fmtDate = (d: Date) =>
   new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(d));
@@ -132,18 +133,6 @@ export function FilingDetail({
   );
 }
 
-const scoreBandClass = (score: number) => {
-  if (score >= 70) return 'text-destructive';
-  if (score >= 40) return 'text-amber-600 dark:text-amber-400';
-  return 'text-emerald-600 dark:text-emerald-400';
-};
-
-const scoreBandLabel = (score: number) => {
-  if (score >= 70) return 'High risk';
-  if (score >= 40) return 'Moderate risk';
-  return 'Lower risk';
-};
-
 function RiskScorePanel({
   filing,
   score,
@@ -191,11 +180,11 @@ function RiskScorePanel({
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-baseline gap-3">
-          <span className={`text-5xl font-semibold tabular-nums ${scoreBandClass(score.score)}`}>
+          <span className={`text-5xl font-semibold tabular-nums ${riskBandClass(score.score)}`}>
             {score.score}
           </span>
-          <span className={`text-sm font-medium ${scoreBandClass(score.score)}`}>
-            {scoreBandLabel(score.score)}
+          <span className={`text-sm font-medium ${riskBandClass(score.score)}`}>
+            {riskBandLabel(score.score)}
           </span>
         </div>
         <p className="text-sm leading-relaxed">{score.rationale}</p>

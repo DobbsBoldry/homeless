@@ -14,6 +14,13 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/app/dashboard', roles: 'all' },
   {
+    label: 'Daily queue',
+    href: '/app/cases/queue',
+    // KLA-only by membership; the page itself enforces requireKlaAttorney().
+    // Sidebar shows it to all attorneys; non-KLA attorneys would 404 on click.
+    roles: ['attorney'],
+  },
+  {
     label: 'Filings',
     href: '/app/cases/filings',
     roles: ['attorney', 'caseworker', 'admin'],
