@@ -13,7 +13,7 @@ import { db } from './client';
 import { auditLog } from './schema/audit-log';
 import type { UserRole } from './schema/enums';
 import { orgMemberships } from './schema/org-memberships';
-import { partnerOrgs } from './schema/partner-orgs';
+import { type NewPartnerOrg, partnerOrgs } from './schema/partner-orgs';
 import {
   type NewRentalAssistanceProgram,
   rentalAssistancePrograms,
@@ -57,12 +57,250 @@ async function main() {
         type: 'legal_aid',
         contactEmail: 'owensboro@klaid.example',
         contactPhone: '+1-270-555-0200',
+        website: 'https://www.kyjustice.org/county/daviess',
+        description:
+          'Civil legal aid for low-income Daviess residents. Phase-1 pilot partner for the eviction-defense triage workflow.',
+        dataSharingTier: 'individual',
       })
       .returning();
     console.log('[seed]   + partner org', klaOrg.slug);
   } else {
     console.log('[seed]   = partner org', klaOrg.slug, '(exists)');
   }
+
+  // ---- coalition catalog (COAL-001) ----
+  // Stakeholders catalogued in docs/research/Daviess_County_Pilot_Report.md.
+  // Names + websites are real (public sources); we deliberately omit
+  // phone numbers unless verified. data_sharing_tier defaults to 'none'
+  // until coalition agreements raise it.
+  const coalitionOrgs: NewPartnerOrg[] = [
+    // Shelter providers
+    {
+      name: 'Boulware Mission, Inc.',
+      slug: 'boulware-mission',
+      type: 'shelter',
+      website: 'https://www.boulwaremission.org',
+      description:
+        'Emergency and long-term shelter for homeless men and women across the seven-county Green River region.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: "St. Benedict's Homeless Shelter",
+      slug: 'st-benedicts-shelter',
+      type: 'shelter',
+      website: 'https://stbenedictsowensboro.org',
+      description:
+        'Christian-mission 24/7 shelter for 64 men nightly + day shelter for ~40 women and families. ~500 served annually.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'Daniel Pitino Shelter',
+      slug: 'daniel-pitino-shelter',
+      type: 'shelter',
+      website: 'https://pitinoshelter.org',
+      description:
+        '22,000 sq ft emergency and transitional housing for women, women with children, and families.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'OASIS Shelter',
+      slug: 'oasis-shelter',
+      type: 'shelter',
+      description:
+        "Domestic-violence program AND licensed women's substance-use treatment. Location-confidential by design — coalition data design uses abuser-blind protocols here.",
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'CrossRoads to Hope',
+      slug: 'crossroads-to-hope',
+      type: 'shelter',
+      website: 'https://crossroadsowensboro.org',
+      description:
+        'The only walk-in emergency overnight shelter for women and children in Daviess County.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'St. Joseph Peace Mission for Children',
+      slug: 'st-joseph-peace-mission',
+      type: 'shelter',
+      description: 'Licensed emergency shelter for children. Designated Safe Place site.',
+      dataSharingTier: 'none',
+    },
+    // Faith-based ecosystem
+    {
+      name: 'Catholic Charities of the Diocese of Owensboro',
+      slug: 'catholic-charities-owensboro',
+      type: 'faith_based',
+      website: 'https://owensborodiocese.org/catholic-charities',
+      description:
+        'Coordinates parish-level social services across 32 western-KY counties. Operates Feeding Our Friends, Gerard Life Home, immigration legal services, disaster relief.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'Aid the Homeless, Inc.',
+      slug: 'aid-the-homeless',
+      type: 'faith_based',
+      website: 'https://aidthehomeless.org',
+      description: 'Umbrella organization supporting multiple Owensboro shelters.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'Volunteer Owensboro',
+      slug: 'volunteer-owensboro',
+      type: 'community_org',
+      description: 'Volunteer mobilization infrastructure across Daviess-area nonprofits.',
+      dataSharingTier: 'none',
+    },
+    // Healthcare
+    {
+      name: 'Owensboro Health',
+      slug: 'owensboro-health',
+      type: 'hospital',
+      website: 'https://www.owensborohealth.org',
+      description:
+        'Dominant regional health system. Phase-1 pilot partner for ED super-utilizer care coordination via TEAMKY HRSN reimbursement.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'Green River District Health Department',
+      slug: 'green-river-health-dept',
+      type: 'public_health',
+      description:
+        'County/regional public health authority. Under-leveraged data + coordination partner.',
+      dataSharingTier: 'none',
+    },
+    // Government
+    {
+      name: 'Daviess County Fiscal Court',
+      slug: 'daviess-fiscal-court',
+      type: 'government',
+      website: 'https://www.daviessky.org/elected-officials/fiscal-court',
+      description:
+        'County government. Judge-Executive Charlie Castlen + 3 commissioners. Controls county appropriations.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'City of Owensboro',
+      slug: 'city-of-owensboro',
+      type: 'government',
+      description:
+        'Municipal government. Housing-code enforcement, zoning, public-safety partnerships with homeless outreach.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'Green River Area Development District (GRADD)',
+      slug: 'gradd',
+      type: 'government',
+      description:
+        'Regional planning entity covering Daviess + 6 neighboring counties. Path to multi-county scale-out.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'Kentucky Housing Corporation (KHC)',
+      slug: 'khc',
+      type: 'government',
+      website: 'https://www.kyhousing.org',
+      description:
+        'State-level Balance-of-State CoC administrator. Runs HMIS for Daviess providers; sets state data standards.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'Daviess District Court',
+      slug: 'daviess-district-court',
+      type: 'government',
+      description:
+        'Handles forcible-detainer (eviction) proceedings AND HB 5 unlawful-camping citations. Data source for the eviction-defense triage flow.',
+      dataSharingTier: 'aggregate',
+    },
+    // Schools
+    {
+      name: 'Daviess County Public Schools',
+      slug: 'daviess-county-public-schools',
+      type: 'school',
+      description:
+        'Maintains a federally-funded McKinney-Vento homeless-student liaison. Earliest-warning data source for family instability.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'Owensboro Independent Schools',
+      slug: 'owensboro-independent-schools',
+      type: 'school',
+      description:
+        'Independent district covering city of Owensboro. McKinney-Vento liaison; same Phase-2 data-flow as Daviess County Public Schools.',
+      dataSharingTier: 'none',
+    },
+    // Education
+    {
+      name: 'Brescia University',
+      slug: 'brescia-university',
+      type: 'education',
+      description:
+        'Small Catholic (Ursuline) university with a strong social-work program. Candidate neutral steward for the data trust.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'Kentucky Wesleyan College',
+      slug: 'kentucky-wesleyan',
+      type: 'education',
+      description: 'Liberal arts college in Owensboro.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'Owensboro Community & Technical College (OCTC)',
+      slug: 'octc',
+      type: 'education',
+      description: 'Workforce-development partner. Candidate host for a neutral data intermediary.',
+      dataSharingTier: 'none',
+    },
+    // Philanthropy
+    {
+      name: 'Public Life Foundation of Owensboro (PLFO)',
+      slug: 'plfo',
+      type: 'philanthropy',
+      website: 'http://www.plfo.org',
+      description:
+        'Civic-convening foundation. Recommended Phase-0 convener / fiscal sponsor for the coalition.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'Owensboro Health Community Health Investments',
+      slug: 'oh-community-health-investments',
+      type: 'philanthropy',
+      website: 'https://www.owensborohealth.org/about/grants',
+      description:
+        "Owensboro Health's grantmaking arm. Mini-grants up to $2,500 across an 18-county region; SDOH-strategy framing.",
+      dataSharingTier: 'none',
+    },
+    // Media
+    {
+      name: 'Messenger-Inquirer',
+      slug: 'messenger-inquirer',
+      type: 'media',
+      description:
+        'Daily newspaper of record for Owensboro. Coalition narrative + visibility channel.',
+      dataSharingTier: 'none',
+    },
+    {
+      name: 'Owensboro Times',
+      slug: 'owensboro-times',
+      type: 'media',
+      description: 'Digital-native local news; covers civic and nonprofit stories.',
+      dataSharingTier: 'none',
+    },
+  ];
+
+  for (const candidate of coalitionOrgs) {
+    const [existing] = await db
+      .select({ slug: partnerOrgs.slug })
+      .from(partnerOrgs)
+      .where(eq(partnerOrgs.slug, candidate.slug))
+      .limit(1);
+    if (!existing) {
+      await db.insert(partnerOrgs).values(candidate);
+      console.log('[seed]   + coalition org', candidate.slug);
+    }
+  }
+  console.log(`[seed]   = ${coalitionOrgs.length} coalition orgs verified`);
 
   // ---- 5 users, one per role ----
   const sampleUsers: Array<{ role: UserRole; email: string; firstName: string; lastName: string }> =
