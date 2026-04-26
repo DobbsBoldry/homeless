@@ -50,6 +50,13 @@
       "when": 1777168170746,
       "tag": "0006_absent_speedball",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777173132993,
+      "tag": "0007_quiet_galactus",
+      "breakpoints": true
     }
   ]
 }

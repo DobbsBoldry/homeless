@@ -3,6 +3,7 @@ export * from './consents';
 export * from './enums';
 export * from './eviction-filing-risk-scores';
 export * from './eviction-filings';
+export * from './eviction-response-packets';
 export * from './health-check';
 export * from './org-memberships';
 export * from './partner-orgs';
