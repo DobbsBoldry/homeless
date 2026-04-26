@@ -21,7 +21,7 @@ config({ path: ['.env.local', '.env'] });
 async function main() {
   console.log('[seed] starting…');
 
-  // ---- 1 partner org ----
+  // ---- partner orgs ----
   const orgSlug = 'audubon-area-community-services';
   let [org] = await db.select().from(partnerOrgs).where(eq(partnerOrgs.slug, orgSlug)).limit(1);
   if (!org) {
@@ -38,6 +38,26 @@ async function main() {
     console.log('[seed]   + partner org', org.slug);
   } else {
     console.log('[seed]   = partner org', org.slug, '(exists)');
+  }
+
+  // KLA Owensboro — legal aid partner. Membership in this org gates
+  // the attorney-only views (see requireKlaAttorney in src/lib/auth.ts).
+  const klaSlug = 'kla-owensboro';
+  let [klaOrg] = await db.select().from(partnerOrgs).where(eq(partnerOrgs.slug, klaSlug)).limit(1);
+  if (!klaOrg) {
+    [klaOrg] = await db
+      .insert(partnerOrgs)
+      .values({
+        name: 'Kentucky Legal Aid - Owensboro',
+        slug: klaSlug,
+        type: 'legal_aid',
+        contactEmail: 'owensboro@klaid.example',
+        contactPhone: '+1-270-555-0200',
+      })
+      .returning();
+    console.log('[seed]   + partner org', klaOrg.slug);
+  } else {
+    console.log('[seed]   = partner org', klaOrg.slug, '(exists)');
   }
 
   // ---- 5 users, one per role ----
@@ -94,17 +114,23 @@ async function main() {
       console.log('[seed]   = user', u.role, user.email, '(exists)');
     }
 
-    // Org membership for each.
-    const [hasMembership] = await db
-      .select()
-      .from(orgMemberships)
-      .where(eq(orgMemberships.userId, user.id))
-      .limit(1);
-    if (!hasMembership) {
+    // Org membership in the default community org for every seed user.
+    await db
+      .insert(orgMemberships)
+      .values({ userId: user.id, partnerOrgId: org.id, role: u.role })
+      .onConflictDoNothing({
+        target: [orgMemberships.userId, orgMemberships.partnerOrgId],
+      });
+
+    // Attorneys also get KLA Owensboro membership so they can access the
+    // KLA-only views (requireKlaAttorney).
+    if (u.role === 'attorney') {
       await db
         .insert(orgMemberships)
-        .values({ userId: user.id, partnerOrgId: org.id, role: u.role })
-        .onConflictDoNothing();
+        .values({ userId: user.id, partnerOrgId: klaOrg.id, role: 'attorney' })
+        .onConflictDoNothing({
+          target: [orgMemberships.userId, orgMemberships.partnerOrgId],
+        });
     }
   }
 

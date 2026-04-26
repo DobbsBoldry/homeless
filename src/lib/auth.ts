@@ -1,10 +1,14 @@
 import { auth, clerkClient } from '@clerk/nextjs/server';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { notFound, redirect } from 'next/navigation';
 import { db } from '@/db/client';
 import type { UserRole } from '@/db/schema/enums';
+import { orgMemberships } from '@/db/schema/org-memberships';
+import { partnerOrgs } from '@/db/schema/partner-orgs';
 import { type User, users } from '@/db/schema/users';
 import { logAuditEvent } from './audit';
+
+export const KLA_OWENSBORO_SLUG = 'kla-owensboro';
 
 /**
  * Server-only helper: returns the current user from our DB, lazy-creating
@@ -72,5 +76,28 @@ export async function requireUser(): Promise<User> {
 export async function requireRole(allowed: readonly UserRole[]): Promise<User> {
   const user = await requireUser();
   if (!allowed.includes(user.role)) notFound();
+  return user;
+}
+
+/**
+ * Server-only: returns the current user only if they are an attorney AND
+ * a member of the Kentucky Legal Aid - Owensboro partner org. Otherwise
+ * 404s (don't leak the existence of attorney-only routes).
+ *
+ * Phase 1 assumption: KLA Owensboro is the single legal-aid partner. When
+ * a second attorney org joins, generalize to `requirePartnerOrgRole(slug, role)`.
+ */
+export async function requireKlaAttorney(): Promise<User> {
+  const user = await requireUser();
+  if (user.role !== 'attorney') notFound();
+
+  const [membership] = await db
+    .select({ id: orgMemberships.id })
+    .from(orgMemberships)
+    .innerJoin(partnerOrgs, eq(orgMemberships.partnerOrgId, partnerOrgs.id))
+    .where(and(eq(orgMemberships.userId, user.id), eq(partnerOrgs.slug, KLA_OWENSBORO_SLUG)))
+    .limit(1);
+  if (!membership) notFound();
+
   return user;
 }
