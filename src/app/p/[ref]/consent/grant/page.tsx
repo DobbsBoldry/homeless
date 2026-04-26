@@ -3,7 +3,7 @@ import { ConsentForm } from '@/components/consent/consent-form';
 import { Card, CardContent } from '@/components/ui/card';
 import { type ConsentType, consentTypeEnum } from '@/db/schema/enums';
 import { consentTextFor } from '@/lib/dtrs/consent-text';
-import { redeemConsentAccessToken } from '@/lib/dtrs/consent-token';
+import { lookupConsentAccessToken } from '@/lib/dtrs/consent-token';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export const metadata = {
@@ -37,10 +37,14 @@ export default async function GrantConsentPage({
   const rawToken = Array.isArray(sp.token) ? sp.token[0] : sp.token;
   const openMode = process.env.INDC_CONSENT_OPEN_MODE === '1';
 
+  // Page render uses LOOKUP (no side effect) — `used_at` is stamped only
+  // when the form is actually submitted via the server action's
+  // redeemConsentAccessToken call. This keeps "viewed but didn't submit"
+  // distinguishable in analytics.
   let authorized = false;
   if (rawToken) {
-    const redeemed = await redeemConsentAccessToken(rawToken);
-    if (redeemed && redeemed.syntheticPersonRef === ref) {
+    const found = await lookupConsentAccessToken(rawToken);
+    if (found && found.syntheticPersonRef === ref) {
       authorized = true;
     }
   } else if (openMode) {
@@ -66,7 +70,12 @@ export default async function GrantConsentPage({
 
       <Card>
         <CardContent className="pt-6">
-          <ConsentForm subjectExternalId={ref} consentType={consentType} copy={copy} />
+          <ConsentForm
+            subjectExternalId={ref}
+            consentType={consentType}
+            copy={copy}
+            accessToken={rawToken ?? null}
+          />
         </CardContent>
       </Card>
 

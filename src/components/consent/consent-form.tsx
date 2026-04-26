@@ -17,10 +17,13 @@ export function ConsentForm({
   subjectExternalId,
   consentType,
   copy,
+  accessToken,
 }: {
   subjectExternalId: string;
   consentType: ConsentType;
   copy: ConsentCopy;
+  /** Forwarded to the server action — the action is the auth boundary. */
+  accessToken?: string | null;
 }) {
   const sigId = useId();
   const [signature, setSignature] = useState('');
@@ -56,6 +59,7 @@ export function ConsentForm({
         grantedVia: 'web_form',
         signatureText: signature,
         scopeDataClasses: Array.from(checked),
+        accessToken: accessToken ?? null,
       });
       if (!r.ok) {
         setError(r.error);

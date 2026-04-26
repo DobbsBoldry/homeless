@@ -8,6 +8,7 @@ import { type ConsentChannel, type ConsentType, consentChannelEnum } from '@/db/
 import { personPartnerConsents } from '@/db/schema/person-partner-consents';
 import { logAuditEvent } from '@/lib/audit';
 import { CURRENT_CONSENT_VERSION, DATA_CLASSES } from '@/lib/dtrs/consent-text';
+import { redeemConsentAccessToken } from '@/lib/dtrs/consent-token';
 import { rateLimit } from '@/lib/dtrs/rate-limit';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
@@ -70,6 +71,15 @@ export type GrantConsentInput = {
   consentType: ConsentType;
   grantedVia: ConsentChannel;
   signatureText: string;
+  /**
+   * Opaque access token from the URL. Required in non-open-mode prod.
+   * The action calls `redeemConsentAccessToken` and rejects unless the
+   * token is valid AND maps to the same `subjectExternalId`. The page
+   * gate is defense-in-depth — server actions are reachable from any
+   * client capable of crafting a POST, so the action is the auth
+   * boundary, not the page.
+   */
+  accessToken?: string | null;
   scopeDataClasses?: string[] | null;
   scopePartnerIds?: string[] | null;
   expiresAt?: Date | null;
@@ -79,18 +89,30 @@ export type GrantConsentResult = { ok: true; id: string } | { ok: false; error: 
 
 /**
  * Public-surface server action: record a fresh, versioned consent grant
- * (DTRS-001 schema, DTRS-002 form). The subject themselves writes here
- * — no role gate, but inputs are validated and capped, and every grant
- * lands in audit_log so spurious grants are traceable. The opaque
- * subject_external_id is the auth boundary: only the caseworker who
- * shared the link knows the value.
- *
- * Once a one-time-link auth gate ships (#251), this action gets the
- * token check too.
+ * (DTRS-001 schema, DTRS-002 form). Auth: a valid access token from
+ * `consent_access_tokens` whose `synthetic_person_ref` matches
+ * `subjectExternalId`. The token is required in normal operation;
+ * `INDC_CONSENT_OPEN_MODE=1` (dev/demo only) skips the check. The page
+ * render gate at `/p/[ref]/consent/grant` is defense-in-depth — the
+ * action itself is the security boundary because server actions are
+ * reachable from any client.
  */
 export async function grantConsentAction(input: GrantConsentInput): Promise<GrantConsentResult> {
   const subject = input.subjectExternalId.trim();
   if (subject.length === 0) return { ok: false, error: 'Missing subject identifier.' };
+
+  // Auth: a valid access token bound to this subject. Open-mode is the
+  // only way past — explicit env flag, off in prod by definition.
+  const openMode = process.env.INDC_CONSENT_OPEN_MODE === '1';
+  if (!openMode) {
+    if (!input.accessToken) {
+      return { ok: false, error: 'Missing access link. Ask staff for a fresh link.' };
+    }
+    const redeemed = await redeemConsentAccessToken(input.accessToken);
+    if (!redeemed || redeemed.syntheticPersonRef !== subject) {
+      return { ok: false, error: 'This link is no longer valid. Ask staff for a fresh one.' };
+    }
+  }
 
   const limit = rateLimit(`grant:${subject}`, CONSENT_RATE_LIMIT, CONSENT_RATE_WINDOW_MS);
   if (!limit.ok) {

@@ -6,6 +6,9 @@ import { type ConsentAccessToken, consentAccessTokens } from '@/db/schema/consen
 /** Default lifetime: 24 hours. Long enough for shelter outreach, short enough that a found wallet card isn't a forever leak. */
 export const CONSENT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
+/** randomBytes(32).toString('base64url') is exactly 43 chars. */
+const TOKEN_LEN = 43;
+
 /**
  * Mint a fresh URL-safe token. ~256 bits of entropy from
  * `crypto.randomBytes`; URL-safe via `base64url` encoding.
@@ -37,15 +40,15 @@ export async function createConsentAccessToken(input: {
 }
 
 /**
- * Look up a token by its opaque string. Returns the row only if it's
- * unexpired AND not revoked; otherwise null. Side effect: stamps
- * `used_at` on first redemption so analytics see distinct redeems.
+ * Read-only token validation. Returns the row when the token is valid
+ * (unexpired, unrevoked) — does NOT stamp `used_at`. Used by the page
+ * render path so the page can show a form without consuming the token.
  */
-export async function redeemConsentAccessToken(
+export async function lookupConsentAccessToken(
   rawToken: string,
 ): Promise<ConsentAccessToken | null> {
   const trimmed = rawToken.trim();
-  if (trimmed.length < 32 || trimmed.length > 64) return null;
+  if (trimmed.length !== TOKEN_LEN) return null;
 
   const now = new Date();
   const [row] = await db
@@ -59,14 +62,47 @@ export async function redeemConsentAccessToken(
       ),
     )
     .limit(1);
+  return row ?? null;
+}
 
-  if (!row) return null;
+/**
+ * Atomically redeem a token. Returns the row only if the conditional
+ * UPDATE actually flipped a row from "valid + unused" to "valid +
+ * used_at=now". Concurrent calls collapse: only one redeems, the other
+ * returns null. This is the right primitive for write actions
+ * (grantConsentAction, revokeConsentAction).
+ *
+ * For "is this token currently valid?" without consuming, use
+ * `lookupConsentAccessToken` — that does NOT touch `used_at`.
+ */
+export async function redeemConsentAccessToken(
+  rawToken: string,
+): Promise<ConsentAccessToken | null> {
+  const trimmed = rawToken.trim();
+  if (trimmed.length !== TOKEN_LEN) return null;
 
-  if (!row.usedAt) {
-    await db
-      .update(consentAccessTokens)
-      .set({ usedAt: now })
-      .where(eq(consentAccessTokens.id, row.id));
-  }
-  return row;
+  const now = new Date();
+  // Single UPDATE...RETURNING. Conditional on usedAt IS NULL so the first
+  // concurrent caller wins and the second sees zero rows back.
+  const [redeemed] = await db
+    .update(consentAccessTokens)
+    .set({ usedAt: now })
+    .where(
+      and(
+        eq(consentAccessTokens.token, trimmed),
+        gt(consentAccessTokens.expiresAt, now),
+        isNull(consentAccessTokens.revokedAt),
+        isNull(consentAccessTokens.usedAt),
+      ),
+    )
+    .returning();
+
+  if (redeemed) return redeemed;
+
+  // No update happened — could be: invalid, expired, revoked, OR already
+  // redeemed. For the already-redeemed case (legitimate user re-submitting
+  // within the bounded reuse window), look up the row and return it WITHOUT
+  // re-stamping. Token reuse is intentional during the 24h window — only
+  // analytics need to know "first redemption".
+  return await lookupConsentAccessToken(trimmed);
 }
