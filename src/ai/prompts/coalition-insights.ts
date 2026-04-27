@@ -86,9 +86,7 @@ export function buildCoalitionInsightsUserPrompt(digest: CoalitionWeeklyDigest):
   if (digest.crossOrgTouchpoints.length > 0) {
     lines.push(`## Cross-org touchpoints (${digest.crossOrgTouchpoints.length})`);
     for (const p of digest.crossOrgTouchpoints) {
-      lines.push(
-        `- ${p.uniqueOrgs} partners · ${p.totalEvents} events · ${p.orgNames.join(', ')}`,
-      );
+      lines.push(`- ${p.uniqueOrgs} partners · ${p.totalEvents} events · ${p.orgNames.join(', ')}`);
     }
     lines.push('');
   } else {
