@@ -176,6 +176,13 @@
       "when": 1777247227040,
       "tag": "0024_modern_hellcat",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1777247863356,
+      "tag": "0025_true_titania",
+      "breakpoints": true
     }
   ]
 }

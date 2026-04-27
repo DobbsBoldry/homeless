@@ -18,5 +18,6 @@ export * from './rental-assistance-programs';
 export * from './shelters';
 export * from './sms-conversations';
 export * from './sms-messages';
+export * from './steering-meetings';
 export * from './triage-overrides';
 export * from './users';
