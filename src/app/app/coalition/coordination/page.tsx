@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CoordinationQAPanel } from '@/components/coalition/coordination-qa-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listCrossOrgTouchpointsForViewer } from '@/db/queries/partner-service-events';
 import { requireRole } from '@/lib/auth';
@@ -94,6 +95,8 @@ export default async function CrossOrgCoordinationPage() {
           )}
         </CardContent>
       </Card>
+
+      <CoordinationQAPanel />
 
       <Card>
         <CardHeader>
