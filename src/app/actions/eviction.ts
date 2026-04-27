@@ -8,6 +8,7 @@ import { CaseFilingsRoles } from '@/components/eviction/case-filings-roles';
 import { db } from '@/db/client';
 import { listTriageCandidates } from '@/db/queries/attorney-triage';
 import { getFilingById } from '@/db/queries/eviction-filings';
+import { clientIntakes } from '@/db/schema/client-intakes';
 import {
   type EvictionCaseOutcome,
   type EvictionResponsePacketStatus,
@@ -219,6 +220,98 @@ export async function generateOutreachLetterAction(
   } catch (err) {
     Sentry.captureException(err, { tags: { action: 'generateOutreachLetterAction', filingId } });
     return { ok: false, error: 'Letter generation failed. Please try again.' };
+  }
+}
+
+export type ReferToCaseworkerResult =
+  | { ok: true; intakeId: string; alreadyExisted: boolean }
+  | { ok: false; error: string };
+
+const fmtMoneyForReferral = (cents: number | null): string => {
+  if (cents == null) return 'an unspecified amount';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+};
+
+const causeNarrative: Record<string, string> = {
+  non_payment: 'non-payment of rent',
+  lease_violation: 'a lease violation',
+  holdover: 'holdover (lease ended, tenant remained)',
+  other: 'an unspecified cause',
+};
+
+/**
+ * KLA attorney sees a filing they can't fully serve alone (benefits
+ * gap, care plan, shelter risk) and refers the defendant to the
+ * caseworker queue. We spawn a `client_intakes` row with a templated
+ * narrative the caseworker reads before meeting the client. The
+ * caseworker can edit the transcript and run the existing extraction
+ * pipeline; the intake then flows through the regular chain
+ * (extraction → screener → person view).
+ *
+ * Idempotent: if a referral intake already exists for this filing
+ * (label suffix `· EVDT-REF · {filing.id}`), we return its id rather
+ * than creating a duplicate.
+ */
+export async function referFilingToCaseworkerAction(
+  filingId: string,
+): Promise<ReferToCaseworkerResult> {
+  const user = await requireKlaAttorney();
+  const filing = await getFilingById(filingId);
+  if (!filing) return { ok: false, error: 'Filing not found.' };
+
+  const refTag = `EVDT-REF:${filing.id}`;
+
+  const [existing] = await db
+    .select({ id: clientIntakes.id })
+    .from(clientIntakes)
+    .where(eq(clientIntakes.label, refTag))
+    .limit(1);
+  if (existing) {
+    return { ok: true, intakeId: existing.id, alreadyExisted: true };
+  }
+
+  const filedDate = filing.filedAt.toISOString().slice(0, 10);
+  const cause = causeNarrative[filing.causeType] ?? 'an unspecified cause';
+  const amount = fmtMoneyForReferral(filing.amountClaimedCents);
+
+  const narrative = [
+    'Referral from Kentucky Legal Aid (KLA — Owensboro Office).',
+    '',
+    `${filing.defendantFirstName} was named in eviction case ${filing.caseNumber}, filed ${filedDate} by ${filing.plaintiff}. The cause is ${cause} and the amount claimed is ${amount}. The case is currently in "${filing.status}" status.`,
+    '',
+    "We're referring this person here for benefits screening, possible care planning, and any other support the coalition can offer. KLA may take the legal side of this case independently.",
+    '',
+    "We have not yet contacted the tenant directly. When you meet them, please bring up the eviction proactively — many tenants don't realize free legal help is available. Run the benefits screener; SNAP and KCHIP are likely worth checking given the financial stress of an active filing. If they're paying any rent at all today, encourage them to keep receipts.",
+    '',
+    `(Edit this transcript with what the client tells you, then run extraction. Or replace it entirely with a fresh intake recording — your call.)`,
+  ].join('\n');
+
+  try {
+    const [created] = await db
+      .insert(clientIntakes)
+      .values({
+        label: refTag,
+        transcriptMd: narrative,
+        recordedByUserId: user.id,
+        status: 'transcribed',
+      })
+      .returning({ id: clientIntakes.id });
+
+    await logAuditEvent({
+      actorUserId: user.id,
+      action: 'eviction.referred_to_caseworker',
+      targetTable: 'eviction_filings',
+      targetId: filing.id,
+      metadata: {
+        intakeId: created.id,
+        caseNumber: filing.caseNumber,
+      },
+    });
+
+    return { ok: true, intakeId: created.id, alreadyExisted: false };
+  } catch (err) {
+    Sentry.captureException(err, { tags: { action: 'referFilingToCaseworkerAction', filingId } });
+    return { ok: false, error: 'Referral failed. Please try again.' };
   }
 }
 
