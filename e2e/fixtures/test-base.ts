@@ -13,5 +13,5 @@ export const test = base.extend<Fixtures>({
   },
 });
 
-export { expect };
 export type { Persona };
+export { expect };

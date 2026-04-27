@@ -5,7 +5,7 @@
  * from a representative forbidden route. The handler 404s rather than 403s
  * to avoid leaking which routes exist for which roles (see docs/access-control.md).
  */
-import { test, expect, type Persona } from '../fixtures/test-base';
+import { expect, type Persona, test } from '../fixtures/test-base';
 
 interface PermittedCase {
   persona: Persona;

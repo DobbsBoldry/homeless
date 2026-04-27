@@ -10,14 +10,12 @@
  * flip dv_flag = true on it, then view as `admin` (admin can hit
  * the filings page and is NOT in the address-view set).
  */
-import { test, expect } from '../fixtures/test-base';
+
 import { dbClient } from '../fixtures/db';
+import { expect, test } from '../fixtures/test-base';
 
 test.describe('S2 dv-blind redaction', () => {
-  test('admin sees LOCATION_REDACTED on dv-flagged filing detail', async ({
-    page,
-    signInAs,
-  }) => {
+  test('admin sees LOCATION_REDACTED on dv-flagged filing detail', async ({ page, signInAs }) => {
     const sql = dbClient();
     let filingId: string;
     let originalAddress: string;

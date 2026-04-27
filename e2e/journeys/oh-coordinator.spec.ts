@@ -6,8 +6,9 @@
  *
  * Covers ESUC-008/009/011 + PRs #294/#297.
  */
-import { test, expect } from '../fixtures/test-base';
+
 import { dbClient } from '../fixtures/db';
+import { expect, test } from '../fixtures/test-base';
 
 test('J2 coordinator: triage -> queue -> patient detail -> ask claude', async ({
   page,
@@ -21,11 +22,18 @@ test('J2 coordinator: triage -> queue -> patient detail -> ask claude', async ({
 
   // 2. Super-utilizer queue (ESUC-009)
   await page.goto('/app/care/queue');
-  await expect(page.getByRole('heading', { name: /queue|super.?utilizer|patients/i }).first()).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /queue|super.?utilizer|patients/i }).first(),
+  ).toBeVisible();
 
   // 3. Find a patient detail link
   const detailLinks = page.locator('a[href^="/app/care/patients/"][href*="-"]');
-  if (await detailLinks.first().isVisible().catch(() => false)) {
+  if (
+    await detailLinks
+      .first()
+      .isVisible()
+      .catch(() => false)
+  ) {
     const href = await detailLinks.first().getAttribute('href');
     await page.goto(href!);
     await expect(page.getByText(/encounter|patient|housing|visit/i).first()).toBeVisible();
@@ -46,7 +54,8 @@ test('J2 coordinator: triage -> queue -> patient detail -> ask claude', async ({
 
   const sql = dbClient();
   try {
-    const rows = await sql`select count(*)::int as n from audit_log where created_at > now() - interval '5 minutes'`;
+    const rows =
+      await sql`select count(*)::int as n from audit_log where created_at > now() - interval '5 minutes'`;
     expect(rows[0]!.n).toBeGreaterThan(0);
   } finally {
     await sql.end({ timeout: 1 });

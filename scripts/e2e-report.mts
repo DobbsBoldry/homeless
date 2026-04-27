@@ -7,10 +7,11 @@
  * Confirmation is interactive (prompts y/N per failure). Pass --yes to
  * file all without prompting (used in CI once the suite is stable).
  */
-import { readFileSync, existsSync } from 'node:fs';
+
 import { execSync } from 'node:child_process';
-import * as readline from 'node:readline/promises';
+import { existsSync, readFileSync } from 'node:fs';
 import { stdin as input, stdout as output } from 'node:process';
+import * as readline from 'node:readline/promises';
 
 const REPORT = 'e2e/test-results/results.json';
 
@@ -51,9 +52,12 @@ function epicFromPath(path: string): string {
   if (path.includes('kla-attorney') || path.includes('eviction')) return 'epic:evdt';
   if (path.includes('coordinator') || path.includes('care')) return 'epic:esuc';
   if (path.includes('caseworker') || path.includes('cwt')) return 'epic:cwt';
-  if (path.includes('dispatcher') || path.includes('sms') || path.includes('coor')) return 'epic:coor';
-  if (path.includes('admin') || path.includes('outcomes') || path.includes('oprt')) return 'epic:oprt';
-  if (path.includes('consent') || path.includes('dv-blind') || path.includes('audit')) return 'epic:dtrs';
+  if (path.includes('dispatcher') || path.includes('sms') || path.includes('coor'))
+    return 'epic:coor';
+  if (path.includes('admin') || path.includes('outcomes') || path.includes('oprt'))
+    return 'epic:oprt';
+  if (path.includes('consent') || path.includes('dv-blind') || path.includes('audit'))
+    return 'epic:dtrs';
   return 'epic:qa';
 }
 
@@ -97,8 +101,10 @@ async function main() {
     const epic = epicFromPath(spec.file);
     const idMatch = spec.title.match(/^[JS]\d+/);
     const id = idMatch ? idMatch[0] : 'TEST';
-    const titleSnip = spec.title.length > 80 ? spec.title.slice(0, 77) + '...' : spec.title;
+    const titleSnip = spec.title.length > 80 ? `${spec.title.slice(0, 77)}...` : spec.title;
     const issueTitle = `[e2e] ${id} — ${titleSnip}`;
+    // Strip ANSI escape sequences from the captured error text.
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI deliberately
     const cleanError = firstError.replace(/\u001b\[[0-9;]*m/g, '').slice(0, 2000);
     const body = [
       `Failing test: \`${spec.file}:${spec.line}\``,

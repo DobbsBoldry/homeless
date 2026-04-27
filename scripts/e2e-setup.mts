@@ -32,7 +32,12 @@ interface PersonaSpec {
 }
 
 const PERSONAS: PersonaSpec[] = [
-  { key: 'attorney', email: 'attorney+e2e@example.com', seedRole: 'attorney', password: 'E2eTest!2026Aa' },
+  {
+    key: 'attorney',
+    email: 'attorney+e2e@example.com',
+    seedRole: 'attorney',
+    password: 'E2eTest!2026Aa',
+  },
   {
     key: 'caseworker',
     email: 'caseworker+e2e@example.com',
@@ -59,8 +64,12 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
-function sh(cmd: string, env: NodeJS.ProcessEnv = {}): string {
-  return execSync(cmd, { stdio: 'pipe', encoding: 'utf8', env: { ...process.env, ...env } });
+function sh(cmd: string, env: Record<string, string | undefined> = {}): string {
+  return execSync(cmd, {
+    stdio: 'pipe',
+    encoding: 'utf8',
+    env: { ...process.env, ...env } as NodeJS.ProcessEnv,
+  });
 }
 
 async function main() {
@@ -91,7 +100,9 @@ async function main() {
   // Wait for healthy
   for (let i = 0; i < 30; i++) {
     try {
-      sh(`docker compose -f ${COMPOSE_FILE} exec -T postgres pg_isready -U postgres -d homeless_e2e`);
+      sh(
+        `docker compose -f ${COMPOSE_FILE} exec -T postgres pg_isready -U postgres -d homeless_e2e`,
+      );
       break;
     } catch {
       await new Promise((r) => setTimeout(r, 1000));

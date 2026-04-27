@@ -5,8 +5,9 @@
  * to 'https' (production runs behind a reverse proxy). We replicate that
  * canonicalization here.
  */
-import { test, expect } from '../fixtures/test-base';
+
 import { createHmac } from 'node:crypto';
+import { expect, test } from '../fixtures/test-base';
 
 const PATH = '/api/webhooks/twilio/sms';
 const URL_TO_HIT = `http://localhost:3000${PATH}`;

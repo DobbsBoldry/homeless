@@ -6,8 +6,9 @@
  *
  * Covers OPRT-006/008/010 + DTRS-013 + PRs #279/#280/#303.
  */
-import { test, expect } from '../fixtures/test-base';
+
 import { dbClient } from '../fixtures/db';
+import { expect, test } from '../fixtures/test-base';
 
 test('J5 admin: dashboard -> outcomes -> fiscal court', async ({ page, signInAs }) => {
   await signInAs('admin');
@@ -36,7 +37,8 @@ test('J5 admin: dashboard -> outcomes -> fiscal court', async ({ page, signInAs 
 
   const sql = dbClient();
   try {
-    const rows = await sql`select count(*)::int as n from audit_log where created_at > now() - interval '5 minutes'`;
+    const rows =
+      await sql`select count(*)::int as n from audit_log where created_at > now() - interval '5 minutes'`;
     expect(rows[0]!.n).toBeGreaterThan(0);
   } finally {
     await sql.end({ timeout: 1 });

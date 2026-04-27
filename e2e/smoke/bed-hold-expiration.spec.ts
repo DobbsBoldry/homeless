@@ -8,8 +8,9 @@
  * The trigger route is gated on E2E_MOCK_OUTBOUND so it cannot be
  * hit outside the e2e suite.
  */
-import { test, expect } from '../fixtures/test-base';
+
 import { dbClient } from '../fixtures/db';
+import { expect, test } from '../fixtures/test-base';
 
 test.describe('S6 bed-hold expiration', () => {
   test('past-expiry hold is flipped to expired by trigger', async ({ request }) => {

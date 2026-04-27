@@ -6,13 +6,11 @@
  *
  * Covers EVDT-009/012/015/016 + PR #287.
  */
-import { test, expect } from '../fixtures/test-base';
-import { dbClient } from '../fixtures/db';
 
-test('J1 attorney: triage -> filings -> case detail -> ask claude', async ({
-  page,
-  signInAs,
-}) => {
+import { dbClient } from '../fixtures/db';
+import { expect, test } from '../fixtures/test-base';
+
+test('J1 attorney: triage -> filings -> case detail -> ask claude', async ({ page, signInAs }) => {
   await signInAs('attorney');
 
   // 1. Triage page renders

@@ -5,8 +5,9 @@
  *
  * Covers CWT-006/007/011/012 + PRs #283/#295/#296.
  */
-import { test, expect } from '../fixtures/test-base';
+
 import { dbClient } from '../fixtures/db';
+import { expect, test } from '../fixtures/test-base';
 
 test('J3 caseworker: morning -> triage -> person -> benefits screener', async ({
   page,
@@ -20,19 +21,30 @@ test('J3 caseworker: morning -> triage -> person -> benefits screener', async ({
 
   // 2. Triage view
   await page.goto('/app/clients/triage');
-  await expect(page.getByRole('heading', { name: /triage|clients|caseload/i }).first()).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /triage|clients|caseload/i }).first(),
+  ).toBeVisible();
 
   // 3. Open a person view (any link to /app/clients/person/<ref>)
   const personLinks = page.locator('a[href^="/app/clients/person/"]');
-  if (await personLinks.first().isVisible().catch(() => false)) {
+  if (
+    await personLinks
+      .first()
+      .isVisible()
+      .catch(() => false)
+  ) {
     const href = await personLinks.first().getAttribute('href');
     await page.goto(href!);
-    await expect(page.getByRole('heading', { name: /SYN-PERSON|person profile|profile/i }).first()).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /SYN-PERSON|person profile|profile/i }).first(),
+    ).toBeVisible();
   }
 
   // 4. Benefits screener (CWT-007)
   await page.goto('/app/clients/screener');
-  await expect(page.getByRole('heading', { name: /screener|benefits|eligibility/i }).first()).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /screener|benefits|eligibility/i }).first(),
+  ).toBeVisible();
   // Try to fill the screener with simple values; if labels differ skip silently.
   const householdSize = page.getByLabel(/household size|people in household/i).first();
   const monthlyIncome = page.getByLabel(/monthly income|income/i).first();
@@ -51,7 +63,8 @@ test('J3 caseworker: morning -> triage -> person -> benefits screener', async ({
 
   const sql = dbClient();
   try {
-    const rows = await sql`select count(*)::int as n from audit_log where created_at > now() - interval '5 minutes'`;
+    const rows =
+      await sql`select count(*)::int as n from audit_log where created_at > now() - interval '5 minutes'`;
     expect(rows[0]!.n).toBeGreaterThan(0);
   } finally {
     await sql.end({ timeout: 1 });

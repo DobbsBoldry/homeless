@@ -12,8 +12,9 @@
  *   - The submission writes a `consent.granted` audit_log entry
  *   - 404 on an invalid ref (no leak that the route exists)
  */
-import { test, expect } from '../fixtures/test-base';
+
 import { dbClient } from '../fixtures/db';
+import { expect, test } from '../fixtures/test-base';
 
 const REF = 'SYN-PERSON-E2E1'; // unused-by-seed ref so we don't collide with seeded consents
 

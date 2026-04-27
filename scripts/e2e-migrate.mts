@@ -8,7 +8,7 @@
  * This runner statements out each migration in its own transaction.
  * Idempotent: tracks applied migrations in __drizzle_e2e_migrations.
  */
-import { readFile, readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import postgres from 'postgres';
 
@@ -29,9 +29,7 @@ async function main() {
     const applied = await sql`select name from __drizzle_e2e_migrations`;
     const appliedSet = new Set(applied.map((r) => r.name as string));
 
-    const files = (await readdir(MIGRATIONS_DIR))
-      .filter((f) => f.endsWith('.sql'))
-      .sort();
+    const files = (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith('.sql')).sort();
 
     let count = 0;
     for (const file of files) {

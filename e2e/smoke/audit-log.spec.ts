@@ -5,8 +5,9 @@
  * at the DB level by triggers (migration 0008). This test exercises the
  * trigger directly.
  */
-import { test, expect } from '../fixtures/test-base';
+
 import { dbClient } from '../fixtures/db';
+import { expect, test } from '../fixtures/test-base';
 
 test.describe('S3 audit_log append-only', () => {
   test('UPDATE on audit_log rejected by trigger', async () => {

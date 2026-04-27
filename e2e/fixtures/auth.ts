@@ -1,5 +1,5 @@
-import { type BrowserContext, type Page } from '@playwright/test';
 import { clerk, clerkSetup } from '@clerk/testing/playwright';
+import type { BrowserContext, Page } from '@playwright/test';
 
 export type Persona = 'attorney' | 'caseworker' | 'coordinator' | 'shelter' | 'admin';
 

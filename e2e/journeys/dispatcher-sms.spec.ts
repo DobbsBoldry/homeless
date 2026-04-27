@@ -7,9 +7,10 @@
  *
  * Covers COOR-006 + INDC-001/002/003 + PR #307.
  */
-import { test, expect } from '../fixtures/test-base';
-import { dbClient } from '../fixtures/db';
+
 import { createHmac } from 'node:crypto';
+import { dbClient } from '../fixtures/db';
+import { expect, test } from '../fixtures/test-base';
 
 const PATH = '/api/webhooks/twilio/sms';
 const URL_TO_HIT = `http://localhost:3000${PATH}`;
