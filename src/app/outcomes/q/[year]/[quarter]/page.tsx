@@ -1,6 +1,8 @@
+import { auth } from '@clerk/nextjs/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PrintButton } from '@/components/coordination/print-button';
+import { QuarterlyNarrativePanel } from '@/components/operations/quarterly-narrative-panel';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   getCoalitionAggregate,
@@ -39,13 +41,15 @@ export default async function QuarterlyReportPage({
   const quarter = parseQuarter(year, q);
   if (!quarter) notFound();
 
-  const [eviction, coalitionSnapshot, governanceForQuarter] = await Promise.all([
+  const [eviction, coalitionSnapshot, governanceForQuarter, session] = await Promise.all([
     listQuarterlyEvictionAggregates([quarter]),
     getCoalitionAggregate(90),
     getGovernanceCountsForQuarter(quarter),
+    auth(),
   ]);
   const evictionForQuarter = eviction[0];
   const generatedAt = new Date();
+  const signedIn = Boolean(session.userId);
 
   const repRate = fmtPct(evictionForQuarter.filingsWithPacket, evictionForQuarter.filingsIngested);
 
@@ -162,6 +166,12 @@ export default async function QuarterlyReportPage({
           staff lands in an append-only audit trail. Revocations are honored immediately.
         </p>
       </section>
+
+      {signedIn ? (
+        <section className="print:hidden">
+          <QuarterlyNarrativePanel year={quarter.year} quarter={quarter.quarter} />
+        </section>
+      ) : null}
 
       <section className="space-y-3 rounded-md border border-border bg-muted/20 p-4 text-xs print:hidden">
         <h2 className="font-serif text-base font-semibold">Share this report</h2>
