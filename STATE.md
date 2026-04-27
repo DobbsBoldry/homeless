@@ -4,6 +4,8 @@
 
 This file is the cheap context file. Open it at the start of a session and you skip 5–10 minutes of "what was I doing." Two paragraphs, bullets, no essays. If a section gets long, summarize and link out.
 
+> Need the system map instead? See [`docs/architecture.md`](docs/architecture.md) — domain graph, PHI fence, user journeys.
+
 ## Current focus
 
 **Sprint 7 — Phase-1 hardening + maintainability foundation.** Cleaning up follow-ups and tightening the codebase substrate before pushing into the de-id pipeline (#247) and Phase 2.
