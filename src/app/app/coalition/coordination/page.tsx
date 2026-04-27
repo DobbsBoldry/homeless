@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listCrossOrgTouchpointsForViewer } from '@/db/queries/partner-service-events';
 import { requireRole } from '@/lib/auth';
@@ -70,7 +71,12 @@ export default async function CrossOrgCoordinationPage() {
                   className="rounded-md border border-border bg-card p-3 text-sm"
                 >
                   <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="font-mono text-xs font-medium">{p.syntheticPersonRef}</p>
+                    <Link
+                      href={`/app/clients/person/${p.syntheticPersonRef}`}
+                      className="font-mono text-xs font-medium hover:underline"
+                    >
+                      {p.syntheticPersonRef}
+                    </Link>
                     <span className="text-xs text-muted-foreground">
                       latest {fmtDateTime(p.latestEventAt)}
                     </span>
