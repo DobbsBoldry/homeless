@@ -50,22 +50,31 @@ describe('parseEvictionFiling — happy path', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('packs notes + attorney_represented into rawJson', () => {
+  it('packs notes + attorney_represented + children_signal into rawJson', () => {
     const result = parseEvictionFiling(validSynthetic);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.filing.rawJson).toEqual({
-      notes: validSynthetic.notes,
-      attorney_represented: false,
-    });
+    const raw = result.filing.rawJson as Record<string, unknown>;
+    expect(raw.notes).toBe(validSynthetic.notes);
+    expect(raw.attorney_represented).toBe(false);
+    // EVDT-011: children_signal is always present (computed from notes
+    // even when notes don't trip a detection — value = none).
+    expect(raw.children_signal).toBeDefined();
   });
 
-  it('omits rawJson when both source-extra fields are absent', () => {
+  it('still produces rawJson with children_signal even when notes / attorney_represented are absent', () => {
     const { notes: _n, attorney_represented: _a, ...minimal } = validSynthetic;
     const result = parseEvictionFiling(minimal);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.filing.rawJson).toBeUndefined();
+    const raw = result.filing.rawJson as Record<string, unknown>;
+    expect(raw.notes).toBeUndefined();
+    expect(raw.attorney_represented).toBeUndefined();
+    expect(raw.children_signal).toEqual({
+      detected: false,
+      confidence: 'none',
+      evidence: null,
+    });
   });
 
   it('passes through manual source', () => {

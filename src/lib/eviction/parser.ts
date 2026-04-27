@@ -5,6 +5,7 @@ import type {
   EvictionFilingStatus,
 } from '@/db/schema/enums';
 import type { NewEvictionFiling } from '@/db/schema/eviction-filings';
+import { detectChildrenSignal } from './children-detection';
 
 /**
  * Pure function: take a raw filing record from any supported source and
@@ -104,6 +105,13 @@ export function parseEvictionFiling(
   const rawJson: Record<string, unknown> = {};
   if (r.notes != null) rawJson.notes = r.notes;
   if (r.attorney_represented != null) rawJson.attorney_represented = r.attorney_represented;
+
+  // EVDT-011: deterministic children-in-household signal computed from
+  // the notes text at parse time. Stored on rawJson so we don't need a
+  // schema migration; the risk-score input + filing detail UI both
+  // read from here. Always present (never undefined) so downstream
+  // code can rely on the field shape.
+  rawJson.children_signal = detectChildrenSignal(r.notes ?? null);
 
   const filing: NewEvictionFiling = {
     caseNumber: r.case_number,
