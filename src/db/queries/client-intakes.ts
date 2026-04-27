@@ -17,13 +17,24 @@ export async function getClientIntakeById(id: string): Promise<ClientIntake | nu
  * referFilingToCaseworkerAction (`EVDT-REF:{filingId}`) so the join
  * is exact and free of collisions.
  */
-export async function getReferralIntakeForFiling(
-  filingId: string,
-): Promise<ClientIntake | null> {
+export async function getReferralIntakeForFiling(filingId: string): Promise<ClientIntake | null> {
   const [row] = await db
     .select()
     .from(clientIntakes)
     .where(eq(clientIntakes.label, `EVDT-REF:${filingId}`))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Symmetric to getReferralIntakeForFiling, for the ESUC→CWT bridge.
+ * Match on `ESUC-REF:{patientId}`.
+ */
+export async function getReferralIntakeForPatient(patientId: string): Promise<ClientIntake | null> {
+  const [row] = await db
+    .select()
+    .from(clientIntakes)
+    .where(eq(clientIntakes.label, `ESUC-REF:${patientId}`))
     .limit(1);
   return row ?? null;
 }

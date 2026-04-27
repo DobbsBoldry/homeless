@@ -2,7 +2,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CarePlanPanel } from '@/components/esuc/care-plan-panel';
 import { PatientQAPanel } from '@/components/esuc/patient-qa-panel';
+import { ReferPatientToCaseworkerPanel } from '@/components/esuc/refer-patient-to-caseworker-panel';
+import { LinkedIntakePanel } from '@/components/eviction/linked-intake-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getReferralIntakeForPatient } from '@/db/queries/client-intakes';
 import { listEncountersForPatient } from '@/db/queries/ed-encounters';
 import { requireRole } from '@/lib/auth';
 import { getCarePlanByPatient } from '@/lib/esuc/care-plan';
@@ -18,9 +21,10 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   // a hashed value. Either way they should be ≥ 6 chars of safe characters.
   if (!/^[A-Za-z0-9_-]{6,}$/.test(patientId)) notFound();
 
-  const [encounters, carePlan] = await Promise.all([
+  const [encounters, carePlan, linkedIntake] = await Promise.all([
     listEncountersForPatient(patientId),
     getCarePlanByPatient(patientId),
+    getReferralIntakeForPatient(patientId),
   ]);
   if (encounters.length === 0) notFound();
 
@@ -64,6 +68,8 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       </Card>
 
       <PatientQAPanel patientId={patientId} />
+      {linkedIntake ? <LinkedIntakePanel intake={linkedIntake} /> : null}
+      {!linkedIntake ? <ReferPatientToCaseworkerPanel patientId={patientId} /> : null}
       <CarePlanPanel patientId={patientId} plan={carePlan} />
     </div>
   );
