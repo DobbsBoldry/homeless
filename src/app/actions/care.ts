@@ -4,11 +4,14 @@ import * as Sentry from '@sentry/nextjs';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db/client';
+import { listEdTriageCandidates } from '@/db/queries/ed-triage';
 import { type EsucCarePlanStatus, esucCarePlanStatusEnum } from '@/db/schema/enums';
 import { esucCarePlans } from '@/db/schema/esuc-care-plans';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
+import { recordAiGeneration } from '@/lib/dtrs/data-access';
 import { generateCarePlan, validateCarePlanDisclaimer } from '@/lib/esuc/care-plan';
+import { type EdTriageResult, generateEdTriage } from '@/lib/esuc/ed-triage';
 
 export type GenerateCarePlanResult = { ok: true } | { ok: false; error: string };
 
@@ -26,6 +29,62 @@ export async function generateCarePlanAction(patientId: string): Promise<Generat
 
   revalidatePath(`/app/care/patients/${patientId}`);
   return { ok: true };
+}
+
+export type GenerateEdTriageResult =
+  | {
+      ok: true;
+      result: EdTriageResult;
+      candidates: Array<{
+        patientId: string;
+        visitCount: number;
+        housingStatus: string;
+        latestVisitAt: string;
+        lastChiefComplaint: string;
+        carePlanStatus: string | null;
+      }>;
+    }
+  | { ok: false; error: string };
+
+export async function generateEdTriageAction(): Promise<GenerateEdTriageResult> {
+  const user = await requireRole(CARE_ROLES);
+
+  try {
+    const candidates = await listEdTriageCandidates({ windowDays: 180, limit: 20 });
+    const result = await generateEdTriage(candidates);
+
+    await logAuditEvent({
+      actorUserId: user.id,
+      action: 'ed_triage.generated',
+      targetTable: 'ed_encounters',
+      metadata: {
+        candidateCount: result.candidateCount,
+        picksReturned: result.output.picks.length,
+      },
+    });
+    await recordAiGeneration({
+      actorUserId: user.id,
+      resourceType: 'ed_triage',
+      resourceId: 'morning_triage',
+      model: result.modelId,
+      promptVersion: result.promptVersion,
+      metadata: { candidateCount: result.candidateCount },
+    });
+
+    const candidateMeta = candidates.map((c) => ({
+      patientId: c.patientId,
+      visitCount: c.visitCount,
+      housingStatus: c.housingStatus,
+      latestVisitAt: c.latestVisitAt.toISOString(),
+      lastChiefComplaint: c.lastChiefComplaint,
+      carePlanStatus: c.carePlanStatus,
+    }));
+
+    return { ok: true, result, candidates: candidateMeta };
+  } catch (err) {
+    Sentry.captureException(err, { tags: { action: 'generateEdTriageAction' } });
+    return { ok: false, error: 'Triage generation failed. Please try again.' };
+  }
 }
 
 export type SaveCarePlanResult = { ok: true } | { ok: false; error: string };

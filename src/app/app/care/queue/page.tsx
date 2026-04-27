@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { CareQueueFilters, type CareQueueFilterValues } from '@/components/esuc/care-queue-filters';
 import { CareQueueTable } from '@/components/esuc/care-queue-table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,12 +55,20 @@ export default async function CareQueuePage({
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-6">
-      <header>
-        <h1 className="font-serif text-3xl font-bold text-primary">Care queue</h1>
-        <p className="text-sm text-muted-foreground">
-          ED super-utilizers (3+ visits in 180 days, housing-unstable) for care-coordinator
-          outreach. Patient identifiers are opaque — names live in Epic, not here.
-        </p>
+      <header className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <h1 className="font-serif text-3xl font-bold text-primary">Care queue</h1>
+          <p className="text-sm text-muted-foreground">
+            ED super-utilizers (3+ visits in 180 days, housing-unstable) for care-coordinator
+            outreach. Patient identifiers are opaque — names live in Epic, not here.
+          </p>
+        </div>
+        <Link
+          href="/app/care/triage"
+          className="shrink-0 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Morning triage →
+        </Link>
       </header>
 
       <CareQueueFilters values={values} />
