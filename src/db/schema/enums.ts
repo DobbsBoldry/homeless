@@ -145,6 +145,28 @@ export const triageTierEnum = pgEnum('triage_tier', ['high', 'medium', 'low']);
 
 export type TriageTierEnum = (typeof triageTierEnum.enumValues)[number];
 
+export const clientDocumentKindEnum = pgEnum('client_document_kind', [
+  'photo_id',
+  'ssn_card',
+  'birth_certificate',
+  'dd_214',
+  'lease',
+  'paystub',
+  'court_record',
+  'other',
+]);
+
+export type ClientDocumentKind = (typeof clientDocumentKindEnum.enumValues)[number];
+
+export const clientDocumentStatusEnum = pgEnum('client_document_status', [
+  'uploaded',
+  'extracting',
+  'extracted',
+  'failed',
+]);
+
+export type ClientDocumentStatus = (typeof clientDocumentStatusEnum.enumValues)[number];
+
 export const partnerServiceEventTypeEnum = pgEnum('partner_service_event_type', [
   'food_pantry',
   'shelter_intake',
