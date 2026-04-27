@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CarePlanPanel } from '@/components/esuc/care-plan-panel';
+import { PatientQAPanel } from '@/components/esuc/patient-qa-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listEncountersForPatient } from '@/db/queries/ed-encounters';
 import { requireRole } from '@/lib/auth';
@@ -62,6 +63,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         </CardContent>
       </Card>
 
+      <PatientQAPanel patientId={patientId} />
       <CarePlanPanel patientId={patientId} plan={carePlan} />
     </div>
   );
