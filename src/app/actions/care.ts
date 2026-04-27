@@ -87,6 +87,82 @@ export async function generateEdTriageAction(): Promise<GenerateEdTriageResult> 
   }
 }
 
+export type BatchCarePlanItem =
+  | { ok: true; patientId: string; planId: string; alreadyExisted: boolean }
+  | { ok: false; patientId: string; error: string };
+
+export type GenerateBatchCarePlansResult =
+  | { ok: true; items: BatchCarePlanItem[] }
+  | { ok: false; error: string };
+
+const BATCH_CAREPLANS_MAX = 5;
+
+/**
+ * Run `generateCarePlan` for a list of patient ids in parallel.
+ * Used by the ED morning-triage page to draft a care plan for
+ * every pick at once. Per-item failures don't fail the batch.
+ *
+ * `generateCarePlan` is idempotent on (patient_id, prompt_version)
+ * — re-running for an already-drafted patient returns the existing
+ * plan; we surface that as alreadyExisted=true so the UI can
+ * differentiate "fresh draft" from "already on file".
+ */
+export async function generateCarePlansBatchAction(
+  patientIds: string[],
+): Promise<GenerateBatchCarePlansResult> {
+  const user = await requireRole(CARE_ROLES);
+
+  if (!Array.isArray(patientIds) || patientIds.length === 0) {
+    return { ok: false, error: 'No patients provided.' };
+  }
+  if (patientIds.length > BATCH_CAREPLANS_MAX) {
+    return {
+      ok: false,
+      error: `Batch too large (max ${BATCH_CAREPLANS_MAX}). Trim the picks and try again.`,
+    };
+  }
+  const seen = new Set<string>();
+  const unique = patientIds.filter((id) => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+
+  const settled = await Promise.allSettled(
+    unique.map(async (patientId): Promise<BatchCarePlanItem> => {
+      try {
+        const before = await db
+          .select({ id: esucCarePlans.id })
+          .from(esucCarePlans)
+          .where(eq(esucCarePlans.patientId, patientId))
+          .limit(1);
+        const plan = await generateCarePlan(patientId, user.id);
+        const alreadyExisted = before.length > 0 && before[0].id === plan.id;
+        await logAuditEvent({
+          actorUserId: user.id,
+          action: 'care_plan.generated',
+          targetTable: 'esuc_care_plans',
+          targetId: plan.id,
+          metadata: { patientId, alreadyExisted, via: 'triage_batch' },
+        });
+        return { ok: true, patientId, planId: plan.id, alreadyExisted };
+      } catch (err) {
+        Sentry.captureException(err, {
+          tags: { action: 'generateCarePlansBatchAction', patientId },
+        });
+        return { ok: false, patientId, error: 'Care plan generation failed.' };
+      }
+    }),
+  );
+
+  const items: BatchCarePlanItem[] = settled.map((s, i) => {
+    if (s.status === 'fulfilled') return s.value;
+    return { ok: false, patientId: unique[i], error: 'Unexpected failure.' };
+  });
+
+  return { ok: true, items };
+}
+
 export type SaveCarePlanResult = { ok: true } | { ok: false; error: string };
 
 export async function saveCarePlanAction(
