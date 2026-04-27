@@ -11,6 +11,7 @@ export * from './eviction-case-outcomes';
 export * from './eviction-filing-risk-scores';
 export * from './eviction-filings';
 export * from './eviction-response-packets';
+export * from './fag-members';
 export * from './health-check';
 export * from './org-memberships';
 export * from './partner-orgs';
