@@ -8,6 +8,7 @@
     "start": "node scripts/migrate-prod.mjs && next start",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
+    "lint:boundaries": "tsx scripts/check-domain-boundaries.mts",
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

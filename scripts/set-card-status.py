@@ -40,13 +40,21 @@ def gh_graphql(query):
 
 
 def find_item_id(issue_num):
-    r = gh(["project", "item-list", str(PROJECT_NUM),
-            "--owner", OWNER, "--limit", "300", "--format", "json"])
-    items = json.loads(r.stdout)["items"]
-    for it in items:
-        c = it.get("content") or {}
-        if c.get("number") == issue_num:
-            return it["id"]
+    # Avoid `gh project item-list` — it silently caps at 100 items regardless
+    # of --limit, so issues past the first page are invisible to it. Query
+    # the issue's project memberships directly via GraphQL instead.
+    query = (
+        'query { repository(owner: "%s", name: "homeless") { '
+        'issue(number: %d) { projectItems(first: 10) { nodes { '
+        'id project { number } } } } } }'
+    ) % (OWNER, issue_num)
+    data = gh_graphql(query)
+    issue = (data.get("data", {}).get("repository") or {}).get("issue")
+    if not issue:
+        return None
+    for node in issue["projectItems"]["nodes"]:
+        if node["project"]["number"] == PROJECT_NUM:
+            return node["id"]
     return None
 
 

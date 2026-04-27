@@ -31,6 +31,9 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
+      - name: Domain boundaries
+        run: pnpm run lint:boundaries
+
       - name: Typecheck
         run: pnpm run typecheck
 
