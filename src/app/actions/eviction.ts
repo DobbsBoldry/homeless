@@ -16,9 +16,11 @@ import { evictionCaseOutcomes } from '@/db/schema/eviction-case-outcomes';
 import { evictionResponsePackets } from '@/db/schema/eviction-response-packets';
 import { logAuditEvent } from '@/lib/audit';
 import { requireKlaAttorney, requireRole } from '@/lib/auth';
+import { recordAiGeneration } from '@/lib/dtrs/data-access';
 import { renderPacketPdf } from '@/lib/eviction/packet-pdf';
 import { generateResponsePacket, validateDisclaimer } from '@/lib/eviction/response-packet';
 import { scoreFiling } from '@/lib/eviction/risk-score';
+import { generateOutreachLetter } from '@/lib/eviction/tenant-outreach';
 
 export type ScoreFilingResult = { ok: true } | { ok: false; error: string };
 
@@ -179,6 +181,41 @@ export async function exportPacketPdfAction(packetId: string): Promise<ExportPac
     filename: `packet-${safeCase}-${packet.id.slice(0, 8)}.pdf`,
     base64: bytes.toString('base64'),
   };
+}
+
+export type GenerateOutreachLetterResult =
+  | { ok: true; text: string; promptVersion: string }
+  | { ok: false; error: string };
+
+export async function generateOutreachLetterAction(
+  filingId: string,
+): Promise<GenerateOutreachLetterResult> {
+  const user = await requireKlaAttorney();
+  const filing = await getFilingById(filingId);
+  if (!filing) return { ok: false, error: 'Filing not found.' };
+
+  try {
+    const result = await generateOutreachLetter(filing);
+    await logAuditEvent({
+      actorUserId: user.id,
+      action: 'outreach_letter.generated',
+      targetTable: 'eviction_filings',
+      targetId: filing.id,
+      metadata: { promptVersion: result.promptVersion, caseNumber: filing.caseNumber },
+    });
+    await recordAiGeneration({
+      actorUserId: user.id,
+      resourceType: 'tenant_outreach_letter',
+      resourceId: filing.id,
+      model: result.modelId,
+      promptVersion: result.promptVersion,
+      metadata: { caseNumber: filing.caseNumber },
+    });
+    return { ok: true, text: result.text, promptVersion: result.promptVersion };
+  } catch (err) {
+    Sentry.captureException(err, { tags: { action: 'generateOutreachLetterAction', filingId } });
+    return { ok: false, error: 'Letter generation failed. Please try again.' };
+  }
 }
 
 export type RecordCaseOutcomeResult = { ok: true } | { ok: false; error: string };
