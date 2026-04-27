@@ -2,7 +2,12 @@ import { headers } from 'next/headers';
 import { db } from '@/db/client';
 import { smsMessages } from '@/db/schema/sms-messages';
 import { handleInboundSmsForNumber } from '@/lib/indc/sms-pipeline';
-import { twimlEmpty, twimlMessage, verifyTwilioSignature } from '@/lib/indc/twilio-signature';
+import {
+  identifierForPhone,
+  twimlEmpty,
+  twimlMessage,
+  verifyTwilioSignature,
+} from '@/lib/indc/twilio-signature';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,14 +31,17 @@ export async function POST(req: Request) {
   const fullUrl = `${proto}://${host}${url.pathname}`;
 
   const rawBody = await req.text();
-  const params: Record<string, string> = {};
-  for (const [k, v] of new URLSearchParams(rawBody)) params[k] = v;
+  const searchParams = new URLSearchParams(rawBody);
 
   if (!skipSignature) {
     if (!authToken) {
       return new Response('twilio webhook not configured', { status: 503 });
     }
-    if (!verifyTwilioSignature(authToken, fullUrl, params, signature)) {
+    // Pass URLSearchParams so verify handles repeated keys per Twilio's
+    // spec (#269 fix). The standard SMS payload doesn't use repeated
+    // keys today, but a malicious replay could try to exploit
+    // single-value-overwrite if we coerced down to Record<>.
+    if (!verifyTwilioSignature(authToken, fullUrl, searchParams, signature)) {
       console.warn('[twilio sms] signature mismatch', {
         fullUrl,
         signaturePresent: Boolean(signature),
@@ -42,10 +50,13 @@ export async function POST(req: Request) {
     }
   }
 
-  const fromNumber = params.From ?? 'unknown';
-  const toNumber = params.To ?? 'unknown';
-  const body = params.Body ?? '';
-  const messageSid = params.MessageSid ?? null;
+  // Apply the phone-identifier feature flag at the boundary (#269 fix).
+  // Downstream sees an opaque string identifier; whether it's raw E.164
+  // or a SHA-256 hash is decided here once.
+  const fromNumber = identifierForPhone(searchParams.get('From') ?? 'unknown');
+  const toNumber = searchParams.get('To') ?? 'unknown';
+  const body = searchParams.get('Body') ?? '';
+  const messageSid = searchParams.get('MessageSid');
 
   let reply: string;
   let intent: string;
