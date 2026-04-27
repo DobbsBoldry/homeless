@@ -218,6 +218,13 @@
       "when": 1777260557105,
       "tag": "0030_brave_brother_voodoo",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1777261609196,
+      "tag": "0031_shiny_ultimates",
+      "breakpoints": true
     }
   ]
 }
