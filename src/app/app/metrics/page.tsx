@@ -75,12 +75,12 @@ export default async function MetricsPage() {
         <Kpi
           label="Default-judgment rate"
           value={fmtPct(rates.defaultJudgmentRate)}
-          hint="Of cases with any recorded outcome"
+          hint="Of cases with any recorded outcome (latest outcome wins)"
         />
         <Kpi
           label="Favorable outcomes"
           value={fmtPct(rates.favorableOutcomeRate)}
-          hint="Dismissed, defendant judgment, or settled"
+          hint="Dismissed, defendant judgment, or settled (latest outcome wins)"
         />
       </section>
 
