@@ -137,3 +137,49 @@ export async function listRankedDocketForViewer(
   if (viewerCanSeeDvAddresses(viewerRole)) return rows;
   return rows.map((r) => (r.filing.dvFlag ? { ...r, filing: redactAddress(r.filing, true) } : r));
 }
+
+export type TopPlaintiff = {
+  plaintiff: string;
+  filings: number;
+  windowDays: number;
+  earliest: Date;
+  latest: Date;
+};
+
+/**
+ * Plaintiffs who appear ≥ minCount times on filings ingested in the
+ * last windowDays. Ordered by filing count desc, then by latest
+ * filing desc. Public court records — no DV redaction needed at this
+ * aggregate level (the count itself doesn't reveal an address).
+ */
+export async function listTopPlaintiffsRecent(
+  opts: { windowDays?: number; minCount?: number; limit?: number } = {},
+): Promise<TopPlaintiff[]> {
+  const windowDays = opts.windowDays ?? 30;
+  const minCount = opts.minCount ?? 3;
+  const limit = opts.limit ?? 10;
+  const since = new Date();
+  since.setDate(since.getDate() - windowDays);
+
+  const rows = await db
+    .select({
+      plaintiff: evictionFilings.plaintiff,
+      filings: sql<number>`COUNT(*)::int`.as('filings'),
+      earliest: sql<Date>`MIN(${evictionFilings.filedAt})`.as('earliest'),
+      latest: sql<Date>`MAX(${evictionFilings.filedAt})`.as('latest'),
+    })
+    .from(evictionFilings)
+    .where(gte(evictionFilings.filedAt, since))
+    .groupBy(evictionFilings.plaintiff)
+    .having(sql`COUNT(*) >= ${minCount}`)
+    .orderBy(desc(sql`filings`), desc(sql`latest`))
+    .limit(limit);
+
+  return rows.map((r) => ({
+    plaintiff: r.plaintiff,
+    filings: Number(r.filings),
+    windowDays,
+    earliest: r.earliest instanceof Date ? r.earliest : new Date(r.earliest as unknown as string),
+    latest: r.latest instanceof Date ? r.latest : new Date(r.latest as unknown as string),
+  }));
+}
