@@ -7,7 +7,11 @@ import type { CaseFacts } from '@/ai/prompts/case-qa';
 import { CaseFilingsRoles } from '@/components/eviction/case-filings-roles';
 import { db } from '@/db/client';
 import { listTriageCandidates } from '@/db/queries/attorney-triage';
-import { getFilingById } from '@/db/queries/eviction-filings';
+import {
+  getFilingById,
+  listTopPlaintiffsRecent,
+  type TopPlaintiff,
+} from '@/db/queries/eviction-filings';
 import { clientIntakes } from '@/db/schema/client-intakes';
 import {
   type EvictionCaseOutcome,
@@ -24,6 +28,7 @@ import { type AttorneyTriageResult, generateAttorneyTriage } from '@/lib/evictio
 import { answerCaseQuestion, type CaseQATurn } from '@/lib/eviction/case-qa';
 import { renderOutreachLetterPdf } from '@/lib/eviction/outreach-letter-pdf';
 import { renderPacketPdf } from '@/lib/eviction/packet-pdf';
+import { commentOnPlaintiffPatterns } from '@/lib/eviction/plaintiff-patterns';
 import { generateResponsePacket, validateDisclaimer } from '@/lib/eviction/response-packet';
 import { getLatestScore, scoreFiling } from '@/lib/eviction/risk-score';
 import { generateOutreachLetter } from '@/lib/eviction/tenant-outreach';
@@ -595,6 +600,72 @@ export async function generateAttorneyTriageAction(): Promise<GenerateAttorneyTr
   } catch (err) {
     Sentry.captureException(err, { tags: { action: 'generateAttorneyTriageAction' } });
     return { ok: false, error: 'Triage generation failed. Please try again.' };
+  }
+}
+
+export type CommentOnPlaintiffPatternsResult =
+  | {
+      ok: true;
+      text: string;
+      modelId: string;
+      promptVersion: string;
+      plaintiffs: TopPlaintiff[];
+      windowDays: number;
+      minCount: number;
+    }
+  | { ok: false; error: string };
+
+const PATTERN_WINDOW_DAYS = 30;
+const PATTERN_MIN_COUNT = 3;
+const PATTERN_LIMIT = 10;
+
+export async function commentOnPlaintiffPatternsAction(): Promise<CommentOnPlaintiffPatternsResult> {
+  const user = await requireRole(CaseFilingsRoles);
+
+  try {
+    const plaintiffs = await listTopPlaintiffsRecent({
+      windowDays: PATTERN_WINDOW_DAYS,
+      minCount: PATTERN_MIN_COUNT,
+      limit: PATTERN_LIMIT,
+    });
+    const result = await commentOnPlaintiffPatterns({
+      windowDays: PATTERN_WINDOW_DAYS,
+      minCount: PATTERN_MIN_COUNT,
+      plaintiffs,
+    });
+
+    await logAuditEvent({
+      actorUserId: user.id,
+      action: 'plaintiff_patterns.commented',
+      targetTable: 'eviction_filings',
+      metadata: {
+        promptVersion: result.promptVersion,
+        windowDays: PATTERN_WINDOW_DAYS,
+        minCount: PATTERN_MIN_COUNT,
+        plaintiffCount: plaintiffs.length,
+      },
+    });
+    await recordAiGeneration({
+      actorUserId: user.id,
+      resourceType: 'plaintiff_patterns',
+      resourceId: 'docket_window',
+      model: result.modelId,
+      promptVersion: result.promptVersion,
+      metadata: { windowDays: PATTERN_WINDOW_DAYS },
+    });
+
+    return {
+      ok: true,
+      text: result.text,
+      modelId: result.modelId,
+      promptVersion: result.promptVersion,
+      plaintiffs,
+      windowDays: PATTERN_WINDOW_DAYS,
+      minCount: PATTERN_MIN_COUNT,
+    };
+  } catch (err) {
+    Sentry.captureException(err, { tags: { action: 'commentOnPlaintiffPatternsAction' } });
+    return { ok: false, error: 'Pattern detection failed. Please try again.' };
   }
 }
 

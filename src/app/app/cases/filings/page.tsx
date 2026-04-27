@@ -1,11 +1,15 @@
 import Link from 'next/link';
 import { CaseFilingsRoles } from '@/components/eviction/case-filings-roles';
 import { FilingsTable } from '@/components/eviction/filings-table';
+import { PlaintiffPatternsCard } from '@/components/eviction/plaintiff-patterns-card';
 import { SourceFilter } from '@/components/eviction/source-filter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { listRecentFilingsForViewer } from '@/db/queries/eviction-filings';
+import { listRecentFilingsForViewer, listTopPlaintiffsRecent } from '@/db/queries/eviction-filings';
 import type { EvictionFilingSource } from '@/db/schema/enums';
 import { requireRole, userIsKlaAttorney } from '@/lib/auth';
+
+const PATTERN_WINDOW_DAYS = 30;
+const PATTERN_MIN_COUNT = 3;
 
 const ALLOWED_SOURCES: EvictionFilingSource[] = ['synthetic', 'manual', 'courtnet'];
 
@@ -18,9 +22,14 @@ export default async function FilingsPage({
 
   const params = await searchParams;
   const source = ALLOWED_SOURCES.find((s) => s === params.source);
-  const [filings, canTriage] = await Promise.all([
+  const [filings, canTriage, topPlaintiffs] = await Promise.all([
     listRecentFilingsForViewer({ limit: 50, source }, me.role),
     userIsKlaAttorney(me),
+    listTopPlaintiffsRecent({
+      windowDays: PATTERN_WINDOW_DAYS,
+      minCount: PATTERN_MIN_COUNT,
+      limit: 10,
+    }),
   ]);
 
   return (
@@ -43,6 +52,14 @@ export default async function FilingsPage({
       </header>
 
       <SourceFilter selected={source} />
+
+      {topPlaintiffs.length > 0 ? (
+        <PlaintiffPatternsCard
+          initialPlaintiffs={topPlaintiffs}
+          windowDays={PATTERN_WINDOW_DAYS}
+          minCount={PATTERN_MIN_COUNT}
+        />
+      ) : null}
 
       {filings.length === 0 ? (
         <Card>
