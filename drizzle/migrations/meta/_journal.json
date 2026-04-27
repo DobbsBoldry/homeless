@@ -232,6 +232,20 @@
       "when": 1777324911073,
       "tag": "0032_response_packet_touch_updated_at",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1777325665808,
+      "tag": "0033_users_email_citext",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1777325788755,
+      "tag": "0034_windy_sir_ram",
+      "breakpoints": true
     }
   ]
 }
