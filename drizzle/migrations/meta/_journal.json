@@ -225,6 +225,13 @@
       "when": 1777261609196,
       "tag": "0031_shiny_ultimates",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1777324911073,
+      "tag": "0032_response_packet_touch_updated_at",
+      "breakpoints": true
     }
   ]
 }
