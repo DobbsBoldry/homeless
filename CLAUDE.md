@@ -33,6 +33,7 @@ This platform serves a county-level homelessness coalition. It ingests public ev
 - **`STATE.md`** — open this first. Captures current focus, what just shipped, what's next, and known quirks. Refreshed at end of session; if it's stale, update it before doing anything else.
 - **GitHub Issues + [project board](https://github.com/users/DobbsBoldry/projects/1)** — source of truth for active work. Pick up the next open story from there.
 - **`BACKLOG.md`** — historical scaffolding (Phase 0/1 plan); kept for the strategic narrative (epic shape, phase sequencing). Don't try to plan against it.
+- **[`docs/architecture.md`](docs/architecture.md)** — one-page system map (layers, domain dependency graph, PHI fence, Phase-1 user journeys). Read this once; refer back when orienting.
 - **`docs/adr/`** — architecture decisions of record. Read these before fighting against an established pattern.
 - **`docs/`** — schema diagrams, design docs, KLA handouts.
 - **`README.md`** — local development setup.
