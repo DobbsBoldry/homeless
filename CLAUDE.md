@@ -30,11 +30,14 @@ This platform serves a county-level homelessness coalition. It ingests public ev
 
 ## How to read this codebase
 
-- **`BACKLOG.md`** — the source of truth for what to build, in what order, with story-point estimates. Read it any time you're picking up new work.
-- **`docs/`** — architecture decisions, ADRs, schema diagrams as they accumulate.
+- **GitHub Issues + [project board](https://github.com/users/DobbsBoldry/projects/1)** — source of truth for active work. Pick up the next open story from there.
+- **`BACKLOG.md`** — historical scaffolding (Phase 0/1 plan); kept for the strategic narrative (epic shape, phase sequencing). Don't try to plan against it.
+- **`docs/adr/`** — architecture decisions of record. Read these before fighting against an established pattern.
+- **`docs/`** — schema diagrams, design docs, KLA handouts.
 - **`README.md`** — local development setup.
-- **`scripts/`** — operational scripts (GitHub setup, data imports, etc.). Not application code.
-- **`src/`** — Next.js application code (created by FND-001).
+- **`scripts/`** — operational scripts (GitHub setup, data imports, status moves). Not application code.
+- **`src/lib/{domain}/CLAUDE.md`** — per-domain context (auto-loaded when editing files in that subdir). Read these before diving into a domain you haven't touched recently.
+- **`src/`** — Next.js application code.
 
 ## Conventions
 
