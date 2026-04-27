@@ -14,12 +14,20 @@ export default async function ClientsPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-6">
-      <header>
-        <h1 className="font-serif text-3xl font-bold text-primary">Clients</h1>
-        <p className="text-sm text-muted-foreground">
-          Caseworker tools and the cross-agency view. Real per-person records gated behind PHI
-          consent + BAA — Phase 1 surfaces work against synthetic person refs.
-        </p>
+      <header className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <h1 className="font-serif text-3xl font-bold text-primary">Clients</h1>
+          <p className="text-sm text-muted-foreground">
+            Caseworker tools and the cross-agency view. Real per-person records gated behind PHI
+            consent + BAA — Phase 1 surfaces work against synthetic person refs.
+          </p>
+        </div>
+        <Link
+          href="/app/clients/morning"
+          className="shrink-0 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Morning triage →
+        </Link>
       </header>
 
       <div className="grid gap-3 md:grid-cols-3">
