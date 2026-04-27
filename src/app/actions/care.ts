@@ -4,7 +4,9 @@ import * as Sentry from '@sentry/nextjs';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db/client';
+import { listEncountersForPatient } from '@/db/queries/ed-encounters';
 import { listEdTriageCandidates } from '@/db/queries/ed-triage';
+import { clientIntakes } from '@/db/schema/client-intakes';
 import { type EsucCarePlanStatus, esucCarePlanStatusEnum } from '@/db/schema/enums';
 import { esucCarePlans } from '@/db/schema/esuc-care-plans';
 import { logAuditEvent } from '@/lib/audit';
@@ -161,6 +163,104 @@ export async function generateCarePlansBatchAction(
   });
 
   return { ok: true, items };
+}
+
+export type ReferPatientToCaseworkerResult =
+  | { ok: true; intakeId: string; alreadyExisted: boolean }
+  | { ok: false; error: string };
+
+const housingNarrative: Record<string, string> = {
+  unsheltered: 'unsheltered',
+  shelter: 'staying in a shelter',
+  doubled_up: 'doubled-up with friends or family',
+  housed: 'housed',
+  unknown: 'in unclear housing',
+};
+
+/**
+ * ED coordinator refers a super-utilizer to the caseworker queue.
+ * Symmetric to the EVDT→CWT bridge: spawns a `client_intakes` row
+ * with a templated referral narrative summarizing the patient's ED
+ * pattern (visit count + housing status + recent chief complaints).
+ * The caseworker reads, edits, runs extraction, and the intake
+ * flows through the regular chain.
+ *
+ * Idempotent on patientId: label = `ESUC-REF:{patientId}` matches
+ * exactly, so re-clicking surfaces the existing intake.
+ */
+export async function referPatientToCaseworkerAction(
+  patientId: string,
+): Promise<ReferPatientToCaseworkerResult> {
+  const user = await requireRole(CARE_ROLES);
+
+  if (!/^[A-Za-z0-9_-]{6,}$/.test(patientId)) {
+    return { ok: false, error: 'Invalid patient identifier.' };
+  }
+
+  const refTag = `ESUC-REF:${patientId}`;
+
+  const [existing] = await db
+    .select({ id: clientIntakes.id })
+    .from(clientIntakes)
+    .where(eq(clientIntakes.label, refTag))
+    .limit(1);
+  if (existing) {
+    return { ok: true, intakeId: existing.id, alreadyExisted: true };
+  }
+
+  const encounters = await listEncountersForPatient(patientId);
+  if (encounters.length === 0) {
+    return { ok: false, error: 'No encounters on file for this patient.' };
+  }
+
+  const latest = encounters[0];
+  const recentComplaints = encounters
+    .slice(0, 3)
+    .map((e) => `"${e.chiefComplaint}"`)
+    .join(', ');
+  const housingFrag = housingNarrative[latest.housingStatus] ?? 'in unclear housing';
+  const latestDate = latest.arrivedAt.toISOString().slice(0, 10);
+
+  const narrative = [
+    'Referral from the ED super-utilizer care coordinator.',
+    '',
+    `This patient has ${encounters.length} ED encounter${encounters.length === 1 ? '' : 's'} on file. Most recent visit was ${latestDate} for ${latest.chiefComplaint.toLowerCase()}; they are currently ${housingFrag}. Recent chief complaints: ${recentComplaints}.`,
+    '',
+    "Referring to the caseworker side because the ED is the wrong setting for what's actually going on — repeat visits are housing-driven and stabilizing housing is a coordinator job, not an ER one. Run the benefits screener; depending on what they tell you, this may also be a candidate for a coordinated care plan with the partner who has the strongest existing relationship.",
+    '',
+    `(The patient identifier ${patientId} is opaque on this platform — names live in Epic. When you meet the patient, you'll learn the name; the AI extraction works fine on either real or synthetic name.)`,
+    '',
+    `(Edit this transcript with what the patient tells you, then run extraction. Or replace it entirely with a fresh recording.)`,
+  ].join('\n');
+
+  try {
+    const [created] = await db
+      .insert(clientIntakes)
+      .values({
+        label: refTag,
+        transcriptMd: narrative,
+        recordedByUserId: user.id,
+        status: 'transcribed',
+      })
+      .returning({ id: clientIntakes.id });
+
+    await logAuditEvent({
+      actorUserId: user.id,
+      action: 'patient.referred_to_caseworker',
+      targetTable: 'ed_encounters',
+      targetId: patientId,
+      metadata: {
+        intakeId: created.id,
+        encounterCount: encounters.length,
+        latestHousingStatus: latest.housingStatus,
+      },
+    });
+
+    return { ok: true, intakeId: created.id, alreadyExisted: false };
+  } catch (err) {
+    Sentry.captureException(err, { tags: { action: 'referPatientToCaseworkerAction', patientId } });
+    return { ok: false, error: 'Referral failed. Please try again.' };
+  }
 }
 
 export type SaveCarePlanResult = { ok: true } | { ok: false; error: string };
