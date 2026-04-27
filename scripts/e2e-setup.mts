@@ -105,6 +105,12 @@ async function main() {
   console.log('[e2e-setup] seeding demo data...');
   sh('pnpm db:seed', { DATABASE_URL: process.env.DATABASE_URL });
 
+  console.log('[e2e-setup] loading eviction filings fixture...');
+  sh('pnpm tsx scripts/load-fixtures.ts', { DATABASE_URL: process.env.DATABASE_URL });
+
+  console.log('[e2e-setup] loading ED encounters fixture...');
+  sh('pnpm tsx scripts/load-ed-encounters.ts', { DATABASE_URL: process.env.DATABASE_URL });
+
   console.log('[e2e-setup] provisioning Clerk test users + linking to seeded rows...');
   await provisionClerkUsersAndLink();
 
@@ -133,17 +139,27 @@ async function provisionClerkUsersAndLink() {
         console.log(`[e2e-setup]   + clerk user ${p.email} (${clerkId})`);
       }
 
-      // Update the seeded user row (clerk_user_id = 'seed_<role>') to use the real Clerk ID.
-      // If the e2e Clerk user is already linked, this updates the email too. The seed user has
-      // a fake email that we rewrite to the e2e email so future signups don't conflict.
+      // Three states to handle on re-runs:
+      //   (a) e2e Clerk user already linked: row exists with clerk_user_id = clerkId.
+      //       Nothing to do.
+      //   (b) Only the seed_<role> row exists: update it to point at the real Clerk ID.
+      //   (c) Both rows exist (seed-script ran fresh after we already linked):
+      //       delete the seed_<role> duplicate; the real-id row is the authoritative one.
       const seededClerkId = `seed_${p.seedRole}`;
-      const result = await sql`
-        update users
-        set clerk_user_id = ${clerkId}, email = ${p.email}, updated_at = now()
-        where clerk_user_id = ${seededClerkId} or clerk_user_id = ${clerkId}
-        returning id, email, role
-      `;
-      if (result.length === 0) {
+      const realRows = await sql`select id from users where clerk_user_id = ${clerkId}`;
+      const seedRows = await sql`select id from users where clerk_user_id = ${seededClerkId}`;
+      if (realRows.length > 0 && seedRows.length > 0) {
+        // (c) — drop the duplicate seed-id row (its memberships were copied
+        //       when we first updated). Cascade rules clean org_memberships.
+        await sql`delete from users where clerk_user_id = ${seededClerkId}`;
+      } else if (realRows.length === 0 && seedRows.length > 0) {
+        // (b)
+        await sql`
+          update users
+          set clerk_user_id = ${clerkId}, email = ${p.email}, updated_at = now()
+          where clerk_user_id = ${seededClerkId}
+        `;
+      } else if (realRows.length === 0 && seedRows.length === 0) {
         console.warn(
           `[e2e-setup]   ! no user row matched for ${p.seedRole} — seed may have changed`,
         );
