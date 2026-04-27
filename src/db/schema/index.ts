@@ -15,6 +15,7 @@ export * from './eviction-response-packets';
 export * from './fag-members';
 export * from './health-check';
 export * from './org-memberships';
+export * from './outbound-messages-test';
 export * from './partner-orgs';
 export * from './partner-service-events';
 export * from './person-partner-consents';

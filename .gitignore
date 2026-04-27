@@ -52,6 +52,15 @@ Thumbs.db
 # Claude Code
 .claude/cache/
 
+# e2e suite
+.env.e2e
+e2e/.traces/
+e2e/.playwright/
+e2e/test-results/
+playwright-report/
+# AI cache: gitignored locally; committed in CI via separate workflow if/when added
+e2e/.cache/
+
 # Python (setup scripts)
 __pycache__/
 *.pyc

@@ -177,7 +177,7 @@ export function CaseNotesPanel({
                         disabled={pending}
                         onClick={() => saveEdit(latest.id)}
                       >
-                        {pending ? 'Saving…' : 'Save edit (creates v' + (chain.length + 1) + ')'}
+                        {pending ? 'Saving…' : `Save edit (creates v${chain.length + 1})`}
                       </Button>
                       <Button
                         type="button"

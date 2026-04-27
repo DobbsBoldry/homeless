@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from 'drizzle-orm';
+import { desc, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import type { EsucCarePlanStatus } from '@/db/schema/enums';
 import { esucCarePlans } from '@/db/schema/esuc-care-plans';
