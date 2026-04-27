@@ -2,7 +2,12 @@
 
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
-import { type GenerateEdTriageResult, generateEdTriageAction } from '@/app/actions/care';
+import {
+  type BatchCarePlanItem,
+  type GenerateEdTriageResult,
+  generateCarePlansBatchAction,
+  generateEdTriageAction,
+} from '@/app/actions/care';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -19,10 +24,47 @@ const housingClass: Record<string, string> = {
 
 type SuccessResult = Extract<GenerateEdTriageResult, { ok: true }>;
 
+function BatchPlanChip({
+  filingId,
+  item,
+  pending,
+}: {
+  filingId: string;
+  item: BatchCarePlanItem | undefined;
+  pending: boolean;
+}) {
+  if (!item) {
+    if (pending) {
+      return <p className="mt-2 text-[11px] text-muted-foreground italic">Drafting care plan…</p>;
+    }
+    return null;
+  }
+  if (!item.ok) {
+    return (
+      <p className="mt-2 rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-[11px] text-destructive">
+        Care plan draft failed: {item.error}
+      </p>
+    );
+  }
+  return (
+    <p className="mt-2 rounded border border-emerald-500/40 bg-emerald-500/5 px-2 py-1 text-[11px]">
+      <span className="font-medium text-emerald-700 dark:text-emerald-400">
+        {item.alreadyExisted ? 'Care plan already on file' : 'Care plan drafted ✓'}
+      </span>{' '}
+      <Link href={`/app/care/patients/${filingId}`} className="ml-1 text-primary hover:underline">
+        Open patient →
+      </Link>
+    </p>
+  );
+}
+
 export function EdTriagePanel() {
   const [pending, startTransition] = useTransition();
+  const [batchPending, startBatchTransition] = useTransition();
   const [data, setData] = useState<SuccessResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [batchError, setBatchError] = useState<string | null>(null);
+  const [planByPatient, setPlanByPatient] = useState<Record<string, BatchCarePlanItem>>({});
 
   const onClick = () => {
     setError(null);
@@ -33,6 +75,22 @@ export function EdTriagePanel() {
         return;
       }
       setData(r);
+      setPlanByPatient({});
+      setBatchError(null);
+    });
+  };
+
+  const onBatchPlans = (patientIds: string[]) => {
+    setBatchError(null);
+    startBatchTransition(async () => {
+      const r = await generateCarePlansBatchAction(patientIds);
+      if (!r.ok) {
+        setBatchError(r.error);
+        return;
+      }
+      const next: Record<string, BatchCarePlanItem> = {};
+      for (const item of r.items) next[item.patientId] = item;
+      setPlanByPatient(next);
     });
   };
 
@@ -83,43 +141,66 @@ export function EdTriagePanel() {
             No patients need attention today out of {result.candidateCount} on the queue.
           </p>
         ) : (
-          <ol className="space-y-3">
-            {sortedPicks.map((p) => {
-              const c = candById.get(p.patient_id);
-              if (!c) return null;
-              return (
-                <li
-                  key={p.patient_id}
-                  className="rounded-md border border-border bg-card p-3 text-sm"
-                >
-                  <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
-                    <div className="flex items-baseline gap-2">
-                      <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">
-                        #{p.priority_rank}
-                      </span>
-                      <Link
-                        href={`/app/care/patients/${p.patient_id}`}
-                        className="font-mono text-xs font-medium hover:underline"
-                      >
-                        {p.patient_id}
-                      </Link>
+          <>
+            <div className="flex flex-wrap items-center gap-3 rounded-md border border-primary/40 bg-primary/5 p-3">
+              <div className="flex-1 text-xs text-muted-foreground">
+                Draft a care plan for every pick at once. Idempotent — patients with an existing
+                draft for the current prompt version surface as "already on file" rather than
+                regenerating.
+              </div>
+              <Button
+                onClick={() => onBatchPlans(sortedPicks.map((p) => p.patient_id))}
+                disabled={batchPending}
+                size="sm"
+              >
+                {batchPending
+                  ? `Drafting ${sortedPicks.length}…`
+                  : `Draft care plans for all ${sortedPicks.length}`}
+              </Button>
+              {batchError ? (
+                <span className="w-full text-xs text-destructive">{batchError}</span>
+              ) : null}
+            </div>
+            <ol className="space-y-3">
+              {sortedPicks.map((p) => {
+                const c = candById.get(p.patient_id);
+                if (!c) return null;
+                const planItem = planByPatient[p.patient_id];
+                return (
+                  <li
+                    key={p.patient_id}
+                    className="rounded-md border border-border bg-card p-3 text-sm"
+                  >
+                    <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+                          #{p.priority_rank}
+                        </span>
+                        <Link
+                          href={`/app/care/patients/${p.patient_id}`}
+                          className="font-mono text-xs font-medium hover:underline"
+                        >
+                          {p.patient_id}
+                        </Link>
+                      </div>
+                      <div className="flex items-baseline gap-3 text-xs">
+                        <span className="font-medium">{c.visitCount} visits</span>
+                        <span className={`font-medium ${housingClass[c.housingStatus] ?? ''}`}>
+                          {c.housingStatus}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-baseline gap-3 text-xs">
-                      <span className="font-medium">{c.visitCount} visits</span>
-                      <span className={`font-medium ${housingClass[c.housingStatus] ?? ''}`}>
-                        {c.housingStatus}
-                      </span>
+                    <p className="text-sm leading-relaxed">{p.rationale}</p>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      last visit {fmtDate(c.latestVisitAt)} · "{c.lastChiefComplaint}" ·{' '}
+                      {c.carePlanStatus ? `plan ${c.carePlanStatus}` : 'no plan drafted'}
                     </div>
-                  </div>
-                  <p className="text-sm leading-relaxed">{p.rationale}</p>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    last visit {fmtDate(c.latestVisitAt)} · "{c.lastChiefComplaint}" ·{' '}
-                    {c.carePlanStatus ? `plan ${c.carePlanStatus}` : 'no plan drafted'}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+                    <BatchPlanChip filingId={p.patient_id} item={planItem} pending={batchPending} />
+                  </li>
+                );
+              })}
+            </ol>
+          </>
         )}
 
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
