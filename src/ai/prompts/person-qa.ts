@@ -89,7 +89,7 @@ export function buildPersonProfileBlock(profile: PersonProfile): string {
       const presenting = p && typeof p.presenting_issue === 'string' ? p.presenting_issue : null;
       const urgency = p && typeof p.urgency === 'string' ? p.urgency : null;
       const flags =
-        p && p.flags && typeof p.flags === 'object'
+        p?.flags && typeof p.flags === 'object'
           ? Object.entries(p.flags as Record<string, boolean>)
               .filter(([, v]) => v === true)
               .map(([k]) => k)
