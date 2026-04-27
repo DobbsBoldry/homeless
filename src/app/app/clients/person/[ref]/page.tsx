@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { CaseNotesPanel } from '@/components/cwt/case-notes-panel';
 import { FollowupSmsPanel } from '@/components/cwt/followup-sms-panel';
 import { PersonQAPanel } from '@/components/cwt/person-qa-panel';
 import { PostMeetingNotesPanel } from '@/components/cwt/post-meeting-notes-panel';
 import { PreMeetingSummary } from '@/components/cwt/pre-meeting-summary';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { listCaseNotesForPerson } from '@/db/queries/client-case-notes';
 import { getPersonProfile } from '@/db/queries/person-profile';
 import { requireRole } from '@/lib/auth';
 import { recordDataAccess } from '@/lib/dtrs/data-access';
@@ -27,7 +29,10 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
   const { ref } = await params;
   if (!isValidSyntheticPersonRef(ref)) notFound();
 
-  const profile = await getPersonProfile(ref);
+  const [profile, caseNotes] = await Promise.all([
+    getPersonProfile(ref),
+    listCaseNotesForPerson(ref),
+  ]);
 
   await recordDataAccess({
     actorUserId: me.id,
@@ -115,6 +120,15 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
         </CardHeader>
         <CardContent>
           <PostMeetingNotesPanel syntheticPersonRef={ref} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Case notes ({caseNotes.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CaseNotesPanel syntheticPersonRef={ref} initialNotes={caseNotes} />
         </CardContent>
       </Card>
 
