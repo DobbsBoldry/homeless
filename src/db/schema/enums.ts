@@ -175,6 +175,16 @@ export const fagPayoutStatusEnum = pgEnum('fag_payout_status', ['unpaid', 'paid'
 
 export type FagPayoutStatus = (typeof fagPayoutStatusEnum.enumValues)[number];
 
+export const clientIntakeStatusEnum = pgEnum('client_intake_status', [
+  'recording',
+  'transcribed',
+  'extracting',
+  'extracted',
+  'failed',
+]);
+
+export type ClientIntakeStatus = (typeof clientIntakeStatusEnum.enumValues)[number];
+
 export const partnerServiceEventTypeEnum = pgEnum('partner_service_event_type', [
   'food_pantry',
   'shelter_intake',

@@ -1,5 +1,6 @@
 export * from './audit-log';
 export * from './client-documents';
+export * from './client-intakes';
 export * from './comms-advisories';
 export * from './consent-access-tokens';
 export * from './consents';
