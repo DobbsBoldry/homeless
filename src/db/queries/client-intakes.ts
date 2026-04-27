@@ -10,3 +10,20 @@ export async function getClientIntakeById(id: string): Promise<ClientIntake | nu
   const [row] = await db.select().from(clientIntakes).where(eq(clientIntakes.id, id)).limit(1);
   return row ?? null;
 }
+
+/**
+ * Look up the intake spawned by EVDT-CWT bridge referral for a given
+ * filing, if any. Matches on the literal label token used by
+ * referFilingToCaseworkerAction (`EVDT-REF:{filingId}`) so the join
+ * is exact and free of collisions.
+ */
+export async function getReferralIntakeForFiling(
+  filingId: string,
+): Promise<ClientIntake | null> {
+  const [row] = await db
+    .select()
+    .from(clientIntakes)
+    .where(eq(clientIntakes.label, `EVDT-REF:${filingId}`))
+    .limit(1);
+  return row ?? null;
+}

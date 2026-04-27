@@ -4,9 +4,11 @@ import { CaseFilingsRoles } from '@/components/eviction/case-filings-roles';
 import { CaseOutcomePanel } from '@/components/eviction/case-outcome-panel';
 import { CaseQAPanel } from '@/components/eviction/case-qa-panel';
 import { FilingDetail } from '@/components/eviction/filing-detail';
+import { LinkedIntakePanel } from '@/components/eviction/linked-intake-panel';
 import { OutreachLetterPanel } from '@/components/eviction/outreach-letter-panel';
 import { ReferToCaseworkerPanel } from '@/components/eviction/refer-to-caseworker-panel';
 import { RentalAssistancePanel } from '@/components/eviction/rental-assistance-panel';
+import { getReferralIntakeForFiling } from '@/db/queries/client-intakes';
 import { listCaseOutcomes } from '@/db/queries/eviction-case-outcomes';
 import { getFilingByIdForViewer } from '@/db/queries/eviction-filings';
 import { matchAssistancePrograms } from '@/db/queries/rental-assistance';
@@ -31,11 +33,12 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
   const filing = await getFilingByIdForViewer(id, me.role);
   if (!filing) notFound();
 
-  const [score, outcomes, canRecord, assistancePrograms] = await Promise.all([
+  const [score, outcomes, canRecord, assistancePrograms, linkedIntake] = await Promise.all([
     getLatestScore(filing.id),
     listCaseOutcomes(filing.id),
     userIsKlaAttorney(me),
     matchAssistancePrograms(filing),
+    getReferralIntakeForFiling(filing.id),
   ]);
 
   // DTRS-003: log this read. We log AFTER the row is fetched so the
@@ -74,7 +77,8 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
       </div>
       {canRecord ? <CaseQAPanel filingId={filing.id} /> : null}
       {canRecord ? <OutreachLetterPanel filingId={filing.id} /> : null}
-      {canRecord ? <ReferToCaseworkerPanel filingId={filing.id} /> : null}
+      {linkedIntake ? <LinkedIntakePanel intake={linkedIntake} /> : null}
+      {canRecord && !linkedIntake ? <ReferToCaseworkerPanel filingId={filing.id} /> : null}
       <CaseOutcomePanel filingId={filing.id} history={outcomes} canRecord={canRecord} />
       <RentalAssistancePanel programs={assistancePrograms} />
     </div>
