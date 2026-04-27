@@ -118,7 +118,14 @@ export default async function PublicOutcomesPage() {
                       href={`/outcomes/q/${e.quarter.year}/${e.quarter.quarter}`}
                       className="text-xs text-primary hover:underline"
                     >
-                      View →
+                      Public →
+                    </Link>
+                    <span className="mx-1 text-muted-foreground">·</span>
+                    <Link
+                      href={`/outcomes/fiscal-court/${e.quarter.year}/${e.quarter.quarter}`}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Fiscal Court →
                     </Link>
                   </td>
                 </tr>
