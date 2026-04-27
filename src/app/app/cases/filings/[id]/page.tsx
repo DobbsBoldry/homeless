@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CaseFilingsRoles } from '@/components/eviction/case-filings-roles';
 import { CaseOutcomePanel } from '@/components/eviction/case-outcome-panel';
+import { CaseQAPanel } from '@/components/eviction/case-qa-panel';
 import { FilingDetail } from '@/components/eviction/filing-detail';
 import { OutreachLetterPanel } from '@/components/eviction/outreach-letter-panel';
 import { RentalAssistancePanel } from '@/components/eviction/rental-assistance-panel';
@@ -70,6 +71,7 @@ export default async function FilingDetailPage({ params }: { params: Promise<{ i
           Open packet workspace →
         </Link>
       </div>
+      {canRecord ? <CaseQAPanel filingId={filing.id} /> : null}
       {canRecord ? <OutreachLetterPanel filingId={filing.id} /> : null}
       <CaseOutcomePanel filingId={filing.id} history={outcomes} canRecord={canRecord} />
       <RentalAssistancePanel programs={assistancePrograms} />

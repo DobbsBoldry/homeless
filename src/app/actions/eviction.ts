@@ -1,8 +1,9 @@
 'use server';
 
 import * as Sentry from '@sentry/nextjs';
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import type { CaseFacts } from '@/ai/prompts/case-qa';
 import { CaseFilingsRoles } from '@/components/eviction/case-filings-roles';
 import { db } from '@/db/client';
 import { listTriageCandidates } from '@/db/queries/attorney-triage';
@@ -19,9 +20,10 @@ import { logAuditEvent } from '@/lib/audit';
 import { requireKlaAttorney, requireRole } from '@/lib/auth';
 import { recordAiGeneration } from '@/lib/dtrs/data-access';
 import { type AttorneyTriageResult, generateAttorneyTriage } from '@/lib/eviction/attorney-triage';
+import { answerCaseQuestion, type CaseQATurn } from '@/lib/eviction/case-qa';
 import { renderPacketPdf } from '@/lib/eviction/packet-pdf';
 import { generateResponsePacket, validateDisclaimer } from '@/lib/eviction/response-packet';
-import { scoreFiling } from '@/lib/eviction/risk-score';
+import { getLatestScore, scoreFiling } from '@/lib/eviction/risk-score';
 import { generateOutreachLetter } from '@/lib/eviction/tenant-outreach';
 
 export type ScoreFilingResult = { ok: true } | { ok: false; error: string };
@@ -217,6 +219,98 @@ export async function generateOutreachLetterAction(
   } catch (err) {
     Sentry.captureException(err, { tags: { action: 'generateOutreachLetterAction', filingId } });
     return { ok: false, error: 'Letter generation failed. Please try again.' };
+  }
+}
+
+export type AskCaseQuestionResult =
+  | { ok: true; answer: string; promptVersion: string }
+  | { ok: false; error: string };
+
+const QA_USER_QUESTION_MAX = 1500;
+const QA_HISTORY_MAX_TURNS = 30;
+
+export async function askCaseQuestionAction(
+  filingId: string,
+  history: CaseQATurn[],
+): Promise<AskCaseQuestionResult> {
+  const user = await requireKlaAttorney();
+
+  if (!Array.isArray(history) || history.length === 0) {
+    return { ok: false, error: 'Question is required.' };
+  }
+  if (history.length > QA_HISTORY_MAX_TURNS) {
+    return { ok: false, error: 'Conversation too long — start a new one.' };
+  }
+  const last = history[history.length - 1];
+  if (last.role !== 'user') {
+    return { ok: false, error: 'Last turn must be a question.' };
+  }
+  if (last.content.trim().length === 0) {
+    return { ok: false, error: 'Question is empty.' };
+  }
+  if (last.content.length > QA_USER_QUESTION_MAX) {
+    return { ok: false, error: `Question too long (max ${QA_USER_QUESTION_MAX} chars).` };
+  }
+
+  const filing = await getFilingById(filingId);
+  if (!filing) return { ok: false, error: 'Filing not found.' };
+
+  const score = await getLatestScore(filing.id);
+  const [latestPacket] = await db
+    .select({ status: evictionResponsePackets.status })
+    .from(evictionResponsePackets)
+    .where(eq(evictionResponsePackets.filingId, filing.id))
+    .orderBy(desc(evictionResponsePackets.createdAt))
+    .limit(1);
+  const [latestOutcome] = await db
+    .select({ id: evictionCaseOutcomes.id })
+    .from(evictionCaseOutcomes)
+    .where(eq(evictionCaseOutcomes.filingId, filing.id))
+    .limit(1);
+
+  const facts: CaseFacts = {
+    case_number: filing.caseNumber,
+    court_division: filing.courtDivision,
+    plaintiff: filing.plaintiff,
+    defendant_name: `${filing.defendantFirstName} ${filing.defendantLastName}`.trim(),
+    cause_type: filing.causeType,
+    amount_claimed_cents: filing.amountClaimedCents,
+    filed_at: filing.filedAt.toISOString().slice(0, 10),
+    status: filing.status,
+    risk_score: score?.score ?? null,
+    risk_rationale: score?.rationale ?? null,
+    risk_model_version: score?.modelVersion ?? null,
+    packet_status: latestPacket?.status ?? null,
+    outcome_recorded: Boolean(latestOutcome),
+  };
+
+  try {
+    const result = await answerCaseQuestion(facts, history);
+
+    await logAuditEvent({
+      actorUserId: user.id,
+      action: 'case_qa.answered',
+      targetTable: 'eviction_filings',
+      targetId: filing.id,
+      metadata: {
+        promptVersion: result.promptVersion,
+        turnCount: history.length,
+        questionLen: last.content.length,
+      },
+    });
+    await recordAiGeneration({
+      actorUserId: user.id,
+      resourceType: 'case_qa',
+      resourceId: filing.id,
+      model: result.modelId,
+      promptVersion: result.promptVersion,
+      metadata: { caseNumber: filing.caseNumber, turnCount: history.length },
+    });
+
+    return { ok: true, answer: result.answer, promptVersion: result.promptVersion };
+  } catch (err) {
+    Sentry.captureException(err, { tags: { action: 'askCaseQuestionAction', filingId } });
+    return { ok: false, error: 'Question answering failed. Please try again.' };
   }
 }
 
