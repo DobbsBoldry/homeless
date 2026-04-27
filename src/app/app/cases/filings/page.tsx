@@ -1,10 +1,11 @@
+import Link from 'next/link';
 import { CaseFilingsRoles } from '@/components/eviction/case-filings-roles';
 import { FilingsTable } from '@/components/eviction/filings-table';
 import { SourceFilter } from '@/components/eviction/source-filter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { listRecentFilingsForViewer } from '@/db/queries/eviction-filings';
 import type { EvictionFilingSource } from '@/db/schema/enums';
-import { requireRole } from '@/lib/auth';
+import { requireRole, userIsKlaAttorney } from '@/lib/auth';
 
 const ALLOWED_SOURCES: EvictionFilingSource[] = ['synthetic', 'manual', 'courtnet'];
 
@@ -17,15 +18,28 @@ export default async function FilingsPage({
 
   const params = await searchParams;
   const source = ALLOWED_SOURCES.find((s) => s === params.source);
-  const filings = await listRecentFilingsForViewer({ limit: 50, source }, me.role);
+  const [filings, canTriage] = await Promise.all([
+    listRecentFilingsForViewer({ limit: 50, source }, me.role),
+    userIsKlaAttorney(me),
+  ]);
 
   return (
     <div className="mx-auto max-w-6xl p-6 space-y-4">
-      <header>
-        <h1 className="font-serif text-3xl font-bold text-primary">Filings</h1>
-        <p className="text-sm text-muted-foreground">
-          Most recent {filings.length} eviction filings (Daviess District Court).
-        </p>
+      <header className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <h1 className="font-serif text-3xl font-bold text-primary">Filings</h1>
+          <p className="text-sm text-muted-foreground">
+            Most recent {filings.length} eviction filings (Daviess District Court).
+          </p>
+        </div>
+        {canTriage ? (
+          <Link
+            href="/app/cases/triage"
+            className="shrink-0 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Morning triage →
+          </Link>
+        ) : null}
       </header>
 
       <SourceFilter selected={source} />

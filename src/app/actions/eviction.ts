@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { CaseFilingsRoles } from '@/components/eviction/case-filings-roles';
 import { db } from '@/db/client';
+import { listTriageCandidates } from '@/db/queries/attorney-triage';
 import { getFilingById } from '@/db/queries/eviction-filings';
 import {
   type EvictionCaseOutcome,
@@ -17,6 +18,7 @@ import { evictionResponsePackets } from '@/db/schema/eviction-response-packets';
 import { logAuditEvent } from '@/lib/audit';
 import { requireKlaAttorney, requireRole } from '@/lib/auth';
 import { recordAiGeneration } from '@/lib/dtrs/data-access';
+import { type AttorneyTriageResult, generateAttorneyTriage } from '@/lib/eviction/attorney-triage';
 import { renderPacketPdf } from '@/lib/eviction/packet-pdf';
 import { generateResponsePacket, validateDisclaimer } from '@/lib/eviction/response-packet';
 import { scoreFiling } from '@/lib/eviction/risk-score';
@@ -215,6 +217,65 @@ export async function generateOutreachLetterAction(
   } catch (err) {
     Sentry.captureException(err, { tags: { action: 'generateOutreachLetterAction', filingId } });
     return { ok: false, error: 'Letter generation failed. Please try again.' };
+  }
+}
+
+export type GenerateAttorneyTriageResult =
+  | {
+      ok: true;
+      result: AttorneyTriageResult;
+      candidates: Array<{
+        filingId: string;
+        caseNumber: string;
+        amountClaimedCents: number | null;
+        score: number | null;
+        packetStatus: string | null;
+        causeType: string;
+        status: string;
+        filedAt: string;
+      }>;
+    }
+  | { ok: false; error: string };
+
+export async function generateAttorneyTriageAction(): Promise<GenerateAttorneyTriageResult> {
+  const user = await requireKlaAttorney();
+  try {
+    const candidates = await listTriageCandidates({ windowDays: 30, limit: 20 });
+    const result = await generateAttorneyTriage(candidates);
+
+    await logAuditEvent({
+      actorUserId: user.id,
+      action: 'attorney_triage.generated',
+      targetTable: 'eviction_filings',
+      metadata: {
+        candidateCount: result.candidateCount,
+        picksReturned: result.output.picks.length,
+      },
+    });
+    await recordAiGeneration({
+      actorUserId: user.id,
+      resourceType: 'attorney_triage',
+      resourceId: 'morning_triage',
+      model: result.modelId,
+      promptVersion: result.promptVersion,
+      metadata: { candidateCount: result.candidateCount },
+    });
+
+    const candidateMeta = candidates.map((c) => ({
+      filingId: c.filing.id,
+      caseNumber: c.filing.caseNumber,
+      amountClaimedCents: c.filing.amountClaimedCents,
+      score: c.score,
+      packetStatus: c.packetStatus,
+      causeType: c.filing.causeType,
+      status: c.filing.status,
+      filedAt: c.filing.filedAt.toISOString(),
+    }));
+
+    return { ok: true, result, candidates: candidateMeta };
+  } catch (err) {
+    Sentry.captureException(err, { tags: { action: 'generateAttorneyTriageAction' } });
+    return { ok: false, error: 'Triage generation failed. Please try again.' };
   }
 }
 
