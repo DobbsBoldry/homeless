@@ -10,10 +10,12 @@ This file is the cheap context file. Open it at the start of a session and you s
 
 **Sprint 7 — Phase-1 hardening + maintainability foundation.** Cleaning up follow-ups and tightening the codebase substrate before pushing into the de-id pipeline (#247) and Phase 2.
 
-Active epic: [FND-040 — codebase-maintainability foundation](https://github.com/DobbsBoldry/homeless/issues/338). Three sub-tasks remain: 040b (per-domain `index.ts` + tighter boundary lint, **medium risk**), 040c (`docs/architecture.md`), 040e (migration rename pass).
+Active epic: [FND-040 — codebase-maintainability foundation](https://github.com/DobbsBoldry/homeless/issues/338). Two sub-tasks remain: **040b** (per-domain `index.ts` + tighter boundary lint, **medium risk** — deserves a focused session), **040e** (migration rename pass, low-risk script-driven cleanup).
 
 ## Just shipped (most recent first)
 
+- **#344** — FND-040c [`docs/architecture.md`](docs/architecture.md) — one-page system map with domain graph, PHI fence, and three Phase-1 sequence diagrams.
+- **#342** — FND-040d `STATE.md` (this file).
 - **#340** — FND-040a per-domain `CLAUDE.md` × 8 (auto-load context per subdir).
 - **#337** — EVDT-238 latest-outcome-wins for default-judgment + favorable rates (single CTE, no double-counting).
 - **#336** — FND-222 auth-gate unit tests (`requireRole`, `requireKlaAttorney`); first `vi.mock` usage.
@@ -30,9 +32,8 @@ Active epic: [FND-040 — codebase-maintainability foundation](https://github.co
 | 270 | ~2 | INDC rate-limit persistence (survives Railway restarts) | Currently in-memory; restart blows the bucket. |
 | 330 | ~3 | OPRT J5 admin e2e bug | **Triage first** — real bug or stale test? |
 | 12 | ? | OPRT-002 MOU registry | Net-new (not zombie) — schema + admin-only CRUD. |
-| 040b | 3 | per-domain `index.ts` + tighter boundary lint | Medium risk; touches every cross-domain import. |
-| 040c | 2 | `docs/architecture.md` | Pure docs; needs decision on diagram shape. |
-| 040e | 1 | migration rename pass | Script-driven; rename auto-named migrations. |
+| 040b | 3 | per-domain `index.ts` + tighter boundary lint | Medium risk; touches every cross-domain import. Worth a focused session. |
+| 040e | 1 | migration rename pass | Script-driven; rename auto-named migrations to `NNNN_STORYID_descr.sql`. |
 
 ## Known quirks (check here first)
 
