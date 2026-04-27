@@ -407,6 +407,86 @@ export async function askCaseQuestionAction(
   }
 }
 
+export type BatchOutreachItem =
+  | { ok: true; filingId: string; text: string; promptVersion: string }
+  | { ok: false; filingId: string; error: string };
+
+export type GenerateBatchOutreachResult =
+  | { ok: true; items: BatchOutreachItem[] }
+  | { ok: false; error: string };
+
+const BATCH_OUTREACH_MAX = 8;
+
+/**
+ * Run `generateOutreachLetter` for a list of filing ids in parallel.
+ * Used by the attorney morning-triage page to draft outreach for
+ * every pick at once. Failures are per-item so a single bad filing
+ * id (or an Anthropic glitch) doesn't fail the batch.
+ */
+export async function generateOutreachLettersBatchAction(
+  filingIds: string[],
+): Promise<GenerateBatchOutreachResult> {
+  const user = await requireKlaAttorney();
+
+  if (!Array.isArray(filingIds) || filingIds.length === 0) {
+    return { ok: false, error: 'No filings provided.' };
+  }
+  if (filingIds.length > BATCH_OUTREACH_MAX) {
+    return {
+      ok: false,
+      error: `Batch too large (max ${BATCH_OUTREACH_MAX}). Run triage and try again.`,
+    };
+  }
+  const seen = new Set<string>();
+  const unique = filingIds.filter((id) => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+
+  const settled = await Promise.allSettled(
+    unique.map(async (filingId): Promise<BatchOutreachItem> => {
+      const filing = await getFilingById(filingId);
+      if (!filing) return { ok: false, filingId, error: 'Filing not found.' };
+      try {
+        const result = await generateOutreachLetter(filing);
+        await logAuditEvent({
+          actorUserId: user.id,
+          action: 'outreach_letter.generated',
+          targetTable: 'eviction_filings',
+          targetId: filing.id,
+          metadata: {
+            promptVersion: result.promptVersion,
+            caseNumber: filing.caseNumber,
+            via: 'triage_batch',
+          },
+        });
+        await recordAiGeneration({
+          actorUserId: user.id,
+          resourceType: 'tenant_outreach_letter',
+          resourceId: filing.id,
+          model: result.modelId,
+          promptVersion: result.promptVersion,
+          metadata: { caseNumber: filing.caseNumber, via: 'triage_batch' },
+        });
+        return { ok: true, filingId, text: result.text, promptVersion: result.promptVersion };
+      } catch (err) {
+        Sentry.captureException(err, {
+          tags: { action: 'generateOutreachLettersBatchAction', filingId },
+        });
+        return { ok: false, filingId, error: 'Letter generation failed.' };
+      }
+    }),
+  );
+
+  const items: BatchOutreachItem[] = settled.map((s, i) => {
+    if (s.status === 'fulfilled') return s.value;
+    return { ok: false, filingId: unique[i], error: 'Unexpected failure.' };
+  });
+
+  return { ok: true, items };
+}
+
 export type GenerateAttorneyTriageResult =
   | {
       ok: true;
