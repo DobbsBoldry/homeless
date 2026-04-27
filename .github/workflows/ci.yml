@@ -36,6 +36,11 @@ jobs:
 
       - name: Test
         run: pnpm run test
+        env:
+          # Some test files transitively import @/db/client which validates
+          # DATABASE_URL on import. The query layer is mocked at the test
+          # boundary, so this placeholder is never actually opened.
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
 
       - name: Build
         run: pnpm run build
