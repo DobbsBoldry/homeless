@@ -17,6 +17,15 @@ import { shelters } from '@/db/schema/shelters';
  * to a small handful of identifiable people.
  *
  * Quarter labelling follows calendar quarters in UTC.
+ *
+ * Date-param gotcha (#330): when interpolating Dates into Drizzle's
+ * `sql` tagged template, always pass `.toISOString()` — `postgres-js`
+ * v3.4 throws `TypeError: ... Received an instance of Date` if a raw
+ * Date object reaches the parameter binding. Drizzle's *typed* query
+ * builder handles Date coercion correctly (see metrics.ts which uses
+ * gte(col, dateValue)); raw `sql` does not. ISO strings are the
+ * safe interchange — Postgres `timestamp with time zone` parses them
+ * cleanly.
  */
 
 export type Quarter = { year: number; quarter: 1 | 2 | 3 | 4; label: string };
@@ -73,21 +82,21 @@ export async function listQuarterlyEvictionAggregates(
 
     const [filingsRow] = await db.execute<{ count: number }>(sql`
       SELECT COUNT(*)::int AS count FROM ${evictionFilings}
-      WHERE filed_at >= ${start} AND filed_at < ${end}
+      WHERE filed_at >= ${start.toISOString()} AND filed_at < ${end.toISOString()}
     `);
     const [packetsRow] = await db.execute<{ count: number }>(sql`
       SELECT COUNT(DISTINCT ${evictionResponsePackets.filingId})::int AS count
       FROM ${evictionResponsePackets}
       INNER JOIN ${evictionFilings} ON ${evictionFilings.id} = ${evictionResponsePackets.filingId}
-      WHERE ${evictionFilings.filedAt} >= ${start} AND ${evictionFilings.filedAt} < ${end}
+      WHERE ${evictionFilings.filedAt} >= ${start.toISOString()} AND ${evictionFilings.filedAt} < ${end.toISOString()}
     `);
     const [outcomesRow] = await db.execute<{ count: number }>(sql`
       SELECT COUNT(*)::int AS count FROM ${evictionCaseOutcomes}
-      WHERE created_at >= ${start} AND created_at < ${end}
+      WHERE created_at >= ${start.toISOString()} AND created_at < ${end.toISOString()}
     `);
     const [defaultRow] = await db.execute<{ count: number }>(sql`
       SELECT COUNT(*)::int AS count FROM ${evictionCaseOutcomes}
-      WHERE outcome = 'default_judgment' AND created_at >= ${start} AND created_at < ${end}
+      WHERE outcome = 'default_judgment' AND created_at >= ${start.toISOString()} AND created_at < ${end.toISOString()}
     `);
 
     out.push({
@@ -138,7 +147,7 @@ export async function getCoalitionAggregate(rollingWindowDays = 90): Promise<Coa
       COUNT(*)::int AS events,
       COUNT(DISTINCT synthetic_person_ref)::int AS people
     FROM ${partnerServiceEvents}
-    WHERE event_at >= ${since}
+    WHERE event_at >= ${since.toISOString()}
   `);
 
   return {
@@ -171,7 +180,7 @@ export async function getGovernanceCounts(): Promise<GovernanceCounts> {
       COUNT(*) FILTER (WHERE action = 'consent.revoked')::int AS revocations,
       COUNT(*) FILTER (WHERE action = 'data.accessed')::int AS access
     FROM ${auditLog}
-    WHERE created_at >= ${since}
+    WHERE created_at >= ${since.toISOString()}
   `);
   return {
     consentGrants90d: suppress(Number(row.grants)),
@@ -198,7 +207,7 @@ export async function getGovernanceCountsForQuarter(
       COUNT(*) FILTER (WHERE action = 'consent.revoked')::int AS revocations,
       COUNT(*) FILTER (WHERE action = 'data.accessed')::int AS access
     FROM ${auditLog}
-    WHERE created_at >= ${start} AND created_at < ${end}
+    WHERE created_at >= ${start.toISOString()} AND created_at < ${end.toISOString()}
   `);
   return {
     consentGrants: suppress(Number(row.grants)),
