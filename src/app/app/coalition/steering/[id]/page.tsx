@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
+import { SteeringAgendaDraftPanel } from '@/components/coalition/steering-agenda-draft-panel';
 import { SteeringMeetingForm } from '@/components/coalition/steering-meeting-form';
 import { SteeringPostButton } from '@/components/coalition/steering-post-button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -131,6 +132,8 @@ export default async function SteeringMeetingDetailPage({
               </article>
             </CardContent>
           </Card>
+
+          {!meeting.postedAt ? <SteeringAgendaDraftPanel meetingId={meeting.id} /> : null}
 
           <Card>
             <CardHeader>
