@@ -2,6 +2,8 @@
 
 **Owner:** Bo (solo MVP build) · **Methodology:** Fibonacci story points, 2-week sprints · **Tracking:** GitHub Issues + Projects · **Last updated:** April 2026
 
+> **⚠️ Status — 2026-04-27.** This document is now **historical scaffolding**, not the active plan. The original sprint-by-sprint structure below got us through Phase 0 + Phase 1 MVP delivery, but reality has diverged: most stories named here are shipped, and the active backlog lives entirely in [GitHub Issues](https://github.com/DobbsBoldry/homeless/issues) + the [project board](https://github.com/users/DobbsBoldry/projects/1). Sprint planning happens against open issues, not against this file. Kept around for the strategic narrative (epic shape, phase sequencing, cross-cutting decisions) — those are still useful. Don't try to keep the sprint tables in sync.
+
 This is the comprehensive engineering plan from Phase 0 through Phase 4. It assumes solo development for personal validation, with Phase 1 use cases as the priority horizon and later phases scoped at decreasing granularity (more refinement happens once Phase 1 ships).
 
 ---
