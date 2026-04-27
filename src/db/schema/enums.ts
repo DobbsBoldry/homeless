@@ -167,6 +167,14 @@ export const clientDocumentStatusEnum = pgEnum('client_document_status', [
 
 export type ClientDocumentStatus = (typeof clientDocumentStatusEnum.enumValues)[number];
 
+export const fagMemberStatusEnum = pgEnum('fag_member_status', ['active', 'paused', 'ended']);
+
+export type FagMemberStatus = (typeof fagMemberStatusEnum.enumValues)[number];
+
+export const fagPayoutStatusEnum = pgEnum('fag_payout_status', ['unpaid', 'paid', 'voided']);
+
+export type FagPayoutStatus = (typeof fagPayoutStatusEnum.enumValues)[number];
+
 export const partnerServiceEventTypeEnum = pgEnum('partner_service_event_type', [
   'food_pantry',
   'shelter_intake',
