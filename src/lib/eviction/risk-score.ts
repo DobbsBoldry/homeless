@@ -29,6 +29,11 @@ function client(): Anthropic {
  * the prompt PHI-fence-clean by construction (CLAUDE.md).
  */
 function scrubForPrompt(filing: EvictionFiling) {
+  const raw = filing.rawJson as Record<string, unknown> | null;
+  const childrenSignal =
+    (raw?.children_signal as
+      | { detected: boolean; confidence: 'none' | 'low' | 'medium' | 'high' }
+      | undefined) ?? null;
   return {
     case_number: filing.caseNumber,
     status: filing.status,
@@ -37,12 +42,9 @@ function scrubForPrompt(filing: EvictionFiling) {
     filed_at: filing.filedAt.toISOString(),
     court_division: filing.courtDivision,
     plaintiff: filing.plaintiff,
-    notes:
-      ((filing.rawJson as Record<string, unknown> | null)?.notes as string | undefined) ?? null,
-    attorney_represented:
-      ((filing.rawJson as Record<string, unknown> | null)?.attorney_represented as
-        | boolean
-        | undefined) ?? null,
+    notes: (raw?.notes as string | undefined) ?? null,
+    attorney_represented: (raw?.attorney_represented as boolean | undefined) ?? null,
+    children_signal: childrenSignal,
   };
 }
 

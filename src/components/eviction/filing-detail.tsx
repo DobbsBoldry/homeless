@@ -100,6 +100,7 @@ export function FilingDetail({
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Source</div>
             <div className="font-mono text-xs">{filing.source}</div>
           </div>
+          <ChildrenSignalRow filing={filing} />
         </CardContent>
       </Card>
 
@@ -129,6 +130,41 @@ export function FilingDetail({
           ) : null}
         </Card>
       )}
+    </div>
+  );
+}
+
+const childrenChipClass: Record<'low' | 'medium' | 'high', string> = {
+  low: 'bg-muted text-muted-foreground',
+  medium: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  high: 'bg-amber-600/20 text-amber-800 dark:text-amber-300',
+};
+
+/** EVDT-011: surface the deterministic children-in-household signal
+ *  parsed from the filing's notes. Hidden when no signal is present
+ *  to keep the cardinal facts grid clean for the common case.
+ */
+function ChildrenSignalRow({ filing }: { filing: EvictionFiling }) {
+  const raw = filing.rawJson as Record<string, unknown> | null;
+  const signal = raw?.children_signal as
+    | { detected: boolean; confidence: 'none' | 'low' | 'medium' | 'high'; evidence: string | null }
+    | undefined;
+  if (!signal?.detected || signal.confidence === 'none') return null;
+  return (
+    <div className="col-span-2">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+        Children in household
+      </div>
+      <div className="mt-1 flex flex-wrap items-baseline gap-2 text-sm">
+        <span
+          className={`rounded px-2 py-0.5 text-xs font-medium ${childrenChipClass[signal.confidence]}`}
+        >
+          detected · {signal.confidence} confidence
+        </span>
+        {signal.evidence ? (
+          <span className="text-xs text-muted-foreground italic">"{signal.evidence}"</span>
+        ) : null}
+      </div>
     </div>
   );
 }

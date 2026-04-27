@@ -29,6 +29,8 @@ Risk factors that PUSH SCORE UP (more risk):
 - Filed close to court date (less time to organize defense)
 - Defendant has no attorney representation listed in notes
 - Repeat plaintiff filing many cases (institutional landlord, less flexible)
+- Children in the household (school disruption, McKinney-Vento exposure,
+  family-shelter routing — weight by detection confidence: high > medium > low)
 
 Risk factors that PUSH SCORE DOWN (less risk):
 - Status: dismissed (case is over)
@@ -57,8 +59,12 @@ export const buildRiskUserPrompt = (filing: {
   plaintiff: string;
   notes: string | null;
   attorney_represented: boolean | null;
-}) =>
-  `Score this filing.
+  children_signal: { detected: boolean; confidence: 'none' | 'low' | 'medium' | 'high' } | null;
+}) => {
+  const childrenLine = filing.children_signal?.detected
+    ? `Children in household: yes (signal confidence=${filing.children_signal.confidence})`
+    : 'Children in household: not detected in filing';
+  return `Score this filing.
 
 Case ${filing.case_number}
 Status: ${filing.status}
@@ -74,9 +80,11 @@ Defendant attorney: ${
         ? 'represented'
         : 'no counsel listed'
   }
+${childrenLine}
 Notes: ${filing.notes ?? '(none)'}
 
 Output the JSON object now.`;
+};
 
 export const RiskScoreSchema = z.object({
   score: z.number().int().min(0).max(100),
@@ -86,4 +94,4 @@ export const RiskScoreSchema = z.object({
 export type ScoredFiling = z.infer<typeof RiskScoreSchema>;
 
 /** Bumped any time the prompt or schema changes. Used as the cache key. */
-export const RISK_SCORE_MODEL_VERSION = 'risk-v1@2026-04-26';
+export const RISK_SCORE_MODEL_VERSION = 'risk-v2@2026-04-27';
