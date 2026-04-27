@@ -94,7 +94,7 @@ export default async function ClientsPage() {
                   className="flex items-baseline justify-between gap-2 py-2"
                 >
                   <Link
-                    href={`/p/${p.syntheticPersonRef}/consent`}
+                    href={`/app/clients/person/${p.syntheticPersonRef}`}
                     className="font-mono text-xs hover:underline"
                   >
                     {p.syntheticPersonRef}
