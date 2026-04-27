@@ -25,20 +25,43 @@ const STATUS_BADGE: Record<EligibilityMatch['status'], string> = {
   ineligible: 'bg-muted text-muted-foreground',
 };
 
-export function BenefitsScreener() {
+export type PrefillSource = {
+  /** Field keys that came from an upstream source (intake, etc.) — surface a small badge. */
+  fields: ReadonlyArray<keyof Household>;
+  /** Short label shown next to each prefilled field, e.g. "from intake". */
+  label: string;
+};
+
+const DEFAULT_HOUSEHOLD: Household = {
+  monthlyIncomeCents: 100_000,
+  householdSize: 1,
+  hasChildrenUnder18: false,
+  hasPregnantMember: false,
+  isVeteran: false,
+  isDisabled: false,
+  ageOldest: 35,
+  kyResident: true,
+  citizenOrQualified: true,
+};
+
+export function BenefitsScreener({
+  initialHousehold,
+  prefillSource,
+  contextNote,
+}: {
+  initialHousehold?: Partial<Household>;
+  prefillSource?: PrefillSource;
+  /** Free-form note shown above the form (e.g. the intake's income_summary). */
+  contextNote?: string | null;
+} = {}) {
   const incomeId = useId();
   const sizeId = useId();
   const [household, setHousehold] = useState<Household>({
-    monthlyIncomeCents: 100_000,
-    householdSize: 1,
-    hasChildrenUnder18: false,
-    hasPregnantMember: false,
-    isVeteran: false,
-    isDisabled: false,
-    ageOldest: 35,
-    kyResident: true,
-    citizenOrQualified: true,
+    ...DEFAULT_HOUSEHOLD,
+    ...initialHousehold,
   });
+  const prefillKeys = new Set(prefillSource?.fields ?? []);
+  const prefillLabel = prefillSource?.label ?? 'prefilled';
 
   const results = useMemo(() => screenHousehold(household), [household]);
   const totalLikely = useMemo(() => totalLikelyMonthlyCents(results), [results]);
@@ -53,13 +76,32 @@ export function BenefitsScreener() {
       setHousehold((prev) => ({ ...prev, [key]: value }));
     };
 
+  const PrefillBadge = ({ k }: { k: keyof Household }) =>
+    prefillKeys.has(k) ? (
+      <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-primary">
+        {prefillLabel}
+      </span>
+    ) : null;
+
   return (
     <div className="grid gap-6 md:grid-cols-2">
       <section className="space-y-4">
         <h2 className="font-serif text-lg font-semibold">Household</h2>
 
+        {contextNote ? (
+          <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-xs">
+            <p className="font-medium uppercase tracking-wide text-primary">
+              From the intake transcript
+            </p>
+            <p className="mt-1 text-muted-foreground">{contextNote}</p>
+          </div>
+        ) : null}
+
         <div className="space-y-1">
-          <Label htmlFor={incomeId}>Monthly income (gross, before deductions)</Label>
+          <Label htmlFor={incomeId}>
+            Monthly income (gross, before deductions)
+            <PrefillBadge k="monthlyIncomeCents" />
+          </Label>
           <Input
             id={incomeId}
             type="number"
@@ -76,7 +118,10 @@ export function BenefitsScreener() {
         </div>
 
         <div className="space-y-1">
-          <Label htmlFor={sizeId}>Household size</Label>
+          <Label htmlFor={sizeId}>
+            Household size
+            <PrefillBadge k="householdSize" />
+          </Label>
           <Input
             id={sizeId}
             type="number"
@@ -132,6 +177,7 @@ export function BenefitsScreener() {
                 className="h-4 w-4"
               />
               {label}
+              <PrefillBadge k={k as keyof Household} />
             </label>
           ))}
         </fieldset>
@@ -140,19 +186,7 @@ export function BenefitsScreener() {
           type="button"
           variant="outline"
           size="sm"
-          onClick={() =>
-            setHousehold({
-              monthlyIncomeCents: 100_000,
-              householdSize: 1,
-              hasChildrenUnder18: false,
-              hasPregnantMember: false,
-              isVeteran: false,
-              isDisabled: false,
-              ageOldest: 35,
-              kyResident: true,
-              citizenOrQualified: true,
-            })
-          }
+          onClick={() => setHousehold({ ...DEFAULT_HOUSEHOLD })}
         >
           Reset
         </Button>
