@@ -76,4 +76,11 @@ describe('parseSmsCommand', () => {
     expect(parseSmsCommand('').kind).toBe('unknown');
     expect(parseSmsCommand('hello there').kind).toBe('unknown');
   });
+
+  it('parses STATUS / BOARD / SUMMARY / DASHBOARD as the dispatcher dashboard (COOR-006)', () => {
+    expect(parseSmsCommand('STATUS').kind).toBe('status');
+    expect(parseSmsCommand('board').kind).toBe('status');
+    expect(parseSmsCommand('Summary').kind).toBe('status');
+    expect(parseSmsCommand('  DASHBOARD  ').kind).toBe('status');
+  });
 });

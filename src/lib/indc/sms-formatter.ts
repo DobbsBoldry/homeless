@@ -1,5 +1,6 @@
 import type { BedFilter } from '@/lib/coordination/bed-availability';
 import type { BedFinderResult } from './bed-finder';
+import type { BedSummary } from './bed-summary';
 
 /**
  * SMS replies cap at 320 chars (two GSM segments — keeps cost predictable
@@ -9,7 +10,7 @@ import type { BedFinderResult } from './bed-finder';
 export const SMS_MAX_LEN = 320;
 
 const HELP_REPLY =
-  'Coalition bed-finder. BED (+ MEN/WOMEN/FAMILY/PET/SUD) for an open bed. HOLD <#> to hold one. FOOD for pantries. STORY about this service. STOP to opt out.';
+  'Coalition bed-finder. BED (+ MEN/WOMEN/FAMILY/PET/SUD) for an open bed. HOLD <#> to hold. STATUS for the coalition-wide board. FOOD for pantries. STOP to opt out.';
 
 const STOP_REPLY = "You're opted out. Reply START to opt back in.";
 
@@ -155,4 +156,31 @@ export function smsHoldFailed(reason: string): string {
   // Reason copy should already be user-safe — we cap to MAX_LEN as a
   // defense against an unexpectedly long server message.
   return `Couldn't hold a bed: ${reason} Reply BED to try again.`.slice(0, SMS_MAX_LEN);
+}
+
+/**
+ * One-shot coalition bed dashboard for 211 dispatchers and caseworkers
+ * (COOR-006). Designed to fit in a single SMS, so it's a flat sentence
+ * with the most-asked dimensions (population + pet + SUD) and a hint
+ * that the dispatcher can drill in by replying BED with a filter.
+ *
+ * Empty / all-full coalitions get a different copy that doesn't dangle
+ * the "reply BED for detail" CTA pointlessly.
+ */
+export function smsBedSummary(s: BedSummary): string {
+  if (s.shelterCount === 0) {
+    return 'No active shelters listed in the coalition right now.';
+  }
+  if (s.totalFree === 0) {
+    return `All ${s.shelterCount} coalition shelters are full right now. Try BED later, or call 211 for live help.`.slice(
+      0,
+      SMS_MAX_LEN,
+    );
+  }
+  const fullFrag = s.fullCount > 0 ? `, ${s.fullCount} full` : '';
+  const head = `Daviess shelters: ${s.totalFree} free across ${s.shelterCount} sites${fullFrag}.`;
+  const slices = `Men ${s.free.men}. Women ${s.free.women}. Families ${s.free.families}. Pet ${s.free.petFriendly}. SUD ${s.free.sudFriendly}.`;
+  const tail = ' Reply BED <filter> for the list.';
+  const reply = `${head} ${slices}${tail}`;
+  return reply.slice(0, SMS_MAX_LEN);
 }
