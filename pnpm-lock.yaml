@@ -47,6 +47,9 @@ importers:
       pdfkit:
         specifier: ^0.18.0
         version: 0.18.0
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
       posthog-js:
         specifier: ^1.372.1
         version: 1.372.1
@@ -120,9 +123,6 @@ importers:
       pdf-parse:
         specifier: ^2.4.5
         version: 2.4.5
-      postgres:
-        specifier: ^3.4.9
-        version: 3.4.9
       tailwindcss:
         specifier: ^4
         version: 4.2.4
