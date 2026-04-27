@@ -22,6 +22,7 @@ import { requireKlaAttorney, requireRole } from '@/lib/auth';
 import { recordAiGeneration } from '@/lib/dtrs/data-access';
 import { type AttorneyTriageResult, generateAttorneyTriage } from '@/lib/eviction/attorney-triage';
 import { answerCaseQuestion, type CaseQATurn } from '@/lib/eviction/case-qa';
+import { renderOutreachLetterPdf } from '@/lib/eviction/outreach-letter-pdf';
 import { renderPacketPdf } from '@/lib/eviction/packet-pdf';
 import { generateResponsePacket, validateDisclaimer } from '@/lib/eviction/response-packet';
 import { getLatestScore, scoreFiling } from '@/lib/eviction/risk-score';
@@ -184,6 +185,57 @@ export async function exportPacketPdfAction(packetId: string): Promise<ExportPac
   return {
     ok: true,
     filename: `packet-${safeCase}-${packet.id.slice(0, 8)}.pdf`,
+    base64: bytes.toString('base64'),
+  };
+}
+
+export type ExportOutreachLetterPdfResult =
+  | { ok: true; filename: string; base64: string }
+  | { ok: false; error: string };
+
+const OUTREACH_PDF_TEXT_MIN = 80;
+const OUTREACH_PDF_TEXT_MAX = 5000;
+
+export async function exportOutreachLetterPdfAction(
+  filingId: string,
+  letterText: string,
+): Promise<ExportOutreachLetterPdfResult> {
+  const user = await requireKlaAttorney();
+  const filing = await getFilingById(filingId);
+  if (!filing) return { ok: false, error: 'Filing not found.' };
+
+  const trimmed = letterText.trim();
+  if (trimmed.length < OUTREACH_PDF_TEXT_MIN) {
+    return { ok: false, error: `Letter too short (min ${OUTREACH_PDF_TEXT_MIN} chars).` };
+  }
+  if (trimmed.length > OUTREACH_PDF_TEXT_MAX) {
+    return { ok: false, error: `Letter too long (max ${OUTREACH_PDF_TEXT_MAX} chars).` };
+  }
+
+  let bytes: Buffer;
+  try {
+    bytes = await renderOutreachLetterPdf({ letterText: trimmed, filing });
+  } catch (err) {
+    Sentry.captureException(err, { tags: { action: 'exportOutreachLetterPdfAction', filingId } });
+    return { ok: false, error: 'PDF render failed.' };
+  }
+
+  await logAuditEvent({
+    actorUserId: user.id,
+    action: 'outreach_letter.pdf_exported',
+    targetTable: 'eviction_filings',
+    targetId: filing.id,
+    metadata: {
+      caseNumber: filing.caseNumber,
+      sizeBytes: bytes.byteLength,
+      letterChars: trimmed.length,
+    },
+  });
+
+  const safeCase = filing.caseNumber.replace(/[^a-zA-Z0-9_-]+/g, '-');
+  return {
+    ok: true,
+    filename: `outreach-${safeCase}.pdf`,
     base64: bytes.toString('base64'),
   };
 }

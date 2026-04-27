@@ -1,7 +1,10 @@
 'use client';
 
 import { useId, useState, useTransition } from 'react';
-import { generateOutreachLetterAction } from '@/app/actions/eviction';
+import {
+  exportOutreachLetterPdfAction,
+  generateOutreachLetterAction,
+} from '@/app/actions/eviction';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -33,6 +36,27 @@ export function OutreachLetterPanel({ filingId }: { filingId: string }) {
     } catch {
       setError('Copy failed — select the text manually.');
     }
+  };
+
+  const onExportPdf = () => {
+    setError(null);
+    startTransition(async () => {
+      const r = await exportOutreachLetterPdfAction(filingId, text);
+      if (!r.ok) {
+        setError(r.error);
+        return;
+      }
+      const bytes = Uint8Array.from(atob(r.base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = r.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
   };
 
   return (
@@ -79,6 +103,15 @@ export function OutreachLetterPanel({ filingId }: { filingId: string }) {
             <div className="flex flex-wrap items-center gap-3">
               <Button type="button" size="sm" variant="outline" onClick={onCopy}>
                 {copied ? 'Copied ✓' : 'Copy to clipboard'}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={onExportPdf}
+              >
+                {pending ? 'Exporting…' : 'Export PDF'}
               </Button>
               <span className="text-xs text-muted-foreground">{text.length} chars</span>
               {error ? <span className="text-destructive text-xs">{error}</span> : null}
