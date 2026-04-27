@@ -1,5 +1,5 @@
 import { type BrowserContext, type Page } from '@playwright/test';
-import { clerkSetup, setupClerkTestingToken } from '@clerk/testing/playwright';
+import { clerk, clerkSetup } from '@clerk/testing/playwright';
 
 export type Persona = 'attorney' | 'caseworker' | 'coordinator' | 'shelter' | 'admin';
 
@@ -11,22 +11,17 @@ const EMAIL: Record<Persona, string> = {
   admin: 'admin+e2e@example.com',
 };
 
-const PASSWORD: Record<Persona, string> = {
-  attorney: 'E2eTest!2026Aa',
-  caseworker: 'E2eTest!2026Cw',
-  coordinator: 'E2eTest!2026Co',
-  shelter: 'E2eTest!2026Sh',
-  admin: 'E2eTest!2026Ad',
-};
-
 let clerkSetupDone = false;
 
 /**
- * Sign in as the given persona. The persona must already exist in Clerk
- * (provisioned by scripts/e2e-setup.mts).
+ * Sign in as the given persona using Clerk's programmatic ticket-based
+ * helper. The helper hits Clerk's backend API to mint a sign-in ticket
+ * for the user's email, bypassing the UI flow entirely (and avoiding
+ * any MFA / bot-detection / factor-two gates the test instance might
+ * have configured).
  *
- * Uses Clerk testing tokens to bypass bot protection. The first call
- * lazily initializes Clerk testing.
+ * The persona must already exist in Clerk (provisioned by
+ * scripts/e2e-setup.mts).
  */
 export async function signInAs(
   persona: Persona,
@@ -37,28 +32,8 @@ export async function signInAs(
     await clerkSetup({ publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY });
     clerkSetupDone = true;
   }
-  await setupClerkTestingToken({ page });
-
-  await page.goto('/sign-in');
-  // Clerk's sign-in flow varies — try the modern email-then-password layout first.
-  const emailField = page.getByLabel(/email address|email/i).first();
-  await emailField.waitFor({ state: 'visible', timeout: 15_000 });
-  await emailField.fill(EMAIL[persona]);
-
-  // The Continue button advances from email to password.
-  const continueBtn = page.getByRole('button', { name: /continue/i });
-  if (await continueBtn.isVisible().catch(() => false)) {
-    await continueBtn.click();
-  }
-
-  const passwordField = page.getByLabel(/^password$/i);
-  await passwordField.waitFor({ state: 'visible', timeout: 10_000 });
-  await passwordField.fill(PASSWORD[persona]);
-
-  const submitBtn = page
-    .getByRole('button', { name: /continue|sign in/i })
-    .last();
-  await submitBtn.click();
-
-  await page.waitForURL((u) => !u.pathname.startsWith('/sign-in'), { timeout: 20_000 });
+  // The helper requires the page to have loaded Clerk. Land on the home
+  // page (public) before signing in.
+  await page.goto('/');
+  await clerk.signIn({ page, emailAddress: EMAIL[persona] });
 }
