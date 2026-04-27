@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import {
+  type BatchBriefingItem,
   type CwtTriageCandidateMeta,
   type GenerateCwtTriageResult,
+  generateBatchPreMeetingBriefingsAction,
   generateCwtTriageAction,
 } from '@/app/actions/cwt-triage';
 import { Button } from '@/components/ui/button';
@@ -22,10 +24,43 @@ const urgencyClass: Record<string, string> = {
 
 type SuccessResult = Extract<GenerateCwtTriageResult, { ok: true }>;
 
+function BriefingBlock({
+  briefing,
+  pending,
+}: {
+  briefing: BatchBriefingItem | undefined;
+  pending: boolean;
+}) {
+  if (!briefing) {
+    if (pending) {
+      return <p className="mt-2 text-[11px] text-muted-foreground italic">Drafting briefing…</p>;
+    }
+    return null;
+  }
+  if (!briefing.ok) {
+    return (
+      <p className="mt-2 rounded border border-destructive/40 bg-destructive/5 px-2 py-1 text-[11px] text-destructive">
+        Couldn't draft briefing: {briefing.error}
+      </p>
+    );
+  }
+  return (
+    <div className="mt-3 rounded-md border border-primary/40 bg-primary/5 p-2">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        Pre-meeting briefing
+      </p>
+      <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{briefing.text}</p>
+    </div>
+  );
+}
+
 export function MorningTriagePanel() {
   const [pending, startTransition] = useTransition();
+  const [batchPending, startBatchTransition] = useTransition();
   const [data, setData] = useState<SuccessResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [batchError, setBatchError] = useState<string | null>(null);
+  const [briefingByRef, setBriefingByRef] = useState<Record<string, BatchBriefingItem>>({});
 
   const onClick = () => {
     setError(null);
@@ -36,6 +71,22 @@ export function MorningTriagePanel() {
         return;
       }
       setData(r);
+      setBriefingByRef({});
+      setBatchError(null);
+    });
+  };
+
+  const onBatchBriefings = (refs: string[]) => {
+    setBatchError(null);
+    startBatchTransition(async () => {
+      const r = await generateBatchPreMeetingBriefingsAction(refs);
+      if (!r.ok) {
+        setBatchError(r.error);
+        return;
+      }
+      const next: Record<string, BatchBriefingItem> = {};
+      for (const item of r.items) next[item.syntheticPersonRef] = item;
+      setBriefingByRef(next);
     });
   };
 
@@ -87,22 +138,53 @@ export function MorningTriagePanel() {
             No candidates need attention today out of {result.candidateCount} on the queue.
           </p>
         ) : (
-          <ol className="space-y-3">
-            {sortedPicks.map((p) => {
-              const c = candById.get(p.candidate_id);
-              if (!c) return null;
+          <>
+            {(() => {
+              const personPicks = sortedPicks.filter((p) => p.kind === 'person');
+              if (personPicks.length === 0) return null;
               return (
-                <li
-                  key={p.candidate_id}
-                  className="rounded-md border border-border bg-card p-3 text-sm"
-                >
-                  <PickHeader pick={p} candidate={c} />
-                  <p className="text-sm leading-relaxed">{p.rationale}</p>
-                  <PickFooter candidate={c} />
-                </li>
+                <div className="flex flex-wrap items-center gap-3 rounded-md border border-primary/40 bg-primary/5 p-3">
+                  <div className="flex-1 text-xs text-muted-foreground">
+                    Draft a 30-second pre-meeting briefing for the {personPicks.length} person-kind
+                    pick{personPicks.length === 1 ? '' : 's'} at once. Intake-kind picks (no person
+                    ref yet) skip this batch.
+                  </div>
+                  <Button
+                    onClick={() => onBatchBriefings(personPicks.map((p) => p.candidate_id))}
+                    disabled={batchPending}
+                    size="sm"
+                  >
+                    {batchPending
+                      ? `Drafting ${personPicks.length}…`
+                      : `Draft briefings for ${personPicks.length}`}
+                  </Button>
+                  {batchError ? (
+                    <span className="w-full text-xs text-destructive">{batchError}</span>
+                  ) : null}
+                </div>
               );
-            })}
-          </ol>
+            })()}
+            <ol className="space-y-3">
+              {sortedPicks.map((p) => {
+                const c = candById.get(p.candidate_id);
+                if (!c) return null;
+                const briefing = p.kind === 'person' ? briefingByRef[p.candidate_id] : undefined;
+                return (
+                  <li
+                    key={p.candidate_id}
+                    className="rounded-md border border-border bg-card p-3 text-sm"
+                  >
+                    <PickHeader pick={p} candidate={c} />
+                    <p className="text-sm leading-relaxed">{p.rationale}</p>
+                    <PickFooter candidate={c} />
+                    {p.kind === 'person' ? (
+                      <BriefingBlock briefing={briefing} pending={batchPending} />
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ol>
+          </>
         )}
 
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
