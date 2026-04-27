@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { FollowupSmsPanel } from '@/components/cwt/followup-sms-panel';
+import { PersonQAPanel } from '@/components/cwt/person-qa-panel';
 import { PreMeetingSummary } from '@/components/cwt/pre-meeting-summary';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getPersonProfile } from '@/db/queries/person-profile';
@@ -86,6 +87,15 @@ export default async function PersonProfilePage({ params }: { params: Promise<{ 
         </CardHeader>
         <CardContent>
           <PreMeetingSummary syntheticPersonRef={ref} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Ask Claude about this person</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PersonQAPanel syntheticPersonRef={ref} />
         </CardContent>
       </Card>
 
