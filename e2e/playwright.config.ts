@@ -35,6 +35,9 @@ export default defineConfig({
       TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN ?? 'e2e-test-token',
       TWILIO_FROM_NUMBER: process.env.TWILIO_FROM_NUMBER ?? '+15555550100',
       RESEND_API_KEY: process.env.RESEND_API_KEY ?? 're_test_unused',
+      // Open-mode lets e2e exercise the public consent surface without
+      // minting access tokens. Same gate as dev demos.
+      INDC_CONSENT_OPEN_MODE: '1',
       SENTRY_DSN: '',
       // Clerk redirect URLs from .env.local — needed so the dev server matches
       NEXT_PUBLIC_CLERK_SIGN_IN_URL: '/sign-in',
