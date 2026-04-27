@@ -1,4 +1,5 @@
 export * from './audit-log';
+export * from './client-documents';
 export * from './consent-access-tokens';
 export * from './consents';
 export * from './dv-flags';

@@ -183,6 +183,13 @@
       "when": 1777247863356,
       "tag": "0025_true_titania",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1777248119703,
+      "tag": "0026_typical_energizer",
+      "breakpoints": true
     }
   ]
 }
