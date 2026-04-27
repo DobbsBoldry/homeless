@@ -101,31 +101,41 @@ export async function getMetricsRates(windowDays = 30): Promise<MetricsRates> {
     .innerJoin(evictionFilings, eq(evictionFilings.id, evictionResponsePackets.filingId))
     .where(gte(evictionFilings.filedAt, since));
 
-  const [outcomeFilingsRow] = await db
-    .select({ value: countDistinct(evictionCaseOutcomes.filingId) })
-    .from(evictionCaseOutcomes);
-
-  const [defaultJudgmentRow] = await db
-    .select({ value: countDistinct(evictionCaseOutcomes.filingId) })
-    .from(evictionCaseOutcomes)
-    .where(eq(evictionCaseOutcomes.outcome, 'default_judgment'));
-
-  const [favorableRow] = await db
-    .select({ value: countDistinct(evictionCaseOutcomes.filingId) })
-    .from(evictionCaseOutcomes)
-    .where(
-      sql`${evictionCaseOutcomes.outcome} IN (${sql.join(
-        FAVORABLE_OUTCOMES.map((o) => sql`${o}`),
-        sql`, `,
-      )})`,
-    );
+  // Latest-outcome-wins (#238): a filing with two outcome rows
+  // (e.g. default_judgment then settled — corrected/re-filed) counts
+  // only in the bucket of its most-recent row, never in two buckets at
+  // once. Without this, default-judgment and favorable-outcome rates
+  // could sum to >100% because the same filing was counted in both.
+  // DISTINCT ON (filing_id) + ORDER BY created_at DESC collapses to one
+  // outcome per filing, then COUNT FILTER buckets in a single pass.
+  const favorableSet = sql.join(
+    FAVORABLE_OUTCOMES.map((o) => sql`${o}`),
+    sql`, `,
+  );
+  const [outcomeRow] = await db.execute<{
+    total: number;
+    default_judgment: number;
+    favorable: number;
+  }>(sql`
+    WITH latest AS (
+      SELECT DISTINCT ON (filing_id) filing_id, outcome
+      FROM ${evictionCaseOutcomes}
+      ORDER BY filing_id, created_at DESC
+    )
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE outcome = 'default_judgment')::int AS default_judgment,
+      COUNT(*) FILTER (WHERE outcome IN (${favorableSet}))::int AS favorable
+    FROM latest
+  `);
 
   const safeRatio = (num: number, denom: number) => (denom === 0 ? null : num / denom);
+  const total = outcomeRow?.total ?? 0;
 
   return {
     representationRate: safeRatio(withPacketRow.value, filingsRow.value),
-    defaultJudgmentRate: safeRatio(defaultJudgmentRow.value, outcomeFilingsRow.value),
-    favorableOutcomeRate: safeRatio(favorableRow.value, outcomeFilingsRow.value),
+    defaultJudgmentRate: safeRatio(outcomeRow?.default_judgment ?? 0, total),
+    favorableOutcomeRate: safeRatio(outcomeRow?.favorable ?? 0, total),
   };
 }
 
