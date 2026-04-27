@@ -5,6 +5,7 @@ import {
   matchesFilter,
 } from '@/lib/coordination/bed-availability';
 import { type BedFinderResult, findOpenBeds } from './bed-finder';
+import { summarizeBeds } from './bed-summary';
 import { createBedHoldFromSms, releaseBedHoldFromSms } from './sms-bed-holds';
 import {
   clearConversation,
@@ -17,6 +18,7 @@ import {
 } from './sms-conversation';
 import {
   formatBedResults,
+  smsBedSummary,
   smsFood,
   smsHelp,
   smsHoldConfirmed,
@@ -33,6 +35,7 @@ import { parseSmsCommand } from './sms-parser';
 
 export type SmsHandleIntent =
   | 'bed_results'
+  | 'bed_summary'
   | 'awaiting_location'
   | 'location_received'
   | 'help'
@@ -85,6 +88,16 @@ export async function handleInboundSmsForNumber(
   }
   if (cmd.kind === 'food') return { reply: smsFood(), intent: 'food' };
   if (cmd.kind === 'story') return { reply: smsStory(), intent: 'story' };
+
+  // STATUS / BOARD / SUMMARY (COOR-006): one-shot dashboard. Stateless
+  // even when fromNumber is set — dispatchers wouldn't expect their
+  // BED conversation context to evaporate just because they checked
+  // the board, so we don't touch existing conversation state.
+  if (cmd.kind === 'status') {
+    const [shelters, holdCounts] = await Promise.all([listActiveShelters(), activeBedHoldCounts()]);
+    const summary = summarizeBeds(shelters, holdCounts);
+    return { reply: smsBedSummary(summary), intent: 'bed_summary' };
+  }
 
   // Stateful BED command: park the filter and ask for location.
   if (cmd.kind === 'bed' && stateful) {

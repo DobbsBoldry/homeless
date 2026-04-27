@@ -3,16 +3,20 @@ import type { BedFilter } from '@/lib/coordination/bed-availability';
 /**
  * Inbound SMS commands the bed-finder understands. Every command maps
  * to a single intent; modifiers stack inside `BED ...`. Examples:
- *   BED                → find any open bed
+ *   BED                → find any open bed (multi-turn, asks location)
  *   BED FAMILY         → family-accepting + open
  *   BED PET            → pet-friendly + open
  *   BED MEN PET        → men + pet-friendly + open
  *   BED WOMEN SUD      → women + SUD-friendly + open
+ *   STATUS / BOARD     → coalition-wide bed dashboard (one-shot, for
+ *                        211 dispatchers and caseworkers; COOR-006).
+ *                        No location prompt, no hold flow.
  *   HELP               → help text
  *   STOP / END / QUIT  → opt-out (Twilio handles delivery; we still log it)
  */
 export type ParsedSmsCommand =
   | { kind: 'bed'; filter: BedFilter }
+  | { kind: 'status' }
   | { kind: 'food' }
   | { kind: 'story' }
   | { kind: 'hold'; resultIndex: number }
@@ -27,6 +31,7 @@ const FOOD_WORDS = new Set(['FOOD', 'EAT', 'PANTRY', 'MEAL', 'MEALS', 'HUNGRY'])
 const STORY_WORDS = new Set(['STORY', 'ABOUT', 'WHO', 'WHAT']);
 const HOLD_WORDS = new Set(['HOLD', 'RESERVE', 'CONFIRM']);
 const RELEASE_WORDS = new Set(['RELEASE', 'CANCEL', 'NEVERMIND']);
+const STATUS_WORDS = new Set(['STATUS', 'BOARD', 'SUMMARY', 'DASH', 'DASHBOARD']);
 
 const POPULATION_TOKENS: Record<string, NonNullable<BedFilter['population']>> = {
   MEN: 'men',
@@ -55,6 +60,7 @@ export function parseSmsCommand(raw: string): ParsedSmsCommand {
 
   if (STOP_WORDS.has(head)) return { kind: 'stop' };
   if (HELP_WORDS.has(head)) return { kind: 'help' };
+  if (STATUS_WORDS.has(head)) return { kind: 'status' };
   if (FOOD_WORDS.has(head)) return { kind: 'food' };
   if (STORY_WORDS.has(head)) return { kind: 'story' };
 

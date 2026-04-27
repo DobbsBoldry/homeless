@@ -4,6 +4,7 @@ import type { BedFinderResult } from './bed-finder';
 import {
   formatBedResults,
   SMS_MAX_LEN,
+  smsBedSummary,
   smsFood,
   smsHelp,
   smsHoldConfirmed,
@@ -141,5 +142,58 @@ describe('formatBedResults — location label', () => {
   it('skips "near" label when null', () => {
     const r = formatBedResults([result('Boulware', 5)], {}, null);
     expect(r).not.toMatch(/near/);
+  });
+});
+
+describe('smsBedSummary — COOR-006 dispatcher dashboard', () => {
+  it('renders totals + slices when beds are available', () => {
+    const reply = smsBedSummary({
+      shelterCount: 4,
+      totalFree: 12,
+      free: { men: 6, women: 5, families: 3, petFriendly: 2, sudFriendly: 1 },
+      fullCount: 1,
+    });
+    expect(reply).toMatch(/12 free/);
+    expect(reply).toMatch(/4 sites/);
+    expect(reply).toMatch(/Men 6/);
+    expect(reply).toMatch(/Women 5/);
+    expect(reply).toMatch(/Families 3/);
+    expect(reply).toMatch(/Pet 2/);
+    expect(reply).toMatch(/SUD 1/);
+    expect(reply).toMatch(/1 full/);
+    expect(reply.length).toBeLessThanOrEqual(SMS_MAX_LEN);
+  });
+
+  it('falls back to "all full" copy when totalFree is 0', () => {
+    const reply = smsBedSummary({
+      shelterCount: 3,
+      totalFree: 0,
+      free: { men: 0, women: 0, families: 0, petFriendly: 0, sudFriendly: 0 },
+      fullCount: 3,
+    });
+    expect(reply).toMatch(/All 3 coalition shelters are full/);
+    expect(reply).not.toMatch(/Reply BED/);
+    expect(reply.length).toBeLessThanOrEqual(SMS_MAX_LEN);
+  });
+
+  it('falls back to "no shelters listed" when shelterCount is 0', () => {
+    const reply = smsBedSummary({
+      shelterCount: 0,
+      totalFree: 0,
+      free: { men: 0, women: 0, families: 0, petFriendly: 0, sudFriendly: 0 },
+      fullCount: 0,
+    });
+    expect(reply).toMatch(/No active shelters/);
+  });
+
+  it('omits the "full" fragment when no shelters are full', () => {
+    const reply = smsBedSummary({
+      shelterCount: 2,
+      totalFree: 6,
+      free: { men: 3, women: 3, families: 0, petFriendly: 0, sudFriendly: 0 },
+      fullCount: 0,
+    });
+    expect(reply).not.toMatch(/full/);
+    expect(reply).toMatch(/2 sites/);
   });
 });
