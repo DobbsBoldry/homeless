@@ -83,6 +83,26 @@ export default async function IntakeDetailPage({ params }: { params: Promise<{ i
         </CardContent>
       </Card>
 
+      {intake.status === 'extracted' && profile ? (
+        <Card className="border-primary/40 bg-primary/5">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 text-sm">
+            <div>
+              <p className="font-medium">Next step: benefits eligibility</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Open the screener with household size, kids, and presenting issue prefilled from
+                this intake. You'll still see — and can edit — every field before quoting numbers.
+              </p>
+            </div>
+            <Link
+              href={`/app/clients/screener?fromIntake=${intake.id}`}
+              className="shrink-0 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Run benefits screener →
+            </Link>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Transcript</CardTitle>
