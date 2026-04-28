@@ -5,10 +5,15 @@
 // that point migrate to DISTINCT ON (patient_id) CTE for "latest
 // row per patient" + a separate count CTE, joined. A composite
 // index (patient_id, arrived_at DESC) helps either way.
-import { count, desc, eq, gte, max, sql } from 'drizzle-orm';
+import { asc, count, desc, eq, gte, max, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { edEncounters } from '@/db/schema/ed-encounters';
-import { HOUSING_INSTABILITY_FLAGS, type SuperUtilizerRow } from '@/lib/esuc';
+import {
+  classifyFirstTimeHomeless,
+  type FirstTimeHomelessClassification,
+  HOUSING_INSTABILITY_FLAGS,
+  type SuperUtilizerRow,
+} from '@/lib/esuc';
 
 export interface ListSuperUtilizersOpts {
   /** Minimum number of ED visits in the window to qualify. Default 3. */
@@ -100,4 +105,94 @@ export async function listEncountersForPatient(patientId: string) {
     .from(edEncounters)
     .where(eq(edEncounters.patientId, patientId))
     .orderBy(desc(edEncounters.arrivedAt));
+}
+
+// ---------------------------------------------------------------------------
+// PRVN-001 — first-time-homeless alerts
+// ---------------------------------------------------------------------------
+
+export interface FirstTimeHomelessAlertRow {
+  patientId: string;
+  classification: FirstTimeHomelessClassification;
+  /** Most recent chief complaint (lightweight context for the alert list). */
+  lastChiefComplaint: string;
+  /** Most recent disposition — caseworkers triage discharged-home faster. */
+  lastDisposition: string;
+}
+
+export interface ListFirstTimeHomelessAlertsOpts {
+  /** Lookback window in days. Default 90 — caseworkers don't act on stale signals. */
+  windowDays?: number;
+  /** Cap on rows returned. Default 50. */
+  limit?: number;
+}
+
+/**
+ * List patients whose most recent ED encounter is their first-time-homeless
+ * transition — i.e. they are being discharged into homelessness for the
+ * first time on coalition record. Composes the pure classifier in
+ * `src/lib/esuc/first-time-homeless.ts` over each patient's encounter
+ * history.
+ *
+ * Patients with only a single encounter that is homeless are excluded
+ * (no prior history to confirm "first time"). See classifier docs.
+ *
+ * Sorted by transition timestamp descending — most-recent alerts first.
+ */
+export async function listFirstTimeHomelessAlerts(
+  opts: ListFirstTimeHomelessAlertsOpts = {},
+): Promise<FirstTimeHomelessAlertRow[]> {
+  const { windowDays = 90, limit = 50 } = opts;
+  const since = new Date();
+  since.setDate(since.getDate() - windowDays);
+
+  // Pull all encounters in the window. Cheaper than per-patient round-trips
+  // for Phase-1-scale data; if this gets large, push the classification
+  // into a SQL CTE.
+  const rows = await db
+    .select({
+      id: edEncounters.id,
+      patientId: edEncounters.patientId,
+      arrivedAt: edEncounters.arrivedAt,
+      housingStatus: edEncounters.housingStatus,
+      chiefComplaint: edEncounters.chiefComplaint,
+      disposition: edEncounters.disposition,
+    })
+    .from(edEncounters)
+    .where(gte(edEncounters.arrivedAt, since))
+    .orderBy(asc(edEncounters.patientId), asc(edEncounters.arrivedAt));
+
+  // Group by patient.
+  const byPatient = new Map<string, typeof rows>();
+  for (const r of rows) {
+    const list = byPatient.get(r.patientId);
+    if (list) list.push(r);
+    else byPatient.set(r.patientId, [r]);
+  }
+
+  const alerts: FirstTimeHomelessAlertRow[] = [];
+  for (const [patientId, encounters] of byPatient) {
+    const classification = classifyFirstTimeHomeless(
+      encounters.map((e) => ({
+        id: e.id,
+        arrivedAt: e.arrivedAt instanceof Date ? e.arrivedAt : new Date(e.arrivedAt),
+        housingStatus: e.housingStatus,
+      })),
+    );
+    if (!classification.isAlertCandidate) continue;
+    const last = encounters[encounters.length - 1];
+    alerts.push({
+      patientId,
+      classification,
+      lastChiefComplaint: last.chiefComplaint,
+      lastDisposition: last.disposition,
+    });
+  }
+
+  alerts.sort((a, b) => {
+    const at = a.classification.transitionAt?.getTime() ?? 0;
+    const bt = b.classification.transitionAt?.getTime() ?? 0;
+    return bt - at;
+  });
+  return alerts.slice(0, limit);
 }
