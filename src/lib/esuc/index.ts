@@ -5,6 +5,7 @@
 
 export * from './care-plan';
 export * from './ed-triage';
+export * from './first-time-homeless';
 export * from './patient-qa';
 export * from './scrub';
 export * from './super-utilizer-ranking';
