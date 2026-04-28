@@ -19,6 +19,7 @@ import {
 } from '@/ai/prompts/synthetic-ed-encounters';
 import { db } from '@/db/client';
 import { edEncounters, type NewEdEncounter } from '@/db/schema/ed-encounters';
+import { scrubClinicalNote } from '@/lib/esuc/scrub';
 
 config({ path: ['.env.local', '.env'], override: true });
 
@@ -40,7 +41,11 @@ function toRow(e: SyntheticEdEncounter): NewEdEncounter {
     disposition: e.disposition,
     housingStatus: e.housing_status,
     chargeCents: e.charge_cents,
-    notes: e.notes,
+    // Ingest-time scrub (#247 / ADR 0002). The DB column never sees
+    // raw clinical notes — names, addresses, phones, MRNs, dates are
+    // redacted before INSERT. care-plan.ts re-scrubs at prompt-build
+    // as defense-in-depth.
+    notes: scrubClinicalNote(e.notes ?? null),
     source: 'synthetic',
     rawJson: e as unknown as Record<string, unknown>,
   };
@@ -71,6 +76,7 @@ async function main() {
           disposition: row.disposition,
           chiefComplaint: row.chiefComplaint,
           chargeCents: row.chargeCents,
+          // `row.notes` is already scrubbed by toRow() — see #247.
           notes: row.notes,
           dischargedAt: row.dischargedAt,
           updatedAt: new Date(),

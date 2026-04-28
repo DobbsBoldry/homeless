@@ -16,6 +16,7 @@ import {
   esucCarePlans,
   type NewEsucCarePlan,
 } from '@/db/schema/esuc-care-plans';
+import { scrubClinicalNote } from './scrub';
 
 let _client: Anthropic | null = null;
 function client(): Anthropic {
@@ -56,34 +57,15 @@ export function validateCarePlanDisclaimer(
   return { ok: true };
 }
 
-/**
- * Defensive scrub of an encounter `notes` field before it enters the
- * Claude prompt. Phase 1: synthetic data, this is mostly a no-op
- * stub. **TODO(ESUC-002):** when Epic FHIR data flows post-BAA,
- * replace with a proper de-identification pipeline (Microsoft Presidio
- * or equivalent — name/address/phone/MRN/email recognition + redaction).
- *
- * Today's stub catches the most blatant patterns so a developer who
- * accidentally pastes a real name into a synthetic fixture gets
- * a "[REDACTED]" in the prompt rather than passing it through.
- */
-function scrubClinicalNote(s: string | null): string | null {
-  if (!s) return s;
-  return (
-    s
-      // Phone numbers (US-shaped)
-      .replace(/\+?1?[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/g, '[REDACTED-PHONE]')
-      // Email-shaped
-      .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[REDACTED-EMAIL]')
-      // SSN-shaped
-      .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[REDACTED-SSN]')
-      // Honorifics + name
-      .replace(
-        /\b(Mr|Mrs|Ms|Dr|Mr\.|Mrs\.|Ms\.|Dr\.)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?/g,
-        '[REDACTED-NAME]',
-      )
-  );
-}
+// Defense-in-depth scrub at prompt-build time. The primary scrub now
+// runs at INGEST (`scripts/load-ed-encounters.ts` and the future Epic
+// FHIR webhook), so `ed_encounters.notes` reaching this code path is
+// already redacted. Re-running the scrub here is intentional — a
+// regression in the ingest layer or a backdoor write through some
+// other path can't quietly leak PHI into a Claude prompt.
+//
+// Implementation lives in `./scrub.ts`. See ADR 0002 for the
+// regex-now-AWS-Comprehend-later strategy.
 
 function fillDisclaimer(planMd: string, generatedAt: Date): string {
   return planMd
