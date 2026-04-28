@@ -324,3 +324,38 @@ export const medicaidExtensionStatusEnum = pgEnum('medicaid_extension_status', [
 ]);
 
 export type MedicaidExtensionStatus = (typeof medicaidExtensionStatusEnum.enumValues)[number];
+
+// SUBP-004 — DV survivor pathway (ADR 0007)
+
+export const dvSurvivorStatusEnum = pgEnum('dv_survivor_status', [
+  'active',
+  'exited',
+  'transferred',
+  'deceased',
+]);
+
+export type DvSurvivorStatus = (typeof dvSurvivorStatusEnum.enumValues)[number];
+
+/**
+ * Risk band per Campbell DA scale; `unknown` until OASIS performs the
+ * assessment. The banding (not raw score) is what flows under the OASIS
+ * DSA's default redaction policy (`risk_tier: 'share'`).
+ */
+export const dvRiskTierEnum = pgEnum('dv_risk_tier', [
+  'unknown',
+  'lethality_low',
+  'lethality_moderate',
+  'lethality_high',
+]);
+
+export type DvRiskTier = (typeof dvRiskTierEnum.enumValues)[number];
+
+export const dvSafetyEventTypeEnum = pgEnum('dv_safety_event_type', [
+  'intake',
+  'safety_plan_update',
+  'escalation',
+  'service_referral',
+  'exit',
+]);
+
+export type DvSafetyEventType = (typeof dvSafetyEventTypeEnum.enumValues)[number];

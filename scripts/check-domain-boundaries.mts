@@ -26,6 +26,15 @@
  * audit.ts, auth.ts, email/, etc.) are always fine — those are kernel,
  * not a domain.
  *
+ *   3. Restricted-table imports (ADR 0007 — abuser-blind discipline):
+ *      certain table symbols are restricted to a narrow allowlist of
+ *      directories. The `dv_survivors` and `dv_safety_events` schema
+ *      symbols are the cornerstone: direct query access from outside
+ *      `src/lib/subp/` would bypass the abuser-blind middleware and
+ *      open an enumeration vector. The schema definition itself
+ *      (src/db/schema/) and its barrel re-export are exempt; everything
+ *      else must go through the subp domain's public queries.
+ *
  * Run via: pnpm lint:boundaries
  *
  * Adding a new cross-domain dep: amend ADR 0001 first, then update
@@ -67,7 +76,28 @@ type Violation =
       toDomain: string;
       subPath: string;
       line: number;
-    };
+    }
+  | { kind: 'restricted-table'; file: string; symbol: string; line: number };
+
+/**
+ * Restricted DB schema symbols: callers outside `src/lib/subp/` (or the
+ * schema definition itself) must NOT import these. Per ADR 0007, the
+ * abuser-blind middleware in `src/lib/subp/abuser-blind.ts` is the only
+ * authorized access path; direct table reads bypass the gate.
+ */
+const RESTRICTED_TABLES: ReadonlyArray<{
+  symbol: string;
+  allowedPathPrefixes: readonly string[];
+}> = [
+  {
+    symbol: 'dvSurvivors',
+    allowedPathPrefixes: ['src/lib/subp/', 'src/db/schema/', 'scripts/gen-synthetic-dv-survivors'],
+  },
+  {
+    symbol: 'dvSafetyEvents',
+    allowedPathPrefixes: ['src/lib/subp/', 'src/db/schema/', 'scripts/gen-synthetic-dv-survivors'],
+  },
+];
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -95,11 +125,56 @@ function domainOf(file: string): string | null {
   return DOMAINS.has(top) ? top : null;
 }
 
+function isRestrictedTableImportLine(
+  line: string,
+): { matched: false } | { matched: true; symbol: string } {
+  // Only flag identifier mentions inside `import { ... }` clauses. This
+  // avoids false positives on prose comments / doc strings that happen
+  // to mention the symbol.
+  if (!/^\s*import\b/.test(line)) return { matched: false };
+  for (const r of RESTRICTED_TABLES) {
+    const re = new RegExp(String.raw`(?:^|[^A-Za-z0-9_$])${r.symbol}(?:[^A-Za-z0-9_$]|$)`);
+    if (re.test(line)) return { matched: true, symbol: r.symbol };
+  }
+  return { matched: false };
+}
+
+function isFileAllowedForRestrictedSymbol(relPath: string, symbol: string): boolean {
+  const r = RESTRICTED_TABLES.find((t) => t.symbol === symbol);
+  if (!r) return true;
+  return r.allowedPathPrefixes.some((p) => relPath.startsWith(p));
+}
+
 function check(): Violation[] {
   const violations: Violation[] = [];
-  const files = walk(SRC_ROOT);
+  const srcFiles = walk(SRC_ROOT);
+  // Walk scripts/ separately — only the restricted-table rule applies
+  // there. The allow-list and barrel-only rules don't extend into ops
+  // scripts (they predate the barrel convention and rewrite is out of
+  // scope for any single story).
+  const scriptFiles = walk(join(REPO_ROOT, 'scripts'));
 
-  for (const file of files) {
+  // Restricted-table rule: applies to BOTH src/ and scripts/.
+  for (const file of [...srcFiles, ...scriptFiles]) {
+    const src = readFileSync(file, 'utf8');
+    const relPath = relative(REPO_ROOT, file);
+    const lines = src.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const restricted = isRestrictedTableImportLine(line);
+      if (restricted.matched && !isFileAllowedForRestrictedSymbol(relPath, restricted.symbol)) {
+        violations.push({
+          kind: 'restricted-table',
+          file: relPath,
+          symbol: restricted.symbol,
+          line: i + 1,
+        });
+      }
+    }
+  }
+
+  // Allow-list + barrel-only rules: src/ only.
+  for (const file of srcFiles) {
     const fromDomain = domainOf(file);
     const src = readFileSync(file, 'utf8');
     const lines = src.split('\n');
@@ -161,6 +236,7 @@ function main() {
 
   const allowList = violations.filter((v) => v.kind === 'allow-list');
   const deepImport = violations.filter((v) => v.kind === 'deep-import');
+  const restrictedTable = violations.filter((v) => v.kind === 'restricted-table');
 
   console.error(`✗ ${violations.length} domain-boundary violation(s):\n`);
   if (allowList.length) {
@@ -178,6 +254,15 @@ function main() {
       if (v.kind !== 'deep-import') continue;
       const from = v.fromDomain ?? '<composition>';
       console.error(`    ${v.file}:${v.line}  ${from} → @/lib/${v.toDomain}/${v.subPath}`);
+    }
+  }
+  if (restrictedTable.length) {
+    console.error(`  restricted-table (${restrictedTable.length}) — see ADR 0007:`);
+    for (const v of restrictedTable) {
+      if (v.kind !== 'restricted-table') continue;
+      console.error(
+        `    ${v.file}:${v.line}  imports '${v.symbol}' — must route through src/lib/subp/`,
+      );
     }
   }
   console.error(

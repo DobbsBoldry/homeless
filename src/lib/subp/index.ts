@@ -3,7 +3,10 @@
 // not from '@/lib/subp/<internal>'. Enforced by
 // scripts/check-domain-boundaries.mts (FND-040b, ADR 0001).
 
+export * from './abuser-blind';
 export * from './aging-out-engine';
 export * from './dcbs-gate';
+export * from './dv-survivors';
 export * from './medicaid-extension';
+export * from './oasis-gate';
 export * from './supports-in-place';

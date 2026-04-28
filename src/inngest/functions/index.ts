@@ -2,6 +2,7 @@ import { agreementExpirationWatcher } from './agreement-expiration-watcher';
 import { dailyAttorneyDigest } from './daily-attorney-digest';
 import { dailyCourtnetScrape } from './daily-courtnet-scrape';
 import { dailyHealthPing } from './daily-health-ping';
+import { dvSafetyPlanStaleScan } from './dv-safety-plan-stale';
 import { expireBedHolds } from './expire-bed-holds';
 import { expireSmsConversations } from './expire-sms-conversations';
 import { fosterAgingOutScan } from './foster-aging-out-scan';
@@ -16,4 +17,5 @@ export const functions = [
   expireSmsConversations,
   fosterAgingOutScan,
   agreementExpirationWatcher,
+  dvSafetyPlanStaleScan,
 ];
