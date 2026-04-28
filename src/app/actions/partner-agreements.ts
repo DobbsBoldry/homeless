@@ -2,10 +2,14 @@
 
 import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
-import { recordAgreement } from '@/db/queries/partner-agreements';
+import { recordAgreement, updateAgreementStatus } from '@/db/queries/partner-agreements';
 import { requireRole } from '@/lib/auth';
-import type { DcbsDsaTerms, FerpaTerms } from '@/lib/dtrs';
-import { parseDcbsDsaAgreementForm, parsePartnerAgreementForm } from './partner-agreements-parse';
+import type { DcbsDsaTerms, FerpaTerms, MouTerms } from '@/lib/dtrs';
+import {
+  parseDcbsDsaAgreementForm,
+  parseMouAgreementForm,
+  parsePartnerAgreementForm,
+} from './partner-agreements-parse';
 
 /**
  * Known user-actionable error message prefixes from the domain / query layer.
@@ -133,5 +137,80 @@ export async function recordDcbsDsaAgreementAction(
       ? raw
       : 'Recording the agreement failed — please retry. The error has been logged.';
     return { ok: false, error };
+  }
+}
+
+export type RecordMouAgreementResult =
+  | { ok: true; agreementId: string }
+  | { ok: false; error: string };
+
+/**
+ * Admin-only server action: parse the OPRT-002 MOU intake FormData and
+ * persist via `recordAgreement` (terms validation + audit log happen inside
+ * that query function).
+ */
+export async function recordMouAgreementAction(
+  formData: FormData,
+): Promise<RecordMouAgreementResult> {
+  const user = await requireRole(['admin']);
+
+  const parsed = parseMouAgreementForm(formData);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+
+  try {
+    const { effectiveDate, endDate, signedByPartner, notes, partnerOrgId, terms } = parsed.input;
+
+    const agreement = await recordAgreement({
+      partnerOrgId,
+      kind: 'mou',
+      status: 'active',
+      effectiveDate: effectiveDate || null,
+      endDate: endDate || null,
+      signedByPartner: signedByPartner || null,
+      signedByCoalitionUserId: user.id,
+      templateVersion: 'mou-v1',
+      templateRendered: null,
+      terms: terms as MouTerms,
+      notes: notes || null,
+      actorUserId: user.id,
+    });
+
+    revalidatePath('/app/admin/agreements/mou');
+    return { ok: true, agreementId: agreement.id };
+  } catch (err) {
+    Sentry.captureException(err);
+    console.error('[partner-agreements.recordMou] failed', err);
+    const raw = err instanceof Error ? err.message : '';
+    const isKnown = KNOWN_DOMAIN_PREFIXES.some((prefix) =>
+      raw.toLowerCase().startsWith(prefix.toLowerCase()),
+    );
+    const error = isKnown
+      ? raw
+      : 'Recording the agreement failed — please retry. The error has been logged.';
+    return { ok: false, error };
+  }
+}
+
+/**
+ * Admin-only: revoke / mark expired / restore an agreement. Used by
+ * the admin agreements list pages for status transitions.
+ */
+export async function updateAgreementStatusAction(
+  agreementId: string,
+  newStatus: 'draft' | 'active' | 'expired' | 'terminated' | 'superseded',
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await requireRole(['admin']);
+  try {
+    await updateAgreementStatus(agreementId, newStatus, user.id);
+    revalidatePath('/app/admin/agreements/mou');
+    revalidatePath('/app/admin/agreements/ferpa');
+    revalidatePath('/app/admin/agreements/dcbs');
+    return { ok: true };
+  } catch (err) {
+    Sentry.captureException(err);
+    return {
+      ok: false,
+      error: 'Status update failed — please retry. The error has been logged.',
+    };
   }
 }

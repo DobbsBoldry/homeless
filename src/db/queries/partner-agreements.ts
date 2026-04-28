@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gte, isNotNull, lt, lte } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { type NewPartnerAgreement, type PartnerAgreement, partnerAgreements } from '@/db/schema';
 import type { PartnerAgreementKind, PartnerAgreementStatus } from '@/db/schema/enums';
@@ -144,3 +144,98 @@ export async function updateAgreementStatus(
     return updated;
   });
 }
+
+// ---------------------------------------------------------------------------
+// OPRT-002 — expiration watcher helpers (generic across all agreement kinds)
+// ---------------------------------------------------------------------------
+
+/**
+ * List active agreements whose `end_date` falls within the next N days
+ * (inclusive of today, inclusive of N days out). Used by the daily
+ * expiration-watcher Inngest job to flag MOUs / DSAs / FERPAs nearing
+ * renewal.
+ *
+ * Pass `daysAhead = 0` to get only those that have already expired but
+ * are still flagged 'active' (ie. need a status flip).
+ */
+export async function listExpiringAgreements(opts: {
+  daysAhead: number;
+  asOf?: Date;
+}): Promise<PartnerAgreement[]> {
+  const asOf = opts.asOf ?? new Date();
+  const horizon = new Date(asOf);
+  horizon.setUTCDate(horizon.getUTCDate() + opts.daysAhead);
+  // YYYY-MM-DD comparison; date column is text-comparable in pg.
+  const horizonDate = horizon.toISOString().slice(0, 10);
+
+  return db
+    .select()
+    .from(partnerAgreements)
+    .where(
+      and(
+        eq(partnerAgreements.status, 'active'),
+        isNotNull(partnerAgreements.endDate),
+        lte(partnerAgreements.endDate, horizonDate),
+      ),
+    )
+    .orderBy(partnerAgreements.endDate);
+}
+
+/**
+ * Flip every active agreement whose `end_date` is strictly before today
+ * to status='expired'. Returns the rows that were flipped (post-update).
+ *
+ * Audit-logged per row inside a single transaction so the whole batch
+ * rolls back atomically on failure. Idempotent — already-expired rows
+ * are not selected for the update.
+ */
+export async function expireOverdueAgreements(opts: {
+  /** Pass null for system-driven runs (Inngest cron). The audit log will record actor as null. */
+  actorUserId: string | null;
+  asOf?: Date;
+}): Promise<PartnerAgreement[]> {
+  const asOf = opts.asOf ?? new Date();
+  const today = asOf.toISOString().slice(0, 10);
+
+  return db.transaction(async (tx) => {
+    const overdue = await tx
+      .select()
+      .from(partnerAgreements)
+      .where(
+        and(
+          eq(partnerAgreements.status, 'active'),
+          isNotNull(partnerAgreements.endDate),
+          lt(partnerAgreements.endDate, today),
+        ),
+      );
+
+    if (overdue.length === 0) return [];
+
+    const flipped: PartnerAgreement[] = [];
+    for (const row of overdue) {
+      const [updated] = await tx
+        .update(partnerAgreements)
+        .set({ status: 'expired', updatedAt: new Date() })
+        .where(eq(partnerAgreements.id, row.id))
+        .returning();
+      if (!updated) continue;
+      flipped.push(updated);
+      await logAuditEvent({
+        actorUserId: opts.actorUserId,
+        action: 'partner_agreement.auto_expired',
+        targetTable: 'partner_agreements',
+        targetId: updated.id,
+        metadata: {
+          partnerOrgId: updated.partnerOrgId,
+          kind: updated.kind,
+          endDate: updated.endDate,
+        },
+        tx,
+      });
+    }
+    return flipped;
+  });
+}
+
+// Suppress unused-import warning (gte/lte mix may vary by build).
+void gte;

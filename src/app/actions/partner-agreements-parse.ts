@@ -1,6 +1,6 @@
 /**
  * Pure FormData parsers for partner-agreement intake forms — DTRS-010 (FERPA),
- * DTRS-011 (DCBS DSA).
+ * DTRS-011 (DCBS DSA), OPRT-002 (MOU).
  *
  * No 'use server' directive — kept pure so functions can be imported and
  * unit-tested by vitest without Next.js server-action wrapping.
@@ -295,6 +295,104 @@ export function parseDcbsDsaAgreementForm(
         population_focus: 'foster_aging_out',
         individual_records_authorized,
         data_destruction_due,
+      },
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// OPRT-002 — MOU parser
+// ---------------------------------------------------------------------------
+
+export type ParsedMouAgreementInput = {
+  partnerOrgId: string;
+  effectiveDate: string;
+  endDate: string | null;
+  signedByPartner: string | null;
+  notes: string | null;
+  terms: {
+    kind: 'mou';
+    phase: 'phase_0' | 'phase_1' | 'standing';
+    monthly_meeting_hours: number | null;
+    withdrawal_notice_days: number;
+  };
+};
+
+const MOU_PHASES = ['phase_0', 'phase_1', 'standing'] as const;
+
+export function parseMouAgreementForm(
+  formData: FormData,
+): { ok: true; input: ParsedMouAgreementInput } | { ok: false; error: string } {
+  const str = (key: string) => (formData.get(key) ?? '').toString().trim();
+
+  const partnerOrgId = str('partnerOrgId');
+  if (!partnerOrgId) return { ok: false, error: 'Partner is required.' };
+
+  const effectiveDateRaw = str('effectiveDate');
+  if (!effectiveDateRaw) return { ok: false, error: 'Effective date is required.' };
+  if (Number.isNaN(Date.parse(effectiveDateRaw))) {
+    return { ok: false, error: 'Effective date is not a valid date.' };
+  }
+
+  const endDateRaw = str('endDate');
+  let endDate: string | null = null;
+  if (endDateRaw) {
+    if (Number.isNaN(Date.parse(endDateRaw))) {
+      return { ok: false, error: 'End date is not a valid date.' };
+    }
+    if (endDateRaw < effectiveDateRaw) {
+      return { ok: false, error: 'End date must be on or after effective date.' };
+    }
+    endDate = endDateRaw;
+  }
+
+  const signedByPartner = str('signedByPartner') || null;
+
+  const notes = str('notes') || null;
+  if (notes && notes.length > 2000) {
+    return { ok: false, error: 'Notes must be 2 000 characters or fewer.' };
+  }
+
+  const phase = str('phase');
+  if (!MOU_PHASES.includes(phase as (typeof MOU_PHASES)[number])) {
+    return { ok: false, error: 'Phase selection is required.' };
+  }
+
+  const meetingHoursRaw = str('monthly_meeting_hours');
+  let monthly_meeting_hours: number | null = null;
+  if (meetingHoursRaw) {
+    const n = Number(meetingHoursRaw);
+    if (!Number.isFinite(n) || n < 0) {
+      return { ok: false, error: 'Monthly meeting hours must be a non-negative number.' };
+    }
+    monthly_meeting_hours = n;
+  }
+
+  const withdrawalRaw = str('withdrawal_notice_days');
+  if (!withdrawalRaw) {
+    return { ok: false, error: 'Withdrawal notice days is required.' };
+  }
+  const withdrawal_notice_days = Number(withdrawalRaw);
+  if (!Number.isInteger(withdrawal_notice_days) || withdrawal_notice_days < 0) {
+    return {
+      ok: false,
+      error: 'Withdrawal notice days must be a non-negative integer.',
+    };
+  }
+
+  return {
+    ok: true,
+    input: {
+      partnerOrgId,
+      effectiveDate: effectiveDateRaw,
+      endDate,
+      signedByPartner,
+      notes,
+      terms: {
+        kind: 'mou',
+        phase: phase as ParsedMouAgreementInput['terms']['phase'],
+        monthly_meeting_hours,
+        withdrawal_notice_days,
       },
     },
   };
