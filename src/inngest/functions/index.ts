@@ -5,6 +5,7 @@ import { dailyHealthPing } from './daily-health-ping';
 import { dvSafetyPlanStaleScan } from './dv-safety-plan-stale';
 import { expireBedHolds } from './expire-bed-holds';
 import { expireSmsConversations } from './expire-sms-conversations';
+import { familyStabilityScan } from './family-stability-scan';
 import { fosterAgingOutScan } from './foster-aging-out-scan';
 import { userSignedUp } from './user-signed-up';
 
@@ -18,4 +19,5 @@ export const functions = [
   fosterAgingOutScan,
   agreementExpirationWatcher,
   dvSafetyPlanStaleScan,
+  familyStabilityScan,
 ];

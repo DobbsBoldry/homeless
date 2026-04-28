@@ -7,6 +7,7 @@ export * from './abuser-blind';
 export * from './aging-out-engine';
 export * from './dcbs-gate';
 export * from './dv-survivors';
+export * from './family-stability';
 export * from './medicaid-extension';
 export * from './oasis-gate';
 export * from './supports-in-place';
