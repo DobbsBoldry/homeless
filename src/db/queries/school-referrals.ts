@@ -11,14 +11,19 @@
  * See ADR 0005 and src/lib/dtrs/school-referral-policy.ts for the full
  * consent-regime fork rationale.
  */
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import type { SchoolReferralBasis, SchoolReferralStatus, UserRole } from '@/db/schema/enums';
 import { orgMemberships } from '@/db/schema/org-memberships';
+import { partnerOrgs } from '@/db/schema/partner-orgs';
 import {
   type NewSchoolReferralConsent,
   schoolReferralConsents,
 } from '@/db/schema/school-referral-consents';
+import {
+  type SchoolReferralStatusEvent,
+  schoolReferralStatusEvents,
+} from '@/db/schema/school-referral-status-events';
 import {
   type NewSchoolReferral,
   type SchoolReferral,
@@ -268,12 +273,17 @@ export async function getSchoolReferral(
         accessedByPartnerOrgId: null,
         purpose: 'caseworker_case_detail',
         basis: access.basis,
+        // COOR-014 fix (Important 5): the detail page renders urgency and notes
+        // in addition to the fields below — disclosure log must reflect what was
+        // actually shown to the viewer (FERPA § 99.32 accuracy requirement).
         dataClassesDisclosed: [
           'student_first_initial',
           'guardian_name',
           'guardian_contact',
           'housing_situation',
           'services_requested',
+          'urgency',
+          'notes',
         ],
       });
     }
@@ -365,36 +375,290 @@ export async function listSchoolReferralsForCaseworker(
 // ---------------------------------------------------------------------------
 
 /**
- * Workflow transition — updates status and last_updated_at.
- * Audit-logged with the actor userId and the new status.
- * logAuditEvent receives tx so the audit row rolls back atomically with the
- * data write — DTRS-010 pattern.
+ * Workflow transition — updates status, writes an event row, and audit-logs.
+ *
+ * COOR-014 extension: accepts an optional `confirmationNote` (max 500 chars
+ * enforced here; DB CHECK allows 1 000 as defense-in-depth). The note is
+ * stored in school_referral_status_events — what the school liaison sees.
+ *
+ * Privacy: note content MUST NOT appear in audit-log metadata. Logs carry
+ * only counts and IDs — the note may contain family-specific detail.
+ *
+ * All writes (school_referrals update, status_events insert, audit log) share
+ * the same transaction so a rollback is atomic — DTRS-010 pattern.
  */
 export async function updateSchoolReferralStatus(
   id: string,
   newStatus: SchoolReferralStatus,
   actorUserId: string,
+  opts: { confirmationNote?: string } = {},
 ): Promise<SchoolReferral> {
+  const { confirmationNote } = opts;
+
+  if (confirmationNote !== undefined && confirmationNote.length > 500) {
+    throw new Error('Confirmation note must be 500 characters or fewer.');
+  }
+
   return db.transaction(async (tx) => {
+    // Read the current status so we can capture from_status in the event row.
+    const [current] = await tx
+      .select({ status: schoolReferrals.status })
+      .from(schoolReferrals)
+      .where(eq(schoolReferrals.id, id))
+      .limit(1);
+
+    if (!current) throw new Error(`school_referral not found: ${id}`);
+
     const [updated] = await tx
       .update(schoolReferrals)
       .set({ status: newStatus, lastUpdatedAt: new Date() })
       .where(eq(schoolReferrals.id, id))
       .returning();
 
-    if (!updated) throw new Error(`school_referral not found: ${id}`);
+    if (!updated) throw new Error(`school_referral update returned no row: ${id}`);
+
+    // Append one event row per transition — COOR-014 append-only log.
+    // Note content is stored here but NEVER echoed into the audit-log metadata below.
+    await tx.insert(schoolReferralStatusEvents).values({
+      referralId: id,
+      fromStatus: current.status,
+      toStatus: newStatus,
+      actorUserId,
+      note: confirmationNote ?? null,
+    });
 
     // Audit log is written inside the transaction (tx passed) so a rollback
     // takes the audit row with it — DTRS-010 pattern.
+    // Metadata: counts and IDs only — no note content (COOR-014 privacy posture).
     await logAuditEvent({
       tx,
       actorUserId,
-      action: 'school_referral.status_updated',
+      action: 'school_referral.status_changed',
       targetTable: 'school_referrals',
       targetId: id,
-      metadata: { newStatus },
+      metadata: {
+        fromStatus: current.status,
+        toStatus: newStatus,
+        hasNote: confirmationNote !== undefined && confirmationNote.length > 0,
+      },
     });
 
     return updated;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// getSchoolReferralStatusEvents
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns all status events for a referral, newest first.
+ *
+ * FERPA § 99.32 compliance: the timeline events may contain notes with
+ * family-specific prose (e.g. "connected to Boulware Mission shelter, family
+ * intake Friday"). This function runs the canAccessSchoolReferral policy gate
+ * and writes a disclosure-log row inside the same transaction before returning
+ * data. If access is denied or the referral is not found, returns an empty
+ * array (does not 500 the page).
+ *
+ * Caller MUST pass a viewer context. The page MUST call getSchoolReferral
+ * first (which enforces membership); this function also re-runs the gate to
+ * produce a separate disclosure-log row for the timeline access with the
+ * correct purpose and data classes.
+ */
+export async function getSchoolReferralStatusEvents(
+  referralId: string,
+  viewer: ViewerContext,
+): Promise<SchoolReferralStatusEvent[]> {
+  return db.transaction(async (tx) => {
+    // Resolve the referral's consent basis for the disclosure log.
+    const [referralWithBasis] = await tx
+      .select({
+        id: schoolReferrals.id,
+        basis: schoolReferralConsents.basis,
+        status: schoolReferrals.status,
+        partnerOrgId: schoolReferrals.partnerOrgId,
+      })
+      .from(schoolReferrals)
+      .innerJoin(schoolReferralConsents, eq(schoolReferralConsents.referralId, schoolReferrals.id))
+      .where(eq(schoolReferrals.id, referralId))
+      .limit(1);
+
+    if (!referralWithBasis) return [];
+
+    // Policy gate — role check.
+    const access = canAccessSchoolReferral(viewer, referralWithBasis);
+    if (!access.allow) return [];
+
+    // Fetch the events.
+    const events = await tx
+      .select()
+      .from(schoolReferralStatusEvents)
+      .where(eq(schoolReferralStatusEvents.referralId, referralId))
+      .orderBy(desc(schoolReferralStatusEvents.occurredAt));
+
+    // Write FERPA § 99.32 disclosure-log row for timeline access.
+    if (access.requireDisclosureLog && access.basis) {
+      // Resolve viewer's partner org if applicable (non-admin viewers).
+      let accessedByPartnerOrgId: string | null = null;
+      if (viewer.role !== 'admin') {
+        const [membership] = await tx
+          .select({ partnerOrgId: orgMemberships.partnerOrgId })
+          .from(orgMemberships)
+          .where(
+            and(
+              eq(orgMemberships.userId, viewer.userId),
+              eq(orgMemberships.partnerOrgId, referralWithBasis.partnerOrgId),
+            ),
+          )
+          .limit(1);
+        accessedByPartnerOrgId = membership?.partnerOrgId ?? null;
+      }
+
+      await recordDisclosure({
+        tx,
+        referralId,
+        accessedByUserId: viewer.userId,
+        accessedByPartnerOrgId,
+        purpose: 'caseworker_case_detail_history',
+        basis: referralWithBasis.basis,
+        dataClassesDisclosed: ['status_event_note', 'status_transition_history'],
+      });
+    }
+
+    return events;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// listReferralsForLiaison
+// ---------------------------------------------------------------------------
+
+/**
+ * Projected event shape for the liaison dashboard — only the fields the UI
+ * renders. Projecting here prevents the full event row (including actorUserId)
+ * from shipping in the React tree when it is not needed. (Minor: COOR-014 review.)
+ */
+export type LatestEventSummary = Pick<
+  SchoolReferralStatusEvent,
+  'note' | 'occurredAt' | 'toStatus' | 'fromStatus'
+>;
+
+export type ReferralWithLatestEvent = SchoolReferral & {
+  latestEvent: LatestEventSummary | null;
+};
+
+/**
+ * List referrals for a McKinney-Vento school liaison dashboard (COOR-014).
+ *
+ * Membership is enforced INSIDE this function (unlike listSchoolReferralsForCaseworker
+ * which deferred that to the caller). Returns only referrals from school orgs
+ * the viewer is an active member of.
+ *
+ * Each returned row includes the latest status event so the dashboard can show
+ * the most recent caseworker note without a second round-trip.
+ *
+ * One disclosure-log row is written per returned referral (FERPA § 99.32),
+ * each carrying the referral's actual consent basis. All reads + disclosure
+ * writes share one transaction.
+ *
+ * Note content is intentionally returned in full here (it is the liaison's
+ * view of their own referral); it MUST NOT appear in audit-log metadata.
+ */
+export async function listReferralsForLiaison(
+  viewer: ViewerContext,
+): Promise<ReferralWithLatestEvent[]> {
+  // Resolve the viewer's school org memberships first — outside the transaction,
+  // since this is a lookup, not a write, and we need the result to scope the query.
+  const schoolOrgRows = await db
+    .select({ partnerOrgId: orgMemberships.partnerOrgId })
+    .from(orgMemberships)
+    .innerJoin(partnerOrgs, eq(orgMemberships.partnerOrgId, partnerOrgs.id))
+    .where(
+      and(
+        eq(orgMemberships.userId, viewer.userId),
+        eq(partnerOrgs.type, 'school'),
+        eq(partnerOrgs.active, true),
+      ),
+    );
+
+  if (schoolOrgRows.length === 0) return [];
+
+  const schoolOrgIds = schoolOrgRows.map((r) => r.partnerOrgId);
+
+  return db.transaction(async (tx) => {
+    // Join with consents to get each referral's actual basis for per-row
+    // disclosure logging (FERPA § 99.32 — one row per disclosure, basis accurate).
+    const rowsWithBasis = await tx
+      .select({
+        referral: schoolReferrals,
+        basis: schoolReferralConsents.basis,
+      })
+      .from(schoolReferrals)
+      .innerJoin(schoolReferralConsents, eq(schoolReferralConsents.referralId, schoolReferrals.id))
+      .where(inArray(schoolReferrals.partnerOrgId, schoolOrgIds))
+      .orderBy(desc(schoolReferrals.receivedAt))
+      .limit(200); // pilot-scale ceiling; no pagination yet (out of scope)
+
+    if (rowsWithBasis.length === 0) return [];
+
+    // Policy gate — drop any rows the viewer's role cannot see.
+    const allowed = rowsWithBasis.filter(
+      ({ referral }) => canAccessSchoolReferral(viewer, referral).allow,
+    );
+    if (allowed.length === 0) return [];
+
+    // Fetch the latest status event per referral in one query.
+    const referralIds = allowed.map(({ referral }) => referral.id);
+    const allEvents = await tx
+      .select()
+      .from(schoolReferralStatusEvents)
+      .where(inArray(schoolReferralStatusEvents.referralId, referralIds))
+      .orderBy(desc(schoolReferralStatusEvents.occurredAt));
+
+    // Build a map: referralId → latest event (first occurrence per referral in
+    // the desc-ordered result is the most recent).
+    const latestEventMap = new Map<string, SchoolReferralStatusEvent>();
+    for (const evt of allEvents) {
+      if (!latestEventMap.has(evt.referralId)) {
+        latestEventMap.set(evt.referralId, evt);
+      }
+    }
+
+    // Write disclosure-log rows — one per returned referral, each with the
+    // referral's actual basis (FERPA § 99.32 per-disclosure accuracy requirement).
+    // Liaison dashboard purpose and data classes scoped to what is actually shown.
+    for (const { referral, basis } of allowed) {
+      await recordDisclosure({
+        tx,
+        referralId: referral.id,
+        accessedByUserId: viewer.userId,
+        accessedByPartnerOrgId: referral.partnerOrgId,
+        purpose: 'liaison_dashboard_view',
+        basis,
+        dataClassesDisclosed: [
+          'student_first_initial',
+          'student_age',
+          'status',
+          'received_at',
+          'status_event_note',
+        ],
+      });
+    }
+
+    return allowed.map(({ referral }) => {
+      const evt = latestEventMap.get(referral.id);
+      // Project to LatestEventSummary — only fields the dashboard renders.
+      // Keeps actorUserId out of the React tree (COOR-014 minor review item).
+      const latestEvent: LatestEventSummary | null = evt
+        ? {
+            note: evt.note,
+            occurredAt: evt.occurredAt,
+            toStatus: evt.toStatus,
+            fromStatus: evt.fromStatus,
+          }
+        : null;
+      return { ...referral, latestEvent };
+    });
   });
 }
