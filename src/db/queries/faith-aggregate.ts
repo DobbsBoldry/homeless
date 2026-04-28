@@ -62,9 +62,9 @@ export async function getFaithMinistry(id: string): Promise<FaithMinistry | null
  * Suppression is applied BEFORE the rows are constructed; raw small-cell
  * counts never reach the DB. See ADR 0003 for the privacy contract.
  *
- * Audit-log entry written inside the transaction so a write failure
- * rolls back both the data and the log entry — keeps "what landed in
- * the trust" and "what we said landed in the trust" consistent.
+ * The audit-log write runs inside the same transaction as the data inserts,
+ * so a failure rolls back both — keeps "what landed in the DB" and "what we
+ * said landed" consistent.
  */
 export async function createFaithAggregateSubmission(
   input: CreateSubmissionInput,
@@ -137,6 +137,7 @@ export async function createFaithAggregateSubmission(
         breakoutCount: breakoutRows.length,
         suppressedBreakoutCount: breakoutRows.filter((b) => b.suppressed).length,
       },
+      tx,
     });
 
     return submission;
