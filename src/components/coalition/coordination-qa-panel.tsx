@@ -4,7 +4,7 @@ import { useId, useRef, useState, useTransition } from 'react';
 import { askCoordinationQuestionAction } from '@/app/actions/coordination-qa';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { CoordinationQATurn } from '@/lib/coalition';
+import type { CoordinationQATurn } from '@/lib/coalition/coordination-qa';
 
 type LocalTurn = CoordinationQATurn & { id: string };
 

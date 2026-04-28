@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { EvictionFilingRiskScore } from '@/db/schema/eviction-filing-risk-scores';
 import type { EvictionFiling } from '@/db/schema/eviction-filings';
-import { riskBandClass, riskBandLabel } from '@/lib/eviction';
+import { riskBandClass, riskBandLabel } from '@/lib/eviction/risk-band';
 
 const fmtDate = (d: Date) =>
   new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(d));

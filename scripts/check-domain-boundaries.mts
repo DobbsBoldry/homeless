@@ -16,6 +16,12 @@
  *      src/lib/{domain}/ may still go deep — internals are free to
  *      reach each other directly.
  *
+ *      EXEMPTION: files starting with `'use client'` may use deep
+ *      paths. The barrel `export *` aggregates server-only code
+ *      (postgres, AI clients, etc.) into the client bundle, which
+ *      Next.js can't tree-shake. Client components must keep their
+ *      import surface narrow. The allow-list rule still applies.
+ *
  * Imports of non-domain shared code at the top of src/lib/ (utils.ts,
  * audit.ts, auth.ts, email/, etc.) are always fine — those are kernel,
  * not a domain.
@@ -96,6 +102,11 @@ function check(): Violation[] {
     const fromDomain = domainOf(file);
     const src = readFileSync(file, 'utf8');
     const lines = src.split('\n');
+    // Client components are exempt from the barrel-only rule (rule 2).
+    // The `export *` barrel pulls server-only code (postgres, etc.) into
+    // the client bundle. Allow deep paths for these so Next.js can keep
+    // the bundle small. Allow-list (rule 1) still applies.
+    const isClient = /^['"]use client['"];?\s*$/.test(lines[0] ?? '');
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -118,9 +129,10 @@ function check(): Violation[] {
               });
             }
           }
-          // Rule 2: barrel-only — deep imports across domain boundaries are forbidden.
-          // (Same-domain deep imports inside src/lib/{domain}/ are fine.)
-          if (subPath && fromDomain !== target) {
+          // Rule 2: barrel-only — deep imports across domain boundaries are forbidden,
+          // EXCEPT inside `'use client'` files (see header). Same-domain deep imports
+          // inside src/lib/{domain}/ are fine — internals reach each other directly.
+          if (subPath && fromDomain !== target && !isClient) {
             violations.push({
               kind: 'deep-import',
               file: relative(REPO_ROOT, file),

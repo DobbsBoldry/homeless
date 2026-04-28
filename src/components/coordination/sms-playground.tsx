@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { simulateInboundSmsAction } from '@/app/actions/sms';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { SMS_MAX_LEN } from '@/lib/indc';
+import { SMS_MAX_LEN } from '@/lib/indc/sms-formatter';
 
 const PRESETS = ['BED', 'BED FAMILY', 'BED PET', 'BED MEN', 'BED WOMEN SUD', 'HELP', 'STOP'];
 
