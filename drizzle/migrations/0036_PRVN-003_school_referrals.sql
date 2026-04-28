@@ -86,8 +86,8 @@ CREATE TABLE "school_referral_consents" (
   "consenter_relationship" text,
   -- redacted in non-admin views
   "consenter_name" text,
-  -- e.g. 'ferpa-parental-v1'; null when basis is mckinney_vento_authorization
-  "consent_text_version" text,
+  -- e.g. 'ferpa-parental-v1'; M-V rows use sentinel 'mckinney_vento_v1' (NOT NULL)
+  "consent_text_version" text NOT NULL,
   -- null when basis is mckinney_vento_authorization
   "signed_at" timestamp with time zone,
   -- 'in_person' | 'web_form' | 'phone'

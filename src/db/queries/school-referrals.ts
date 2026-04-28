@@ -14,6 +14,7 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import type { SchoolReferralBasis, SchoolReferralStatus, UserRole } from '@/db/schema/enums';
+import { orgMemberships } from '@/db/schema/org-memberships';
 import {
   type NewSchoolReferralConsent,
   schoolReferralConsents,
@@ -67,9 +68,13 @@ export type ViewerContext = { userId: string; role: UserRole };
  * Creates a school referral + a corresponding consent record in one transaction.
  *
  * Validates McKinney-Vento basis if applicable before inserting anything.
- * Audit-logs school_referral.created inside the transaction so a rollback
- * takes the audit entry with it — keeps "what landed" and "what we logged"
- * consistent.
+ * Audit-logs school_referral.created inside the transaction (tx passed to
+ * logAuditEvent) so a rollback takes the audit entry with it — keeps "what
+ * landed" and "what we logged" consistent. (DTRS-010 pattern.)
+ *
+ * For M-V authorization basis the consent record's consent_text_version is
+ * set to the sentinel 'mckinney_vento_v1' — statutory authorization, not a
+ * consent text, but the column stays NOT NULL for structural self-documentation.
  */
 export async function createSchoolReferral(
   input: CreateSchoolReferralInput,
@@ -118,8 +123,10 @@ export async function createSchoolReferral(
       .returning();
     if (!referral) throw new Error('school_referrals insert returned no row');
 
-    // Build the consent record. For M-V authorization: signed_at / consenter_name /
-    // consent_text_version are all null — it's a statutory basis, no consent collected.
+    // Build the consent record. For M-V authorization: signed_at, consenter_name,
+    // and signed_method are null (statutory basis, no consent collected).
+    // consent_text_version uses the sentinel 'mckinney_vento_v1' — NOT NULL by
+    // schema; the sentinel self-documents the statutory basis (see ADR 0005, Issue 4 fix).
     const consentValues: Omit<NewSchoolReferralConsent, 'id' | 'createdAt'> =
       input.basis === 'mckinney_vento_authorization'
         ? {
@@ -127,7 +134,7 @@ export async function createSchoolReferral(
             basis: 'mckinney_vento_authorization',
             consenterRelationship: null,
             consenterName: null,
-            consentTextVersion: null,
+            consentTextVersion: 'mckinney_vento_v1',
             signedAt: null,
             signedMethod: null,
             scope: {},
@@ -149,7 +156,10 @@ export async function createSchoolReferral(
 
     await tx.insert(schoolReferralConsents).values(consentValues);
 
+    // Audit log is written inside the transaction (tx passed) so a rollback
+    // takes the audit row with it — DTRS-010 pattern.
     await logAuditEvent({
+      tx,
       actorUserId: input.referringUserId,
       action: 'school_referral.created',
       targetTable: 'school_referrals',
@@ -177,7 +187,12 @@ export async function createSchoolReferral(
  * Returns null if not found OR if the viewer is denied access (caller cannot
  * distinguish the two cases by design — don't leak row existence to denied viewers).
  *
- * Writes a disclosure-log row inside the same transaction as the read.
+ * For non-admin viewers (caseworker / ed_coordinator), also checks that the
+ * viewer has an active membership in the referral's partner org. Admins bypass
+ * the membership check — they have org-wide oversight for FERPA compliance.
+ *
+ * Access-denied attempts (viewer has the right role but lacks membership) write
+ * a disclosure-log row with purpose 'access_denied' so the attempt is traceable.
  */
 export async function getSchoolReferral(
   id: string,
@@ -189,6 +204,36 @@ export async function getSchoolReferral(
 
   const access = canAccessSchoolReferral(viewer, row);
   if (!access.allow) return null;
+
+  // For non-admin viewers enforce partner-org membership — only caseworkers
+  // assigned to the referral's school can view it.
+  if (viewer.role !== 'admin') {
+    const [membership] = await db
+      .select({ id: orgMemberships.id })
+      .from(orgMemberships)
+      .where(
+        and(
+          eq(orgMemberships.userId, viewer.userId),
+          eq(orgMemberships.partnerOrgId, row.partnerOrgId),
+        ),
+      )
+      .limit(1);
+
+    if (!membership) {
+      // Log the attempt — a missing disclosure trail is a FERPA compliance gap.
+      if (access.requireDisclosureLog && access.basis) {
+        await recordDisclosure({
+          referralId: row.id,
+          accessedByUserId: viewer.userId,
+          accessedByPartnerOrgId: null,
+          purpose: 'access_denied',
+          basis: access.basis,
+          dataClassesDisclosed: [],
+        });
+      }
+      return null;
+    }
+  }
 
   if (access.requireDisclosureLog && access.basis) {
     await recordDisclosure({
@@ -218,12 +263,16 @@ export async function getSchoolReferral(
  * List referrals for the caseworker queue.
  *
  * Policy gate runs per row; any row the viewer cannot access is dropped.
- * A single bulk disclosure-log row covers the list access so we don't
- * create O(n) log rows on every queue load.
+ * One disclosure-log row is written per returned referral, each carrying the
+ * referral's actual consent basis (FERPA § 99.32 — one row per disclosure).
+ * This requires joining school_referral_consents to resolve the basis per row.
  *
  * The partnerOrgId filter limits to referrals from schools the viewer serves —
  * enforced here, not in the policy gate, because it's org-membership logic
  * rather than role logic.
+ *
+ * All disclosure-log writes happen inside the same transaction as the read so
+ * a rollback takes them with it.
  */
 export async function listSchoolReferralsForCaseworker(
   viewer: ViewerContext,
@@ -239,30 +288,46 @@ export async function listSchoolReferralsForCaseworker(
   if (status) conditions.push(eq(schoolReferrals.status, status));
   if (partnerOrgId) conditions.push(eq(schoolReferrals.partnerOrgId, partnerOrgId));
 
-  const rows = await db
-    .select()
+  // Join with consents to get each referral's actual basis for per-row
+  // disclosure logging (FERPA § 99.32 requires per-disclosure accuracy).
+  const rowsWithBasis = await db
+    .select({
+      referral: schoolReferrals,
+      basis: schoolReferralConsents.basis,
+    })
     .from(schoolReferrals)
+    .innerJoin(schoolReferralConsents, eq(schoolReferralConsents.referralId, schoolReferrals.id))
     .where(conditions.length > 0 ? and(...(conditions as Parameters<typeof and>)) : undefined)
     .orderBy(desc(schoolReferrals.receivedAt))
     .limit(limit);
 
-  if (rows.length === 0) return [];
+  if (rowsWithBasis.length === 0) return [];
 
   // Run access check per row; drop denied rows.
-  const allowed = rows.filter((r) => canAccessSchoolReferral(viewer, r).allow);
+  const allowed = rowsWithBasis.filter(
+    ({ referral }) => canAccessSchoolReferral(viewer, referral).allow,
+  );
   if (allowed.length === 0) return [];
 
-  // Single bulk disclosure-log row for the list access.
-  await recordDisclosure({
-    referralId: allowed[0].id, // logged against first row; purpose field carries context
-    accessedByUserId: viewer.userId,
-    accessedByPartnerOrgId: partnerOrgId ?? null,
-    purpose: 'caseworker_queue_view',
-    basis: 'mckinney_vento_authorization',
-    dataClassesDisclosed: ['student_first_initial', 'status', 'urgency', 'received_at'],
+  // Write one disclosure-log row per returned referral, each carrying the
+  // referral's actual basis — FERPA § 99.32 requires per-disclosure logging
+  // and the basis must accurately reflect the authorization for that referral.
+  // All writes are inside the transaction with the read.
+  await db.transaction(async (tx) => {
+    for (const { referral, basis } of allowed) {
+      await recordDisclosure({
+        tx,
+        referralId: referral.id,
+        accessedByUserId: viewer.userId,
+        accessedByPartnerOrgId: partnerOrgId ?? null,
+        purpose: 'caseworker_queue_view',
+        basis,
+        dataClassesDisclosed: ['student_first_initial', 'status', 'urgency', 'received_at'],
+      });
+    }
   });
 
-  return allowed;
+  return allowed.map(({ referral }) => referral);
 }
 
 // ---------------------------------------------------------------------------
@@ -272,6 +337,8 @@ export async function listSchoolReferralsForCaseworker(
 /**
  * Workflow transition — updates status and last_updated_at.
  * Audit-logged with the actor userId and the new status.
+ * logAuditEvent receives tx so the audit row rolls back atomically with the
+ * data write — DTRS-010 pattern.
  */
 export async function updateSchoolReferralStatus(
   id: string,
@@ -287,7 +354,10 @@ export async function updateSchoolReferralStatus(
 
     if (!updated) throw new Error(`school_referral not found: ${id}`);
 
+    // Audit log is written inside the transaction (tx passed) so a rollback
+    // takes the audit row with it — DTRS-010 pattern.
     await logAuditEvent({
+      tx,
       actorUserId,
       action: 'school_referral.status_updated',
       targetTable: 'school_referrals',
