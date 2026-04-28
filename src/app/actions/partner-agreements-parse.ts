@@ -1,15 +1,17 @@
 /**
- * Pure FormData parser for the DTRS-010 FERPA agreement intake form.
+ * Pure FormData parsers for partner-agreement intake forms — DTRS-010 (FERPA),
+ * DTRS-011 (DCBS DSA).
  *
- * No 'use server' directive — kept pure so it can be imported and
+ * No 'use server' directive — kept pure so functions can be imported and
  * unit-tested by vitest without Next.js server-action wrapping.
- * The action file (`partner-agreements.ts`) delegates to this function.
+ * The action file (`partner-agreements.ts`) delegates to these.
  * See STATE.md known quirk: Next.js 'use server' × vitest incompatibility.
  */
 
-import { FERPA_SCOPE_OPTIONS } from '@/lib/dtrs';
+import { DCBS_DSA_SCOPE_OPTIONS, FERPA_SCOPE_OPTIONS } from '@/lib/dtrs';
 
 const FERPA_SCOPE_VALUES = FERPA_SCOPE_OPTIONS.map((o) => o.value);
+const DCBS_DSA_SCOPE_VALUES = DCBS_DSA_SCOPE_OPTIONS.map((o) => o.value);
 
 export type ParsedFerpaAgreementInput = {
   partnerOrgId: string;
@@ -147,6 +149,151 @@ export function parsePartnerAgreementForm(
           phone: liaison_phone,
         },
         studies_exception_invoked,
+        data_destruction_due,
+      },
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// DTRS-011 — DCBS DSA parser
+// ---------------------------------------------------------------------------
+
+export type ParsedDcbsDsaAgreementInput = {
+  partnerOrgId: string;
+  effectiveDate: string;
+  endDate: string | null;
+  signedByPartner: string | null;
+  notes: string | null;
+  terms: {
+    kind: 'dsa';
+    agency: 'dcbs';
+    scope: string[];
+    agency_legal_name: string;
+    state_contact: { name: string; title: string; email: string; phone?: string };
+    population_focus: 'foster_aging_out';
+    individual_records_authorized: boolean;
+    data_destruction_due: 'on_termination' | 'after_3_years' | 'after_5_years';
+  };
+};
+
+/**
+ * Parse + validate a FormData from the DCBS DSA agreement intake form.
+ *
+ * FormData shape:
+ *   partnerOrgId                       — uuid of the DCBS partner_org
+ *   effectiveDate                      — YYYY-MM-DD (required)
+ *   endDate                            — YYYY-MM-DD (optional)
+ *   signedByPartner                    — text (optional)
+ *   notes                              — text (optional)
+ *   agency_legal_name                  — text (required)
+ *   state_contact_name                 — text (required)
+ *   state_contact_title                — text (required)
+ *   state_contact_email                — text (required, basic format check)
+ *   state_contact_phone                — text (optional)
+ *   scope_{value}                      — checkbox "on" when checked
+ *   individual_records_authorized      — "true" | "false"
+ *   data_destruction_due               — 'on_termination' | 'after_3_years' | 'after_5_years'
+ */
+export function parseDcbsDsaAgreementForm(
+  formData: FormData,
+): { ok: true; input: ParsedDcbsDsaAgreementInput } | { ok: false; error: string } {
+  const str = (key: string) => (formData.get(key) ?? '').toString().trim();
+
+  const partnerOrgId = str('partnerOrgId');
+  if (!partnerOrgId) return { ok: false, error: 'DCBS partner is required.' };
+
+  const effectiveDateRaw = str('effectiveDate');
+  if (!effectiveDateRaw) return { ok: false, error: 'Effective date is required.' };
+  if (Number.isNaN(Date.parse(effectiveDateRaw))) {
+    return { ok: false, error: 'Effective date is not a valid date.' };
+  }
+
+  const endDateRaw = str('endDate');
+  let endDate: string | null = null;
+  if (endDateRaw) {
+    if (Number.isNaN(Date.parse(endDateRaw))) {
+      return { ok: false, error: 'End date is not a valid date.' };
+    }
+    if (endDateRaw < effectiveDateRaw) {
+      return { ok: false, error: 'End date must be on or after effective date.' };
+    }
+    endDate = endDateRaw;
+  }
+
+  const signedByPartner = str('signedByPartner') || null;
+
+  const notes = str('notes') || null;
+  if (notes && notes.length > 2000) {
+    return { ok: false, error: 'Notes must be 2 000 characters or fewer.' };
+  }
+
+  const agency_legal_name = str('agency_legal_name');
+  if (!agency_legal_name) {
+    return { ok: false, error: 'Agency legal name is required.' };
+  }
+
+  const sc_name = str('state_contact_name');
+  if (!sc_name) return { ok: false, error: 'State contact name is required.' };
+
+  const sc_title = str('state_contact_title');
+  if (!sc_title) return { ok: false, error: 'State contact title is required.' };
+
+  const sc_email = str('state_contact_email');
+  if (!sc_email) return { ok: false, error: 'State contact email is required.' };
+  if (!sc_email.includes('@')) {
+    return { ok: false, error: 'State contact email must be a valid email address.' };
+  }
+
+  const sc_phone_raw = str('state_contact_phone');
+  const sc_phone = sc_phone_raw || undefined;
+
+  const scope: string[] = [];
+  for (const opt of DCBS_DSA_SCOPE_VALUES) {
+    const val = formData.get(`scope_${opt}`);
+    if (val === 'on' || val === 'true' || val === opt) {
+      scope.push(opt);
+    }
+  }
+  if (scope.length === 0) {
+    return { ok: false, error: 'At least one data scope must be selected.' };
+  }
+
+  const indivAuthRaw = str('individual_records_authorized');
+  if (indivAuthRaw !== 'true' && indivAuthRaw !== 'false') {
+    return { ok: false, error: 'Individual-records authorization selection is required.' };
+  }
+  const individual_records_authorized = indivAuthRaw === 'true';
+
+  const VALID_DESTRUCTION = ['on_termination', 'after_3_years', 'after_5_years'] as const;
+  type DestructionValue = (typeof VALID_DESTRUCTION)[number];
+  const destructionRaw = str('data_destruction_due');
+  if (!VALID_DESTRUCTION.includes(destructionRaw as DestructionValue)) {
+    return { ok: false, error: 'Data destruction policy selection is required.' };
+  }
+  const data_destruction_due = destructionRaw as DestructionValue;
+
+  return {
+    ok: true,
+    input: {
+      partnerOrgId,
+      effectiveDate: effectiveDateRaw,
+      endDate,
+      signedByPartner,
+      notes,
+      terms: {
+        kind: 'dsa',
+        agency: 'dcbs',
+        scope,
+        agency_legal_name,
+        state_contact: {
+          name: sc_name,
+          title: sc_title,
+          email: sc_email,
+          phone: sc_phone,
+        },
+        population_focus: 'foster_aging_out',
+        individual_records_authorized,
         data_destruction_due,
       },
     },
