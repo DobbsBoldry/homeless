@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   aggregateCoalitionBreakoutTotals,
   aggregateCoalitionMetricTotals,
+  aggregateMinistryMetricTotals,
 } from './faith-aggregate';
 
 // ---------------------------------------------------------------------------
@@ -86,6 +87,59 @@ describe('aggregateCoalitionMetricTotals', () => {
     expect(bp?.totalValue).toBe(10);
     expect(bp?.reportingMinistries).toBe(1);
     expect(bp?.suppressedMinistries).toBe(1);
+  });
+});
+
+describe('aggregateMinistryMetricTotals', () => {
+  it('all non-suppressed → partial: false, value: number', () => {
+    const rows = [
+      { metricKey: 'meals_served', value: 30, suppressed: false },
+      { metricKey: 'meals_served', value: 20, suppressed: false },
+    ];
+    const result = aggregateMinistryMetricTotals(rows);
+    const entry = result.get('meals_served');
+    expect(entry?.value).toBe(50);
+    expect(entry?.partial).toBe(false);
+  });
+
+  it('all suppressed → partial: true, value: null', () => {
+    const rows = [
+      { metricKey: 'meals_served', value: null, suppressed: true },
+      { metricKey: 'meals_served', value: null, suppressed: true },
+    ];
+    const result = aggregateMinistryMetricTotals(rows);
+    const entry = result.get('meals_served');
+    expect(entry?.value).toBe(null);
+    expect(entry?.partial).toBe(true);
+  });
+
+  it('mixed suppressed and non-suppressed → partial: true, value: sum-of-non-suppressed', () => {
+    const rows = [
+      { metricKey: 'meals_served', value: 40, suppressed: false },
+      { metricKey: 'meals_served', value: null, suppressed: true },
+    ];
+    const result = aggregateMinistryMetricTotals(rows);
+    const entry = result.get('meals_served');
+    expect(entry?.value).toBe(40);
+    expect(entry?.partial).toBe(true);
+  });
+
+  it('handles empty input', () => {
+    expect(aggregateMinistryMetricTotals([])).toEqual(new Map());
+  });
+
+  it('overlap straddler scenario — a submission straddling the window boundary is included', () => {
+    // Simulates a monthly submission (2026-03-01 to 2026-03-31) overlapping a
+    // trailing-28-day window ending 2026-04-15. Under the old "within" filter
+    // this row would have been dropped; under overlap semantics it is included.
+    // We verify that the pure helper aggregates it correctly (the DB filter
+    // change is exercised at the query layer; here we confirm the aggregate
+    // handles the value as non-partial).
+    const rows = [{ metricKey: 'beds_provided', value: 12, suppressed: false }];
+    const result = aggregateMinistryMetricTotals(rows);
+    const entry = result.get('beds_provided');
+    expect(entry?.value).toBe(12);
+    expect(entry?.partial).toBe(false);
   });
 });
 

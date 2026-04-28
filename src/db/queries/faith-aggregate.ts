@@ -239,7 +239,15 @@ export type CoalitionBreakoutTotal = {
 export type WindowComparison = {
   metricKey: FaithMetricKey;
   current: number | null;
+  /** True when at least one cell for this metric in the current window was suppressed. */
+  currentPartial: boolean;
   prior: number | null;
+  /** True when at least one cell for this metric in the prior window was suppressed. */
+  priorPartial: boolean;
+  /**
+   * Percentage-point delta — e.g. `12.5` means +12.5%, not +0.125.
+   * Null when either window value is null (all-suppressed).
+   */
   deltaPct: number | null;
 };
 
@@ -255,7 +263,7 @@ export type MinistryInsightRow = {
 
 /**
  * Paginated list of recent submissions across all ministries, joined with
- * ministry name. `since`/`until` are inclusive-exclusive bounds on
+ * ministry name. `since`/`until` are inclusive-inclusive bounds on
  * period_start. Default limit 100, max 500.
  *
  * Privacy contract: no per-person data; suppressed-metric counts are
@@ -362,6 +370,9 @@ export async function getMinistryTrendForMetric(
  * Delegates aggregation to the pure helper `aggregateCoalitionMetricTotals`
  * so the logic can be unit-tested without a DB connection.
  *
+ * Includes submissions whose period overlaps the window
+ * (period_end >= periodStart AND period_start <= periodEnd).
+ *
  * Privacy contract: suppressed cells are excluded from the sum and counted
  * toward `suppressedMinistries` — NOT treated as zero.
  */
@@ -388,8 +399,8 @@ export async function getCoalitionTotalsForPeriod(
     .where(
       and(
         eq(faithMinistries.status, 'opted_in'),
-        gte(faithAggregateSubmissions.periodStart, startStr),
-        lte(faithAggregateSubmissions.periodEnd, endStr),
+        gte(faithAggregateSubmissions.periodEnd, startStr),
+        lte(faithAggregateSubmissions.periodStart, endStr),
       ),
     );
 
@@ -457,6 +468,9 @@ export function aggregateCoalitionMetricTotals(
 /**
  * Same shape as getCoalitionTotalsForPeriod but for demographic breakouts:
  * (dimension, bucket, totalValue, reportingMinistries, suppressedMinistries).
+ *
+ * Includes submissions whose period overlaps the window
+ * (period_end >= periodStart AND period_start <= periodEnd).
  */
 export async function getCoalitionBreakoutTotalsForPeriod(
   periodStart: Date,
@@ -482,8 +496,8 @@ export async function getCoalitionBreakoutTotalsForPeriod(
     .where(
       and(
         eq(faithMinistries.status, 'opted_in'),
-        gte(faithAggregateSubmissions.periodStart, startStr),
-        lte(faithAggregateSubmissions.periodEnd, endStr),
+        gte(faithAggregateSubmissions.periodEnd, startStr),
+        lte(faithAggregateSubmissions.periodStart, endStr),
       ),
     );
 
@@ -546,8 +560,13 @@ export function aggregateCoalitionBreakoutTotals(
 
 /**
  * For one ministry, compare per-metric totals across two time windows.
- * Returns null deltaPct when either window has only suppressed cells —
- * never fabricate a percentage from unknown data.
+ *
+ * `currentPartial`/`priorPartial` are true when at least one cell in that
+ * window was suppressed — the page can render an "(approx)" annotation so an
+ * admin reading the table can tell when a delta is built on partial data.
+ *
+ * `deltaPct` is in **percent units** (e.g. `12.5` means +12.5%, not +0.125).
+ * It is null when either window value is null (all-suppressed).
  */
 export async function compareMinistryWindows(
   ministryId: string,
@@ -565,29 +584,88 @@ export async function compareMinistryWindows(
   const out: WindowComparison[] = [];
 
   for (const metricKey of allKeys) {
-    const current = currentTotals.get(metricKey) ?? null;
-    const prior = priorTotals.get(metricKey) ?? null;
+    const currentEntry = currentTotals.get(metricKey);
+    const priorEntry = priorTotals.get(metricKey);
+    const current = currentEntry?.value ?? null;
+    const currentPartial = currentEntry?.partial ?? false;
+    const prior = priorEntry?.value ?? null;
+    const priorPartial = priorEntry?.partial ?? false;
     // deltaPct is null if either window is unknown (all-suppressed).
     const deltaPct =
       current !== null && prior !== null && prior > 0
         ? Math.round(((current - prior) / prior) * 10000) / 100
         : null;
-    out.push({ metricKey: metricKey as FaithMetricKey, current, prior, deltaPct });
+    out.push({
+      metricKey: metricKey as FaithMetricKey,
+      current,
+      currentPartial,
+      prior,
+      priorPartial,
+      deltaPct,
+    });
   }
 
   return out;
 }
 
+export type MinistryMetricWindowEntry = {
+  /** Sum of non-suppressed values; null if all cells were suppressed. */
+  value: number | null;
+  /** True when at least one cell in the window was suppressed. */
+  partial: boolean;
+};
+
 /**
- * Sum non-suppressed metric values for one ministry in a window.
- * Returns a Map<metricKey, number | null> where null means the window
- * contained only suppressed values for that metric (unknown total).
+ * Pure-function aggregation helper for a single ministry's metric window —
+ * extracted so it can be unit-tested without a DB connection.
+ *
+ * - All non-suppressed → `value: sum, partial: false`
+ * - All suppressed → `value: null, partial: true`
+ * - Mixed → `value: sum-of-non-suppressed, partial: true`
+ */
+export function aggregateMinistryMetricTotals(
+  rows: ReadonlyArray<{
+    metricKey: string;
+    value: number | null;
+    suppressed: boolean;
+  }>,
+): Map<string, MinistryMetricWindowEntry> {
+  const acc = new Map<string, MinistryMetricWindowEntry>();
+  for (const row of rows) {
+    const existing = acc.get(row.metricKey);
+    if (!row.suppressed && row.value !== null) {
+      acc.set(row.metricKey, {
+        value: (existing?.value ?? 0) + row.value,
+        partial: existing?.partial ?? false,
+      });
+    } else if (row.suppressed) {
+      if (existing === undefined) {
+        // First encounter: suppressed, no value yet.
+        acc.set(row.metricKey, { value: null, partial: true });
+      } else {
+        // There may already be a numeric value from a non-suppressed cell —
+        // keep it, just mark the window as partial.
+        acc.set(row.metricKey, { value: existing.value, partial: true });
+      }
+    }
+  }
+  return acc;
+}
+
+/**
+ * Fetch and aggregate non-suppressed metric values for one ministry in a window.
+ * Uses overlap semantics: submissions whose period overlaps the window
+ * (period_end >= periodStart AND period_start <= periodEnd) are included.
+ *
+ * Returns a Map<metricKey, MinistryMetricWindowEntry> where:
+ * - `value: null` means the window contained only suppressed values (unknown total).
+ * - `partial: true` means at least one cell was suppressed.
  */
 async function fetchMinistryMetricTotals(
   ministryId: string,
   periodStart: Date,
   periodEnd: Date,
-): Promise<Map<string, number | null>> {
+): Promise<Map<string, MinistryMetricWindowEntry>> {
   const startStr = toDateStr(periodStart);
   const endStr = toDateStr(periodEnd);
 
@@ -605,25 +683,12 @@ async function fetchMinistryMetricTotals(
     .where(
       and(
         eq(faithAggregateSubmissions.ministryId, ministryId),
-        gte(faithAggregateSubmissions.periodStart, startStr),
-        lte(faithAggregateSubmissions.periodEnd, endStr),
+        gte(faithAggregateSubmissions.periodEnd, startStr),
+        lte(faithAggregateSubmissions.periodStart, endStr),
       ),
     );
 
-  const acc = new Map<string, number | null>();
-  for (const row of rows) {
-    const existing = acc.get(row.metricKey);
-    if (!row.suppressed && row.value !== null) {
-      // Accumulate non-suppressed values.
-      acc.set(row.metricKey, (existing ?? 0) + row.value);
-    } else if (existing === undefined) {
-      // First encounter and it is suppressed — mark unknown until a
-      // non-suppressed value arrives.
-      acc.set(row.metricKey, null);
-      // (If existing is already a number, keep it — partial totals are fine.)
-    }
-  }
-  return acc;
+  return aggregateMinistryMetricTotals(rows);
 }
 
 /**
