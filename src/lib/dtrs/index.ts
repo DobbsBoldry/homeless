@@ -13,5 +13,6 @@ export * from './ferpa-consent-text';
 export * from './fiscal-court-brief';
 export * from './partner-agreements';
 export * from './rate-limit';
+export * from './school-referral-insights';
 export * from './school-referral-policy';
 export * from './transparency-report';

@@ -11,7 +11,7 @@
  * See ADR 0005 and src/lib/dtrs/school-referral-policy.ts for the full
  * consent-regime fork rationale.
  */
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { db } from '@/db/client';
 import type { SchoolReferralBasis, SchoolReferralStatus, UserRole } from '@/db/schema/enums';
 import { orgMemberships } from '@/db/schema/org-memberships';
@@ -31,11 +31,15 @@ import {
 } from '@/db/schema/school-referrals';
 import { logAuditEvent } from '@/lib/audit';
 import {
+  aggregateServiceBreakdown,
+  aggregateStatusDistribution,
   CURRENT_FERPA_ELIGIBLE_STUDENT_CONSENT_VERSION,
   CURRENT_FERPA_PARENTAL_CONSENT_VERSION,
   canAccessSchoolReferral,
+  computeMedianDays,
   MCKINNEY_VENTO_CONSENT_VERSION_SENTINEL,
   recordDisclosure,
+  type SchoolReferralService,
   validateMcKinneyVentoBasis,
 } from '@/lib/dtrs';
 
@@ -660,5 +664,235 @@ export async function listReferralsForLiaison(
         : null;
       return { ...referral, latestEvent };
     });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// getLiaisonInsights — PRVN-004
+// ---------------------------------------------------------------------------
+
+export interface LiaisonInsightsWindow {
+  since: Date;
+  /** Defaults to now when omitted. */
+  until?: Date;
+}
+
+export interface LiaisonInsights {
+  totalReferrals: number;
+  statusDistribution: Array<{ status: SchoolReferralStatus; count: number }>;
+  /** 0..1 ratio; null when totalReferrals === 0. */
+  connectionRate: number | null;
+  /** Count of referrals reaching 'connected' or 'closed_completed'. */
+  connectedCount: number;
+  serviceBreakdown: Array<{ service: SchoolReferralService; count: number }>;
+  /** Median days from received_at → first connected/closed_completed event. null when no connections. */
+  medianTimeToConnectDays: number | null;
+}
+
+/** Zero-shaped insights — returned when the viewer has no school memberships. */
+function emptyInsights(): LiaisonInsights {
+  return {
+    totalReferrals: 0,
+    statusDistribution: aggregateStatusDistribution([]),
+    connectionRate: null,
+    connectedCount: 0,
+    serviceBreakdown: [],
+    medianTimeToConnectDays: null,
+  };
+}
+
+/**
+ * Aggregate insights for a McKinney-Vento school liaison — PRVN-004.
+ *
+ * Membership is enforced INSIDE this function. Derives the viewer's school
+ * org-set from org_memberships; if empty, returns a zero-shaped result.
+ *
+ * FERPA § 99.32 posture:
+ *   - Writes one disclosure-log row per referral counted in the window,
+ *     all sharing purpose 'liaison_aggregate_insights'. This is consistent
+ *     with the per-referral PRVN-003 pattern (COOR-014 writes the same
+ *     volume for the list view).
+ *   - All reads + disclosure writes share one transaction.
+ *
+ * Audit log: one 'school_referral.aggregate_insights_viewed' row with
+ * metadata { totalReferrals, schoolOrgIds } — counts + IDs, no demographics.
+ */
+export async function getLiaisonInsights(
+  viewer: ViewerContext,
+  window: LiaisonInsightsWindow,
+): Promise<LiaisonInsights> {
+  const until = window.until ?? new Date();
+
+  // Resolve school org memberships outside the transaction (lookup, not write).
+  const schoolOrgRows = await db
+    .select({ partnerOrgId: orgMemberships.partnerOrgId })
+    .from(orgMemberships)
+    .innerJoin(partnerOrgs, eq(orgMemberships.partnerOrgId, partnerOrgs.id))
+    .where(
+      and(
+        eq(orgMemberships.userId, viewer.userId),
+        eq(partnerOrgs.type, 'school'),
+        eq(partnerOrgs.active, true),
+      ),
+    );
+
+  if (schoolOrgRows.length === 0) return emptyInsights();
+
+  const schoolOrgIds = schoolOrgRows.map((r) => r.partnerOrgId);
+
+  return db.transaction(async (tx) => {
+    // -----------------------------------------------------------------------
+    // 1. Fetch referrals in the time window for these school orgs.
+    //    Join with consents to resolve basis per referral (disclosure log).
+    // -----------------------------------------------------------------------
+    const referralRows = await tx
+      .select({
+        id: schoolReferrals.id,
+        status: schoolReferrals.status,
+        servicesRequested: schoolReferrals.servicesRequested,
+        receivedAt: schoolReferrals.receivedAt,
+        partnerOrgId: schoolReferrals.partnerOrgId,
+        basis: schoolReferralConsents.basis,
+      })
+      .from(schoolReferrals)
+      .innerJoin(schoolReferralConsents, eq(schoolReferralConsents.referralId, schoolReferrals.id))
+      .where(
+        and(
+          inArray(schoolReferrals.partnerOrgId, schoolOrgIds),
+          gte(schoolReferrals.receivedAt, window.since),
+          lte(schoolReferrals.receivedAt, until),
+        ),
+      )
+      .orderBy(desc(schoolReferrals.receivedAt))
+      .limit(2000); // pilot-scale ceiling
+
+    const totalReferrals = referralRows.length;
+
+    // -----------------------------------------------------------------------
+    // 2. FERPA § 99.32 — one disclosure-log row per referral counted.
+    //    All carry purpose 'liaison_aggregate_insights'. This bloats the log
+    //    (~same volume as the list view) but preserves per-referral
+    //    compliance posture (spec PRVN-004 item a).
+    // -----------------------------------------------------------------------
+    for (const row of referralRows) {
+      await recordDisclosure({
+        tx,
+        referralId: row.id,
+        accessedByUserId: viewer.userId,
+        accessedByPartnerOrgId: row.partnerOrgId,
+        purpose: 'liaison_aggregate_insights',
+        basis: row.basis,
+        dataClassesDisclosed: [
+          'referral_count',
+          'status_distribution',
+          'service_breakdown',
+          'connection_rate',
+          'time_to_connect',
+        ],
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // 3. Status distribution + connection rate (pure helpers).
+    // -----------------------------------------------------------------------
+    const statusDistribution = aggregateStatusDistribution(referralRows) as Array<{
+      status: SchoolReferralStatus;
+      count: number;
+    }>;
+
+    const connectedCount = referralRows.filter((r) =>
+      ['connected', 'closed_completed'].includes(r.status),
+    ).length;
+
+    const connectionRate = totalReferrals > 0 ? connectedCount / totalReferrals : null;
+
+    // -----------------------------------------------------------------------
+    // 4. Service breakdown (pure helper).
+    // -----------------------------------------------------------------------
+    const serviceBreakdown = aggregateServiceBreakdown(
+      referralRows.map((r) => ({
+        servicesRequested: Array.isArray(r.servicesRequested)
+          ? (r.servicesRequested as string[])
+          : [],
+      })),
+    );
+
+    // -----------------------------------------------------------------------
+    // 5. Median time-to-connect.
+    //    For each referral that reached connected/closed_completed, find the
+    //    earliest such event and compute days from received_at.
+    // -----------------------------------------------------------------------
+    const connectedReferralIds = referralRows
+      .filter((r) => ['connected', 'closed_completed'].includes(r.status))
+      .map((r) => r.id);
+
+    let medianTimeToConnectDays: number | null = null;
+
+    if (connectedReferralIds.length > 0) {
+      // Fetch the earliest connected/closed_completed event per referral.
+      // We use raw SQL for the FILTER + MIN combination that Drizzle's typed
+      // builder can't express cleanly.
+      const timeRows = await tx
+        .select({
+          referralId: schoolReferralStatusEvents.referralId,
+          occurredAt: schoolReferralStatusEvents.occurredAt,
+        })
+        .from(schoolReferralStatusEvents)
+        .where(
+          and(
+            inArray(schoolReferralStatusEvents.referralId, connectedReferralIds),
+            inArray(schoolReferralStatusEvents.toStatus, ['connected', 'closed_completed']),
+          ),
+        )
+        .orderBy(schoolReferralStatusEvents.referralId, schoolReferralStatusEvents.occurredAt);
+
+      // Keep only the FIRST (earliest) connected event per referral.
+      const earliestByReferral = new Map<string, Date>();
+      for (const row of timeRows) {
+        if (!earliestByReferral.has(row.referralId)) {
+          earliestByReferral.set(row.referralId, row.occurredAt);
+        }
+      }
+
+      // Build a lookup of receivedAt per referral for the delta computation.
+      const receivedAtMap = new Map<string, Date>();
+      for (const r of referralRows) {
+        receivedAtMap.set(r.id, r.receivedAt);
+      }
+
+      const deltas: number[] = [];
+      for (const [referralId, connectedAt] of earliestByReferral) {
+        const receivedAt = receivedAtMap.get(referralId);
+        if (receivedAt) {
+          const deltaMs = connectedAt.getTime() - receivedAt.getTime();
+          deltas.push(deltaMs / (1000 * 60 * 60 * 24)); // ms → days
+        }
+      }
+
+      medianTimeToConnectDays = computeMedianDays(deltas);
+    }
+
+    // -----------------------------------------------------------------------
+    // 6. Audit log — counts + IDs only, no demographics.
+    // -----------------------------------------------------------------------
+    await logAuditEvent({
+      tx,
+      actorUserId: viewer.userId,
+      action: 'school_referral.aggregate_insights_viewed',
+      targetTable: 'school_referrals',
+      metadata: {
+        totalReferrals,
+        schoolOrgIds,
+      },
+    });
+
+    return {
+      totalReferrals,
+      statusDistribution,
+      connectionRate,
+      connectedCount,
+      serviceBreakdown,
+      medianTimeToConnectDays,
+    };
   });
 }

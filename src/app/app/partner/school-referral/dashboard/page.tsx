@@ -64,10 +64,20 @@ export default async function SchoolReferralLiaisonDashboard() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4 md:p-6">
       <header>
-        <h1 className="font-serif text-3xl font-bold text-primary">Referral status</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Referrals you submitted and their current status from the coalition.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-serif text-3xl font-bold text-primary">Referral status</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Referrals you submitted and their current status from the coalition.
+            </p>
+          </div>
+          <a
+            href="/app/partner/school-referral/insights"
+            className="shrink-0 text-sm text-muted-foreground underline hover:text-foreground"
+          >
+            View aggregate insights &rarr;
+          </a>
+        </div>
       </header>
 
       {referrals.length === 0 ? (
