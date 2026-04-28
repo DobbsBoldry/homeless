@@ -236,3 +236,42 @@ export const partnerServiceEventTypeEnum = pgEnum('partner_service_event_type', 
 ]);
 
 export type PartnerServiceEventType = (typeof partnerServiceEventTypeEnum.enumValues)[number];
+
+// PRVN-003 — FERPA school-referral consent fork (ADR 0005)
+
+export const schoolReferralBasisEnum = pgEnum('school_referral_basis', [
+  'mckinney_vento_authorization',
+  'parental_consent',
+  'eligible_student_consent',
+  'directory_info_only',
+  'health_safety_emergency',
+]);
+
+export type SchoolReferralBasis = (typeof schoolReferralBasisEnum.enumValues)[number];
+
+export const schoolReferralStatusEnum = pgEnum('school_referral_status', [
+  'received',
+  'triaged',
+  'in_progress',
+  'connected',
+  'closed_unreachable',
+  'closed_completed',
+]);
+
+export type SchoolReferralStatus = (typeof schoolReferralStatusEnum.enumValues)[number];
+
+export const schoolReferralGradeBandEnum = pgEnum('school_referral_grade_band', [
+  'elementary',
+  'middle',
+  'high',
+]);
+
+export type SchoolReferralGradeBand = (typeof schoolReferralGradeBandEnum.enumValues)[number];
+
+export const schoolReferralUrgencyEnum = pgEnum('school_referral_urgency', [
+  'low',
+  'medium',
+  'high',
+]);
+
+export type SchoolReferralUrgency = (typeof schoolReferralUrgencyEnum.enumValues)[number];
