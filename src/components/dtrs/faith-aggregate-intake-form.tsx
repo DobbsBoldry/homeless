@@ -21,12 +21,28 @@ type MinistryOption = {
 
 type PeriodKind = 'week' | 'month' | 'quarter';
 
+function makeEmptyMetricValues(): Record<string, string> {
+  return Object.fromEntries(FAITH_METRIC_KEYS.map((k) => [k, '']));
+}
+
+function makeEmptyBreakoutValues(): Record<string, string> {
+  const init: Record<string, string> = {};
+  for (const [dim, buckets] of Object.entries(FAITH_BREAKOUT_DIMENSIONS)) {
+    for (const bucket of buckets) {
+      init[`${dim}_${bucket}`] = '';
+    }
+  }
+  return init;
+}
+
 /**
  * Checks whether a raw string value would be suppressed at the given threshold.
  * Returns true if the value is a valid non-negative integer below the threshold.
- * Returns false if the field is empty (not reported), invalid, or passes the threshold.
+ * Returns false if the field is empty (not reported), invalid, passes the threshold,
+ * or if no threshold is provided (cannot predict suppression without ministry config).
  */
-function wouldBeSupressed(raw: string, threshold: number): boolean {
+function wouldBeSuppressed(raw: string, threshold: number | undefined): boolean {
+  if (threshold === undefined) return false;
   if (raw.trim() === '') return false;
   const n = Number(raw);
   if (!Number.isInteger(n) || n < 0) return false;
@@ -55,19 +71,10 @@ export function FaithAggregateIntakeForm({ ministries }: { ministries: MinistryO
   const [notes, setNotes] = useState('');
 
   // metric_key → raw string value entered by user
-  const [metricValues, setMetricValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(FAITH_METRIC_KEYS.map((k) => [k, ''])),
-  );
+  const [metricValues, setMetricValues] = useState<Record<string, string>>(makeEmptyMetricValues);
   // `${dim}_${bucket}` → raw string value
-  const [breakoutValues, setBreakoutValues] = useState<Record<string, string>>(() => {
-    const init: Record<string, string> = {};
-    for (const [dim, buckets] of Object.entries(FAITH_BREAKOUT_DIMENSIONS)) {
-      for (const bucket of buckets) {
-        init[`${dim}_${bucket}`] = '';
-      }
-    }
-    return init;
-  });
+  const [breakoutValues, setBreakoutValues] =
+    useState<Record<string, string>>(makeEmptyBreakoutValues);
 
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<
@@ -77,20 +84,14 @@ export function FaithAggregateIntakeForm({ ministries }: { ministries: MinistryO
   >(null);
 
   const selectedMinistry = ministries.find((m) => m.id === selectedMinistryId);
-  const threshold = selectedMinistry?.minCellSize ?? 10;
+  const threshold = selectedMinistry?.minCellSize;
 
   const resetForm = () => {
     setPeriodStart('');
     setPeriodEnd('');
     setNotes('');
-    setMetricValues(Object.fromEntries(FAITH_METRIC_KEYS.map((k) => [k, ''])));
-    setBreakoutValues(() => {
-      const init: Record<string, string> = {};
-      for (const [dim, buckets] of Object.entries(FAITH_BREAKOUT_DIMENSIONS)) {
-        for (const bucket of buckets) init[`${dim}_${bucket}`] = '';
-      }
-      return init;
-    });
+    setMetricValues(makeEmptyMetricValues());
+    setBreakoutValues(makeEmptyBreakoutValues());
     setResult(null);
   };
 
@@ -207,7 +208,7 @@ export function FaithAggregateIntakeForm({ ministries }: { ministries: MinistryO
           {FAITH_METRIC_KEYS.map((key) => {
             const inputId = `${formId}-metric-${key}`;
             const raw = metricValues[key] ?? '';
-            const suppressed = wouldBeSupressed(raw, threshold);
+            const suppressed = wouldBeSuppressed(raw, threshold);
             return (
               <div key={key} className="space-y-1">
                 <div className="flex items-center">
@@ -257,7 +258,7 @@ export function FaithAggregateIntakeForm({ ministries }: { ministries: MinistryO
                 const fieldKey = `${dim}_${bucket}`;
                 const inputId = `${formId}-breakout-${fieldKey}`;
                 const raw = breakoutValues[fieldKey] ?? '';
-                const suppressed = wouldBeSupressed(raw, threshold);
+                const suppressed = wouldBeSuppressed(raw, threshold);
                 return (
                   <div key={bucket} className="space-y-1">
                     <div className="flex items-center">
@@ -309,7 +310,11 @@ export function FaithAggregateIntakeForm({ ministries }: { ministries: MinistryO
         />
       </div>
 
-      {result && !result.ok ? <p className="text-sm text-destructive">{result.error}</p> : null}
+      {result && !result.ok ? (
+        <p role="alert" className="text-sm text-destructive">
+          {result.error}
+        </p>
+      ) : null}
 
       <div className="flex gap-2">
         <Button type="submit" disabled={pending}>

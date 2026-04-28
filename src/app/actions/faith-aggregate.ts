@@ -1,10 +1,25 @@
 'use server';
 
+import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
 import { createFaithAggregateSubmission, getFaithMinistry } from '@/db/queries/faith-aggregate';
 import { requireRole } from '@/lib/auth';
 import { processBreakouts, processMetrics } from '@/lib/dtrs';
 import { parseIntakeFormData } from './faith-aggregate-parse';
+
+/**
+ * Known user-actionable error message prefixes from the domain / query layer.
+ * If the thrown error starts with one of these, we surface it verbatim.
+ * Everything else gets a generic message (plus Sentry + console for ops visibility).
+ */
+const KNOWN_DOMAIN_PREFIXES = [
+  'ministry not found',
+  'ministry ', // covers "ministry <name> cannot accept new submissions"
+  'unknown metric_key',
+  'unknown dimension',
+  'unknown bucket',
+  'period_start', // validatePeriod errors
+] as const;
 
 export type { ParsedIntakeInput } from './faith-aggregate-parse';
 
@@ -46,7 +61,13 @@ export async function submitFaithAggregateAction(
     revalidatePath('/app/admin/faith-aggregate');
     return { ok: true, submissionId: submission.id, suppressedCount };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Submission failed.';
-    return { ok: false, error: msg };
+    Sentry.captureException(err);
+    console.error('[faith-aggregate.submit] failed', err);
+    const raw = err instanceof Error ? err.message : '';
+    const isKnown = KNOWN_DOMAIN_PREFIXES.some((prefix) =>
+      raw.toLowerCase().startsWith(prefix.toLowerCase()),
+    );
+    const error = isKnown ? raw : 'Submission failed — please retry. The error has been logged.';
+    return { ok: false, error };
   }
 }
