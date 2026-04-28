@@ -49,6 +49,8 @@ export const partnerAgreements = pgTable(
      * `validateAgreementTerms` in the domain lib before insert.
      * Not the legal instrument (that's `template_rendered`).
      */
+    // Defense-in-depth — recordAgreement always inserts a validated terms object; this default
+    // exists for direct DB inserts that bypass the query layer (none today).
     terms: jsonb('terms')
       .$type<PartnerAgreementTerms>()
       .notNull()

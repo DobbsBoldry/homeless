@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
 import { recordAgreement } from '@/db/queries/partner-agreements';
 import { requireRole } from '@/lib/auth';
+import type { FerpaTerms } from '@/lib/dtrs';
 import { parsePartnerAgreementForm } from './partner-agreements-parse';
 
 /**
@@ -52,7 +53,10 @@ export async function recordFerpaAgreementAction(
       signedByCoalitionUserId: user.id,
       templateVersion: 'ferpa-v1',
       templateRendered: null, // admin can attach the rendered template separately
-      terms: terms as Parameters<typeof recordAgreement>[0]['terms'],
+      // parsePartnerAgreementForm validates scope values against the controlled vocab;
+      // the narrow cast to FerpaTerms bridges string[] → FerpaScopeValue[].
+      // recordAgreement re-validates via validateAgreementTerms before any insert.
+      terms: terms as FerpaTerms,
       notes: notes || null,
       actorUserId: user.id,
     });

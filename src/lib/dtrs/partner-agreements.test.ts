@@ -203,14 +203,27 @@ describe('validateAgreementTerms', () => {
     expect(result.kind).toBe('mou');
   });
 
-  it('passes through generic kinds (baa, qsoa, dsa, memo_of_cooperation)', () => {
-    for (const kind of ['baa', 'qsoa', 'dsa', 'memo_of_cooperation'] as const) {
-      const result = validateAgreementTerms(kind, { kind, foo: 'bar' });
-      expect(result.kind).toBe(kind);
-    }
+  it('throws for placeholder kind baa (intake story not yet shipped)', () => {
+    expect(() => validateAgreementTerms('baa', { kind: 'baa', foo: 'bar' })).toThrow(
+      "agreement kind 'baa' not yet supported",
+    );
   });
 
-  it('throws when generic kind receives non-object terms', () => {
-    expect(() => validateAgreementTerms('baa', null)).toThrow('must be an object');
+  it('throws for placeholder kind qsoa (intake story not yet shipped)', () => {
+    expect(() => validateAgreementTerms('qsoa', { kind: 'qsoa' })).toThrow(
+      "agreement kind 'qsoa' not yet supported",
+    );
+  });
+
+  it('throws for placeholder kind dsa (intake story not yet shipped)', () => {
+    expect(() => validateAgreementTerms('dsa', { kind: 'dsa' })).toThrow(
+      "agreement kind 'dsa' not yet supported",
+    );
+  });
+
+  it('throws for placeholder kind memo_of_cooperation (intake story not yet shipped)', () => {
+    expect(() => validateAgreementTerms('memo_of_cooperation', {})).toThrow(
+      "agreement kind 'memo_of_cooperation' not yet supported",
+    );
   });
 });

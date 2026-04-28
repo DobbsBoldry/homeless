@@ -93,12 +93,9 @@ export function FerpaAgreementForm({ schools, activeAgreements }: Props) {
     e.preventDefault();
     setResult(null);
     const fd = new FormData(e.currentTarget);
-    // Append checkbox scope values explicitly (FormData only includes checked checkboxes)
-    for (const opt of FERPA_SCOPE_OPTIONS) {
-      if (!selectedScope.has(opt.value)) {
-        fd.delete(`scope_${opt.value}`);
-      }
-    }
+    // FormData from a controlled React form only includes checked checkboxes —
+    // no manual deletion needed. The checked state is driven by selectedScope
+    // via the `checked` prop, so unchecked boxes are never serialized.
     startTransition(async () => {
       const r = await recordFerpaAgreementAction(fd);
       setResult(r);

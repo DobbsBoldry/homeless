@@ -246,9 +246,11 @@ export function validateMouTerms(input: unknown): MouTerms {
 
 /**
  * Dispatcher — picks the right validator for the given agreement kind.
- * For placeholder kinds (baa, qsoa, dsa, memo_of_cooperation) the input
- * is passed through with only a `kind` presence check until their stories
- * ship tighter validation.
+ *
+ * Placeholder kinds (baa, qsoa, dsa, memo_of_cooperation) are intentionally
+ * fail-closed: they throw until their intake stories ship and a real validator
+ * is wired in. This prevents non-FERPA writes from silently accepting arbitrary
+ * data before the intake forms are ready. See ADR 0004 for the registry plan.
  */
 export function validateAgreementTerms(
   kind: PartnerAgreementKind,
@@ -262,12 +264,11 @@ export function validateAgreementTerms(
     case 'baa':
     case 'qsoa':
     case 'dsa':
-    case 'memo_of_cooperation': {
-      if (typeof input !== 'object' || input === null) {
-        throw new Error(`${kind} terms must be an object`);
-      }
-      return { kind, ...(input as Record<string, unknown>) } as GenericTerms;
-    }
+    case 'memo_of_cooperation':
+      throw new Error(
+        `agreement kind '${kind}' not yet supported — its intake story has not shipped. ` +
+          `See ADR 0004 for the registry plan.`,
+      );
     default: {
       // Exhaustiveness guard for future enum values added before validators are updated.
       const _exhaustive: never = kind;

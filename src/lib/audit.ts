@@ -1,6 +1,10 @@
 import * as Sentry from '@sentry/nextjs';
-import { db } from '@/db/client';
+import { db as defaultDb } from '@/db/client';
 import { auditLog } from '@/db/schema/audit-log';
+
+// Derive the transaction handle type from the db client so callers get full
+// type-safety without importing a Drizzle internal directly.
+type Tx = Parameters<Parameters<typeof defaultDb.transaction>[0]>[0];
 
 export type AuditAction =
   | 'user.created'
@@ -24,19 +28,30 @@ export interface LogAuditEventInput {
   targetId?: string;
   /** Arbitrary JSON metadata. Avoid PHI here. */
   metadata?: Record<string, unknown>;
+  /**
+   * Optional transaction handle. When provided, the audit insert runs inside
+   * this transaction and rolls back if the transaction fails. When omitted,
+   * the insert runs against the top-level db client (best-effort; failures are
+   * caught and Sentry-logged).
+   */
+  tx?: Tx;
 }
 
 /**
  * Append-only audit log writer. Use from server components, server actions,
  * and webhooks to record significant events.
  *
- * Failures are logged + reported to Sentry as a tagged warning, but never
- * thrown — audit must never break the user-facing action. Set up a Sentry
- * alert on tag `audit_write=failed` to catch silent dropouts.
+ * Pass `tx` when calling from inside a `db.transaction(async (tx) => { ... })`
+ * block — the audit row will roll back atomically with the enclosing transaction.
+ *
+ * When `tx` is omitted the write is best-effort: failures are logged + reported
+ * to Sentry as a tagged warning but never thrown. Set up a Sentry alert on tag
+ * `audit_write=failed` to catch silent dropouts.
  */
 export async function logAuditEvent(input: LogAuditEventInput): Promise<void> {
+  const dbHandle = input.tx ?? defaultDb;
   try {
-    await db.insert(auditLog).values({
+    await dbHandle.insert(auditLog).values({
       actorUserId: input.actorUserId ?? null,
       action: input.action,
       targetTable: input.targetTable,

@@ -60,25 +60,29 @@ export async function getActiveAgreementByKind(
 /**
  * Insert a new agreement row. Validates `terms` via `validateAgreementTerms`
  * before the insert — throws on invalid shape, so the caller never needs to
- * re-check.
+ * re-check. The normalized/typed return value is used in the insert so that
+ * extra or misspelled keys from untrusted input never reach JSONB.
  *
- * Audit-log write and data insert are in the same transaction so a failure
- * rolls back both — keeps "what landed in the DB" and "what we said landed"
- * consistent (ADR 0003 pattern carried over to agreements).
+ * Both the data insert and the audit-log write run inside a single transaction,
+ * so a failure rolls both back — keeps "what landed in the DB" and "what we
+ * said landed" consistent (ADR 0003 pattern carried over to agreements).
  */
 export async function recordAgreement(
   input: NewPartnerAgreement & { actorUserId: string },
 ): Promise<PartnerAgreement> {
   const { actorUserId, ...data } = input;
 
-  // Validate the terms shape before opening the transaction.
-  validateAgreementTerms(data.kind!, data.terms ?? {});
+  // Validate and normalize the terms shape before opening the transaction.
+  // Use the returned value (not the raw input) in the insert — extra/typo keys
+  // from untrusted callers are stripped by the validator.
+  const validatedTerms = validateAgreementTerms(data.kind, data.terms ?? {});
 
   return db.transaction(async (tx) => {
     const [agreement] = await tx
       .insert(partnerAgreements)
       .values({
         ...data,
+        terms: validatedTerms,
         updatedAt: new Date(),
       })
       .returning();
@@ -96,6 +100,7 @@ export async function recordAgreement(
         templateVersion: agreement.templateVersion ?? null,
         effectiveDate: agreement.effectiveDate ?? null,
       },
+      tx,
     });
 
     return agreement;
@@ -104,7 +109,8 @@ export async function recordAgreement(
 
 /**
  * Update the status of an existing agreement. Admin-only callers must gate
- * before calling this function. Audit-logged inside a transaction.
+ * before calling this function. Both the row update and the audit-log write run
+ * inside a transaction so a failure rolls both back.
  *
  * Does NOT expose a way to edit `template_rendered` — that column is
  * immutable by convention (ADR 0004).
@@ -132,6 +138,7 @@ export async function updateAgreementStatus(
         partnerOrgId: updated.partnerOrgId,
         kind: updated.kind,
       },
+      tx,
     });
 
     return updated;
