@@ -10,6 +10,7 @@
  * enforces that narrowness structurally.
  */
 
+import * as Sentry from '@sentry/nextjs';
 import { db } from '@/db/client';
 import type { SchoolReferralBasis, UserRole } from '@/db/schema/enums';
 import { schoolReferralDisclosures } from '@/db/schema/school-referral-disclosures';
@@ -191,6 +192,9 @@ export async function recordDisclosure(input: RecordDisclosureInput): Promise<vo
       dataClassesDisclosed: input.dataClassesDisclosed,
     });
   } catch (err) {
+    Sentry.captureException(err, {
+      tags: { disclosure_write: 'failed', referral_id: input.referralId },
+    });
     console.error('[recordDisclosure] FERPA disclosure log write failed — compliance gap!', {
       referralId: input.referralId,
       accessedByUserId: input.accessedByUserId,

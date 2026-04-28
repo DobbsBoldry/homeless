@@ -17,7 +17,6 @@ export type SubmitSchoolReferralResult =
   | { ok: false; error: string };
 
 const KNOWN_DOMAIN_PREFIXES = [
-  'mckinnev-vento basis invalid',
   'mckinney-vento',
   'mvauthorizationconfirmed',
   "basis 'parental_consent'",

@@ -26,8 +26,10 @@ import {
 } from '@/db/schema/school-referrals';
 import { logAuditEvent } from '@/lib/audit';
 import {
+  CURRENT_FERPA_ELIGIBLE_STUDENT_CONSENT_VERSION,
   CURRENT_FERPA_PARENTAL_CONSENT_VERSION,
   canAccessSchoolReferral,
+  MCKINNEY_VENTO_CONSENT_VERSION_SENTINEL,
   recordDisclosure,
   validateMcKinneyVentoBasis,
 } from '@/lib/dtrs';
@@ -134,7 +136,7 @@ export async function createSchoolReferral(
             basis: 'mckinney_vento_authorization',
             consenterRelationship: null,
             consenterName: null,
-            consentTextVersion: 'mckinney_vento_v1',
+            consentTextVersion: MCKINNEY_VENTO_CONSENT_VERSION_SENTINEL,
             signedAt: null,
             signedMethod: null,
             scope: {},
@@ -146,7 +148,10 @@ export async function createSchoolReferral(
             basis: input.basis,
             consenterRelationship: input.consentConsenterRelationship ?? null,
             consenterName: input.consentConsenterName ?? null,
-            consentTextVersion: CURRENT_FERPA_PARENTAL_CONSENT_VERSION,
+            consentTextVersion:
+              input.basis === 'eligible_student_consent'
+                ? CURRENT_FERPA_ELIGIBLE_STUDENT_CONSENT_VERSION
+                : CURRENT_FERPA_PARENTAL_CONSENT_VERSION,
             signedAt: input.consentSignedAt ?? null,
             signedMethod: input.consentSignedMethod ?? null,
             scope: {},
@@ -198,61 +203,83 @@ export async function getSchoolReferral(
   id: string,
   viewer: ViewerContext,
 ): Promise<SchoolReferral | null> {
-  const [row] = await db.select().from(schoolReferrals).where(eq(schoolReferrals.id, id)).limit(1);
-
-  if (!row) return null;
-
-  const access = canAccessSchoolReferral(viewer, row);
-  if (!access.allow) return null;
-
-  // For non-admin viewers enforce partner-org membership — only caseworkers
-  // assigned to the referral's school can view it.
-  if (viewer.role !== 'admin') {
-    const [membership] = await db
-      .select({ id: orgMemberships.id })
-      .from(orgMemberships)
-      .where(
-        and(
-          eq(orgMemberships.userId, viewer.userId),
-          eq(orgMemberships.partnerOrgId, row.partnerOrgId),
-        ),
-      )
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(schoolReferrals)
+      .where(eq(schoolReferrals.id, id))
       .limit(1);
 
-    if (!membership) {
-      // Log the attempt — a missing disclosure trail is a FERPA compliance gap.
-      if (access.requireDisclosureLog && access.basis) {
-        await recordDisclosure({
-          referralId: row.id,
-          accessedByUserId: viewer.userId,
-          accessedByPartnerOrgId: null,
-          purpose: 'access_denied',
-          basis: access.basis,
-          dataClassesDisclosed: [],
-        });
-      }
+    if (!row) return null;
+
+    const access = canAccessSchoolReferral(viewer, row);
+
+    // Role-level denial (attorney, shelter_staff, pending) — write audit trail
+    // so probes are traceable. No disclosure-log row needed (FERPA § 99.32 logs
+    // disclosures, not denials — audit log is sufficient here).
+    if (!access.allow) {
+      await logAuditEvent({
+        tx,
+        actorUserId: viewer.userId,
+        action: 'school_referral.access_denied_role',
+        targetTable: 'school_referrals',
+        targetId: row.id,
+        metadata: { viewer_role: viewer.role, basis: 'role_denied' },
+      });
       return null;
     }
-  }
 
-  if (access.requireDisclosureLog && access.basis) {
-    await recordDisclosure({
-      referralId: row.id,
-      accessedByUserId: viewer.userId,
-      accessedByPartnerOrgId: null,
-      purpose: 'caseworker_case_detail',
-      basis: access.basis,
-      dataClassesDisclosed: [
-        'student_first_initial',
-        'guardian_name',
-        'guardian_contact',
-        'housing_situation',
-        'services_requested',
-      ],
-    });
-  }
+    // For non-admin viewers enforce partner-org membership — only caseworkers
+    // assigned to the referral's school can view it.
+    if (viewer.role !== 'admin') {
+      const [membership] = await tx
+        .select({ id: orgMemberships.id })
+        .from(orgMemberships)
+        .where(
+          and(
+            eq(orgMemberships.userId, viewer.userId),
+            eq(orgMemberships.partnerOrgId, row.partnerOrgId),
+          ),
+        )
+        .limit(1);
 
-  return row;
+      if (!membership) {
+        // Log the attempt — a missing disclosure trail is a FERPA compliance gap.
+        if (access.requireDisclosureLog && access.basis) {
+          await recordDisclosure({
+            tx,
+            referralId: row.id,
+            accessedByUserId: viewer.userId,
+            accessedByPartnerOrgId: null,
+            purpose: 'access_denied',
+            basis: access.basis,
+            dataClassesDisclosed: [],
+          });
+        }
+        return null;
+      }
+    }
+
+    if (access.requireDisclosureLog && access.basis) {
+      await recordDisclosure({
+        tx,
+        referralId: row.id,
+        accessedByUserId: viewer.userId,
+        accessedByPartnerOrgId: null,
+        purpose: 'caseworker_case_detail',
+        basis: access.basis,
+        dataClassesDisclosed: [
+          'student_first_initial',
+          'guardian_name',
+          'guardian_contact',
+          'housing_situation',
+          'services_requested',
+        ],
+      });
+    }
+
+    return row;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -271,8 +298,12 @@ export async function getSchoolReferral(
  * enforced here, not in the policy gate, because it's org-membership logic
  * rather than role logic.
  *
- * All disclosure-log writes happen inside the same transaction as the read so
- * a rollback takes them with it.
+ * Caller MUST verify the viewer is a member of `partnerOrgId` before calling —
+ * this query does not enforce membership; it filters on the provided id.
+ * Full membership enforcement is deferred to a follow-up story.
+ *
+ * The SELECT and all disclosure-log writes happen inside one transaction so a
+ * disclosure-write failure rolls back the read — FERPA § 99.32 traceable.
  */
 export async function listSchoolReferralsForCaseworker(
   viewer: ViewerContext,
@@ -284,36 +315,35 @@ export async function listSchoolReferralsForCaseworker(
 ): Promise<SchoolReferral[]> {
   const { status, partnerOrgId, limit = 50 } = opts;
 
-  const conditions = [];
+  const conditions: ReturnType<typeof eq>[] = [];
   if (status) conditions.push(eq(schoolReferrals.status, status));
   if (partnerOrgId) conditions.push(eq(schoolReferrals.partnerOrgId, partnerOrgId));
 
-  // Join with consents to get each referral's actual basis for per-row
-  // disclosure logging (FERPA § 99.32 requires per-disclosure accuracy).
-  const rowsWithBasis = await db
-    .select({
-      referral: schoolReferrals,
-      basis: schoolReferralConsents.basis,
-    })
-    .from(schoolReferrals)
-    .innerJoin(schoolReferralConsents, eq(schoolReferralConsents.referralId, schoolReferrals.id))
-    .where(conditions.length > 0 ? and(...(conditions as Parameters<typeof and>)) : undefined)
-    .orderBy(desc(schoolReferrals.receivedAt))
-    .limit(limit);
+  return db.transaction(async (tx) => {
+    // Join with consents to get each referral's actual basis for per-row
+    // disclosure logging (FERPA § 99.32 requires per-disclosure accuracy).
+    const rowsWithBasis = await tx
+      .select({
+        referral: schoolReferrals,
+        basis: schoolReferralConsents.basis,
+      })
+      .from(schoolReferrals)
+      .innerJoin(schoolReferralConsents, eq(schoolReferralConsents.referralId, schoolReferrals.id))
+      .where(conditions.length > 0 ? and(...(conditions as Parameters<typeof and>)) : undefined)
+      .orderBy(desc(schoolReferrals.receivedAt))
+      .limit(limit);
 
-  if (rowsWithBasis.length === 0) return [];
+    if (rowsWithBasis.length === 0) return [];
 
-  // Run access check per row; drop denied rows.
-  const allowed = rowsWithBasis.filter(
-    ({ referral }) => canAccessSchoolReferral(viewer, referral).allow,
-  );
-  if (allowed.length === 0) return [];
+    // Run access check per row; drop denied rows.
+    const allowed = rowsWithBasis.filter(
+      ({ referral }) => canAccessSchoolReferral(viewer, referral).allow,
+    );
+    if (allowed.length === 0) return [];
 
-  // Write one disclosure-log row per returned referral, each carrying the
-  // referral's actual basis — FERPA § 99.32 requires per-disclosure logging
-  // and the basis must accurately reflect the authorization for that referral.
-  // All writes are inside the transaction with the read.
-  await db.transaction(async (tx) => {
+    // Write one disclosure-log row per returned referral, each carrying the
+    // referral's actual basis — FERPA § 99.32 requires per-disclosure logging
+    // and the basis must accurately reflect the authorization for that referral.
     for (const { referral, basis } of allowed) {
       await recordDisclosure({
         tx,
@@ -325,9 +355,9 @@ export async function listSchoolReferralsForCaseworker(
         dataClassesDisclosed: ['student_first_initial', 'status', 'urgency', 'received_at'],
       });
     }
-  });
 
-  return allowed.map(({ referral }) => referral);
+    return allowed.map(({ referral }) => referral);
+  });
 }
 
 // ---------------------------------------------------------------------------

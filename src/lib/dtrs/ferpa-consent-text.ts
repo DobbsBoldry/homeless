@@ -16,6 +16,12 @@
 export const CURRENT_FERPA_PARENTAL_CONSENT_VERSION = 'ferpa-parental-v1';
 export const CURRENT_FERPA_ELIGIBLE_STUDENT_CONSENT_VERSION = 'ferpa-eligible-student-v1';
 
+/** Sentinel for school_referral_consents.consent_text_version when basis is McKinney-Vento.
+ * Statutory authorization carries no consent text — the sentinel exists only because
+ * consent_text_version is NOT NULL (ADR 0005, Option B for the consent_text_version
+ * nullability question). */
+export const MCKINNEY_VENTO_CONSENT_VERSION_SENTINEL = 'mckinney_vento_v1';
+
 /**
  * Consent text shown to a parent or guardian before a school liaison submits
  * a referral for their child.

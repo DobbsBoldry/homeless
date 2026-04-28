@@ -71,7 +71,8 @@ vi.mock('@/db/client', () => {
   // school_referrals  → selectRows
   // org_memberships   → membershipRows
   // anything else     → []
-  const makeSelect = () =>
+  const makeSelect =
+    () =>
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     (_columns?: unknown) => ({
       from: (table: { _: { name: string } }) => {
@@ -205,12 +206,12 @@ describe('createSchoolReferral — McKinney-Vento basis', () => {
       /lastName|last_name|dateOfBirth|dob/i,
     );
 
-    // Consent row should carry the sentinel 'mckinney_vento_v1' (Issue 4, Option B)
+    // Consent row should carry the named sentinel constant (Issue 4, Option B)
     // — not null, self-documents the statutory basis.
     const consent = consentInsert.values as Record<string, unknown>;
     expect(consent.basis).toBe('mckinney_vento_authorization');
     expect(consent.signedAt).toBeNull();
-    expect(consent.consentTextVersion).toBe('mckinney_vento_v1');
+    expect(consent.consentTextVersion).toBe('mckinney_vento_v1'); // MCKINNEY_VENTO_CONSENT_VERSION_SENTINEL
 
     // Audit log fired with 'school_referral.created' and carries tx (Issue 2)
     expect(auditEvents).toHaveLength(1);
@@ -269,7 +270,7 @@ describe('createSchoolReferral — parental_consent basis', () => {
     ).rejects.toThrow(/consentSignedAt/i);
   });
 
-  it('inserts consent row with signed_at and versioned consent_text_version when parental consent provided', async () => {
+  it('inserts consent row with signed_at and parental version when parental_consent provided', async () => {
     await createSchoolReferral({
       ...mvInput,
       basis: 'parental_consent',
@@ -284,8 +285,26 @@ describe('createSchoolReferral — parental_consent basis', () => {
     const consent = txInsertedRows[1].values as Record<string, unknown>;
     expect(consent.basis).toBe('parental_consent');
     expect(consent.signedAt).toBeInstanceOf(Date);
-    expect(typeof consent.consentTextVersion).toBe('string');
-    expect((consent.consentTextVersion as string).startsWith('ferpa-')).toBe(true);
+    expect(consent.consentTextVersion).toBe('ferpa-parental-v1');
+  });
+
+  it('inserts consent row with eligible-student version when eligible_student_consent provided', async () => {
+    await createSchoolReferral({
+      ...mvInput,
+      basis: 'eligible_student_consent',
+      mvAuthorizationConfirmed: false,
+      consentSignedAt: new Date('2026-04-15T10:00:00Z'),
+      consentSignedMethod: 'in_person',
+      consentConsenterName: 'Jordan Smith',
+      consentConsenterRelationship: 'self',
+    });
+
+    expect(txInsertedRows).toHaveLength(2);
+    const consent = txInsertedRows[1].values as Record<string, unknown>;
+    expect(consent.basis).toBe('eligible_student_consent');
+    expect(consent.signedAt).toBeInstanceOf(Date);
+    // Must stamp the eligible-student version, NOT the parental version.
+    expect(consent.consentTextVersion).toBe('ferpa-eligible-student-v1');
   });
 });
 
@@ -368,6 +387,28 @@ describe('getSchoolReferral — partner-org membership gate', () => {
     });
 
     expect(result).toBeNull();
+  });
+
+  it('writes a school_referral.access_denied_role audit-log entry when role is denied', async () => {
+    // selectRows = [baseReferralRow] → referral found
+    // attorney has no access per canAccessSchoolReferral
+    selectRows = [baseReferralRow];
+
+    const result = await getSchoolReferral('ref-uuid-001', {
+      userId: 'user-atty-001',
+      role: 'attorney',
+    });
+
+    expect(result).toBeNull();
+    // An audit-log row should have been written with the role-denied action
+    expect(auditEvents).toHaveLength(1);
+    const auditEvent = auditEvents[0] as Record<string, unknown>;
+    expect(auditEvent.action).toBe('school_referral.access_denied_role');
+    expect(auditEvent.targetId).toBe('ref-uuid-001');
+    expect((auditEvent.metadata as Record<string, unknown>).viewer_role).toBe('attorney');
+    expect((auditEvent.metadata as Record<string, unknown>).basis).toBe('role_denied');
+    // No disclosure row — FERPA § 99.32 logs disclosures, not denials
+    expect(disclosureRows).toHaveLength(0);
   });
 });
 
