@@ -16,6 +16,7 @@ export * from './eviction-response-packets';
 export * from './fag-members';
 export * from './faith-aggregate-submissions';
 export * from './faith-ministries';
+export * from './family-units';
 export * from './foster-aging-out-alerts';
 export * from './foster-youth';
 export * from './health-check';

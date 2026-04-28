@@ -359,3 +359,45 @@ export const dvSafetyEventTypeEnum = pgEnum('dv_safety_event_type', [
 ]);
 
 export type DvSafetyEventType = (typeof dvSafetyEventTypeEnum.enumValues)[number];
+
+// SUBP-007 — Families w/ children pathway (McKinney-Vento integration)
+
+export const familyUnitStatusEnum = pgEnum('family_unit_status', ['active', 'rehoused', 'exited']);
+
+export type FamilyUnitStatus = (typeof familyUnitStatusEnum.enumValues)[number];
+
+/**
+ * Originating signal that brought the family into the coalition pipeline.
+ * `entry_signal_id` on `family_units` is an opaque text reference to the
+ * source row — soft FK only (Postgres polymorphic FKs aren't a thing,
+ * and the operational complexity isn't worth it for v1).
+ */
+export const familyEntrySignalEnum = pgEnum('family_entry_signal', [
+  'eviction',
+  'ed_encounter',
+  'school_referral',
+  'sms_intake',
+  'walk_in',
+]);
+
+export type FamilyEntrySignal = (typeof familyEntrySignalEnum.enumValues)[number];
+
+export const familyHousingStatusEnum = pgEnum('family_housing_status', [
+  'stably_housed',
+  'doubled_up',
+  'shelter',
+  'unsheltered',
+  'hotel',
+]);
+
+export type FamilyHousingStatus = (typeof familyHousingStatusEnum.enumValues)[number];
+
+export const familyChildGradeBandEnum = pgEnum('family_child_grade_band', [
+  'pre_k',
+  'elementary',
+  'middle',
+  'high',
+  'not_enrolled',
+]);
+
+export type FamilyChildGradeBand = (typeof familyChildGradeBandEnum.enumValues)[number];
