@@ -201,6 +201,27 @@ export const faithAggregatePeriodKindEnum = pgEnum('faith_aggregate_period_kind'
 
 export type FaithAggregatePeriodKind = (typeof faithAggregatePeriodKindEnum.enumValues)[number];
 
+export const partnerAgreementKindEnum = pgEnum('partner_agreement_kind', [
+  'mou',
+  'ferpa',
+  'baa',
+  'qsoa',
+  'dsa',
+  'memo_of_cooperation',
+]);
+
+export type PartnerAgreementKind = (typeof partnerAgreementKindEnum.enumValues)[number];
+
+export const partnerAgreementStatusEnum = pgEnum('partner_agreement_status', [
+  'draft',
+  'active',
+  'expired',
+  'terminated',
+  'superseded',
+]);
+
+export type PartnerAgreementStatus = (typeof partnerAgreementStatusEnum.enumValues)[number];
+
 export const partnerServiceEventTypeEnum = pgEnum('partner_service_event_type', [
   'food_pantry',
   'shelter_intake',

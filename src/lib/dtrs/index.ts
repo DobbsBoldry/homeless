@@ -10,5 +10,6 @@ export * from './data-access';
 export * from './dv-blind';
 export * from './faith-aggregate';
 export * from './fiscal-court-brief';
+export * from './partner-agreements';
 export * from './rate-limit';
 export * from './transparency-report';
