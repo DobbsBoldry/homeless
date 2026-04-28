@@ -8,10 +8,24 @@
  * See STATE.md known quirk: Next.js 'use server' × vitest incompatibility.
  */
 
-import { DCBS_DSA_SCOPE_OPTIONS, FERPA_SCOPE_OPTIONS } from '@/lib/dtrs';
+import {
+  DCBS_DSA_SCOPE_OPTIONS,
+  FERPA_SCOPE_OPTIONS,
+  OASIS_DEFAULT_REDACTION_POLICY,
+  OASIS_DSA_SCOPE_OPTIONS,
+  OASIS_REDACTABLE_FIELDS,
+  type OasisRedactionPolicy,
+  type OasisRedactionTreatment,
+} from '@/lib/dtrs';
 
 const FERPA_SCOPE_VALUES = FERPA_SCOPE_OPTIONS.map((o) => o.value);
 const DCBS_DSA_SCOPE_VALUES = DCBS_DSA_SCOPE_OPTIONS.map((o) => o.value);
+const OASIS_DSA_SCOPE_VALUES = OASIS_DSA_SCOPE_OPTIONS.map((o) => o.value);
+const OASIS_REDACTION_TREATMENTS: readonly OasisRedactionTreatment[] = [
+  'share',
+  'suppress',
+  'aggregate_only',
+];
 
 export type ParsedFerpaAgreementInput = {
   partnerOrgId: string;
@@ -294,6 +308,172 @@ export function parseDcbsDsaAgreementForm(
         },
         population_focus: 'foster_aging_out',
         individual_records_authorized,
+        data_destruction_due,
+      },
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// DTRS-012 — OASIS DSA parser
+// ---------------------------------------------------------------------------
+
+export type ParsedOasisDsaAgreementInput = {
+  partnerOrgId: string;
+  effectiveDate: string;
+  endDate: string | null;
+  signedByPartner: string | null;
+  notes: string | null;
+  terms: {
+    kind: 'dsa';
+    agency: 'oasis';
+    scope: string[];
+    agency_legal_name: string;
+    agency_contact: { name: string; title: string; email: string; phone?: string };
+    redaction_policy: OasisRedactionPolicy;
+    abuser_blind_attestation: true;
+    data_destruction_due: 'on_termination' | 'after_3_years' | 'after_5_years';
+  };
+};
+
+/**
+ * Parse + validate FormData from the OASIS DSA agreement intake form.
+ *
+ * Per ADR 0007, the abuser-blind attestation is required (the form's submit
+ * button is disabled until checked, and this parser fails closed if the box
+ * was bypassed). Redaction policy defaults from `OASIS_DEFAULT_REDACTION_POLICY`
+ * are applied when a per-field treatment is missing — but every field in
+ * `OASIS_REDACTABLE_FIELDS` is then validated against the controlled
+ * vocabulary. Bad-shape input is rejected with a user-facing error.
+ *
+ * FormData shape:
+ *   partnerOrgId                       — uuid of the OASIS partner_org
+ *   effectiveDate                      — YYYY-MM-DD (required)
+ *   endDate                            — YYYY-MM-DD (optional)
+ *   signedByPartner                    — text (optional)
+ *   notes                              — text (optional)
+ *   agency_legal_name                  — text (required)
+ *   agency_contact_name                — text (required)
+ *   agency_contact_title               — text (required)
+ *   agency_contact_email               — text (required, basic format check)
+ *   agency_contact_phone               — text (optional)
+ *   scope_{value}                      — checkbox "on" when checked
+ *   redaction_{field}                  — 'share' | 'suppress' | 'aggregate_only'
+ *   abuser_blind_attestation           — "true" required (any other value rejected)
+ *   data_destruction_due               — 'on_termination' | 'after_3_years' | 'after_5_years'
+ */
+export function parseOasisDsaAgreementForm(
+  formData: FormData,
+): { ok: true; input: ParsedOasisDsaAgreementInput } | { ok: false; error: string } {
+  const str = (key: string) => (formData.get(key) ?? '').toString().trim();
+
+  const partnerOrgId = str('partnerOrgId');
+  if (!partnerOrgId) return { ok: false, error: 'OASIS partner is required.' };
+
+  const effectiveDateRaw = str('effectiveDate');
+  if (!effectiveDateRaw) return { ok: false, error: 'Effective date is required.' };
+  if (Number.isNaN(Date.parse(effectiveDateRaw))) {
+    return { ok: false, error: 'Effective date is not a valid date.' };
+  }
+
+  const endDateRaw = str('endDate');
+  let endDate: string | null = null;
+  if (endDateRaw) {
+    if (Number.isNaN(Date.parse(endDateRaw))) {
+      return { ok: false, error: 'End date is not a valid date.' };
+    }
+    if (endDateRaw < effectiveDateRaw) {
+      return { ok: false, error: 'End date must be on or after effective date.' };
+    }
+    endDate = endDateRaw;
+  }
+
+  const signedByPartner = str('signedByPartner') || null;
+
+  const notes = str('notes') || null;
+  if (notes && notes.length > 2000) {
+    return { ok: false, error: 'Notes must be 2 000 characters or fewer.' };
+  }
+
+  const agency_legal_name = str('agency_legal_name');
+  if (!agency_legal_name) return { ok: false, error: 'Agency legal name is required.' };
+
+  const ac_name = str('agency_contact_name');
+  if (!ac_name) return { ok: false, error: 'OASIS contact name is required.' };
+
+  const ac_title = str('agency_contact_title');
+  if (!ac_title) return { ok: false, error: 'OASIS contact title is required.' };
+
+  const ac_email = str('agency_contact_email');
+  if (!ac_email) return { ok: false, error: 'OASIS contact email is required.' };
+  if (!ac_email.includes('@')) {
+    return { ok: false, error: 'OASIS contact email must be a valid email address.' };
+  }
+
+  const ac_phone = str('agency_contact_phone') || undefined;
+
+  const scope: string[] = [];
+  for (const opt of OASIS_DSA_SCOPE_VALUES) {
+    const val = formData.get(`scope_${opt}`);
+    if (val === 'on' || val === 'true' || val === opt) {
+      scope.push(opt);
+    }
+  }
+  if (scope.length === 0) {
+    return { ok: false, error: 'At least one data scope must be selected.' };
+  }
+
+  const redaction_policy: Partial<OasisRedactionPolicy> = {};
+  for (const field of OASIS_REDACTABLE_FIELDS) {
+    const raw = str(`redaction_${field}`);
+    const treatment = raw || OASIS_DEFAULT_REDACTION_POLICY[field];
+    if (!OASIS_REDACTION_TREATMENTS.includes(treatment as OasisRedactionTreatment)) {
+      return {
+        ok: false,
+        error: `Redaction treatment for "${field}" must be one of: ${OASIS_REDACTION_TREATMENTS.join(', ')}.`,
+      };
+    }
+    redaction_policy[field] = treatment as OasisRedactionTreatment;
+  }
+
+  const attestationRaw = str('abuser_blind_attestation');
+  if (attestationRaw !== 'true') {
+    return {
+      ok: false,
+      error:
+        'The abuser-blind attestation must be checked. Recording an OASIS DSA without it is not permitted (ADR 0007).',
+    };
+  }
+
+  const VALID_DESTRUCTION = ['on_termination', 'after_3_years', 'after_5_years'] as const;
+  type DestructionValue = (typeof VALID_DESTRUCTION)[number];
+  const destructionRaw = str('data_destruction_due');
+  if (!VALID_DESTRUCTION.includes(destructionRaw as DestructionValue)) {
+    return { ok: false, error: 'Data destruction policy selection is required.' };
+  }
+  const data_destruction_due = destructionRaw as DestructionValue;
+
+  return {
+    ok: true,
+    input: {
+      partnerOrgId,
+      effectiveDate: effectiveDateRaw,
+      endDate,
+      signedByPartner,
+      notes,
+      terms: {
+        kind: 'dsa',
+        agency: 'oasis',
+        scope,
+        agency_legal_name,
+        agency_contact: {
+          name: ac_name,
+          title: ac_title,
+          email: ac_email,
+          phone: ac_phone,
+        },
+        redaction_policy: redaction_policy as OasisRedactionPolicy,
+        abuser_blind_attestation: true,
         data_destruction_due,
       },
     },

@@ -4,10 +4,11 @@ import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
 import { recordAgreement, updateAgreementStatus } from '@/db/queries/partner-agreements';
 import { requireRole } from '@/lib/auth';
-import type { DcbsDsaTerms, FerpaTerms, MouTerms } from '@/lib/dtrs';
+import type { DcbsDsaTerms, FerpaTerms, MouTerms, OasisDsaTerms } from '@/lib/dtrs';
 import {
   parseDcbsDsaAgreementForm,
   parseMouAgreementForm,
+  parseOasisDsaAgreementForm,
   parsePartnerAgreementForm,
 } from './partner-agreements-parse';
 
@@ -22,10 +23,13 @@ const KNOWN_DOMAIN_PREFIXES = [
   'DSA terms',
   'DSA agency',
   'DSA state_contact',
+  'DSA agency_contact',
   'DSA data_destruction_due',
   'partner_agreements insert',
   'Invalid FERPA scope',
   'Invalid DCBS-DSA scope',
+  'Invalid OASIS-DSA scope',
+  'Invalid OASIS-DSA redaction_policy',
 ] as const;
 
 export type RecordFerpaAgreementResult =
@@ -140,6 +144,62 @@ export async function recordDcbsDsaAgreementAction(
   }
 }
 
+export type RecordOasisDsaAgreementResult =
+  | { ok: true; agreementId: string }
+  | { ok: false; error: string };
+
+/**
+ * Admin-only server action: parse the DTRS-012 OASIS DSA intake FormData and
+ * persist via `recordAgreement` (terms validation + audit log happen inside
+ * that query function). The validator strictly enforces
+ * `abuser_blind_attestation === true` (ADR 0007); the parser also fails
+ * closed if the attestation checkbox is missing from the form.
+ */
+export async function recordOasisDsaAgreementAction(
+  formData: FormData,
+): Promise<RecordOasisDsaAgreementResult> {
+  const user = await requireRole(['admin']);
+
+  const parsed = parseOasisDsaAgreementForm(formData);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+
+  try {
+    const { effectiveDate, endDate, signedByPartner, notes, partnerOrgId, terms } = parsed.input;
+
+    const agreement = await recordAgreement({
+      partnerOrgId,
+      kind: 'dsa',
+      status: 'active',
+      effectiveDate: effectiveDate || null,
+      endDate: endDate || null,
+      signedByPartner: signedByPartner || null,
+      signedByCoalitionUserId: user.id,
+      templateVersion: 'oasis-dsa-v1',
+      templateRendered: null,
+      // parseOasisDsaAgreementForm validates scope + redaction_policy + attestation;
+      // the narrow cast bridges the parser's structural type to the domain type.
+      // recordAgreement re-validates via validateAgreementTerms before any insert.
+      terms: terms as OasisDsaTerms,
+      notes: notes || null,
+      actorUserId: user.id,
+    });
+
+    revalidatePath('/app/admin/agreements/oasis');
+    return { ok: true, agreementId: agreement.id };
+  } catch (err) {
+    Sentry.captureException(err);
+    console.error('[partner-agreements.recordOasisDsa] failed', err);
+    const raw = err instanceof Error ? err.message : '';
+    const isKnown = KNOWN_DOMAIN_PREFIXES.some((prefix) =>
+      raw.toLowerCase().startsWith(prefix.toLowerCase()),
+    );
+    const error = isKnown
+      ? raw
+      : 'Recording the agreement failed — please retry. The error has been logged.';
+    return { ok: false, error };
+  }
+}
+
 export type RecordMouAgreementResult =
   | { ok: true; agreementId: string }
   | { ok: false; error: string };
@@ -205,6 +265,7 @@ export async function updateAgreementStatusAction(
     revalidatePath('/app/admin/agreements/mou');
     revalidatePath('/app/admin/agreements/ferpa');
     revalidatePath('/app/admin/agreements/dcbs');
+    revalidatePath('/app/admin/agreements/oasis');
     return { ok: true };
   } catch (err) {
     Sentry.captureException(err);
