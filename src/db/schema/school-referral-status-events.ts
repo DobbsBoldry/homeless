@@ -17,6 +17,7 @@
  *   - Reads on this table must produce a school_referral_disclosures row when
  *     the referral is a FERPA-scoped record (same contract as parent table).
  */
+import { desc } from 'drizzle-orm';
 import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { schoolReferralStatusEnum } from './enums';
 import { schoolReferrals } from './school-referrals';
@@ -48,7 +49,7 @@ export const schoolReferralStatusEvents = pgTable(
     note: text('note'),
     occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('school_referral_status_events_referral_idx').on(t.referralId, t.occurredAt)],
+  (t) => [index('school_referral_status_events_referral_idx').on(t.referralId, desc(t.occurredAt))],
 );
 
 export type SchoolReferralStatusEvent = typeof schoolReferralStatusEvents.$inferSelect;

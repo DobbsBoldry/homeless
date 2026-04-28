@@ -34,7 +34,7 @@ const ALLOWED_STATUSES: readonly SchoolReferralStatus[] = [
  * Accessible by admin and caseworker only (the two roles canAccessSchoolReferral
  * permits for write operations on coalition-side referral management).
  */
-export async function updateReferralStatusAction(
+export async function addReferralStatusUpdate(
   referralId: string,
   newStatus: SchoolReferralStatus,
   confirmationNote?: string,

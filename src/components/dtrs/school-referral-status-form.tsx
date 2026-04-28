@@ -9,7 +9,7 @@
  */
 
 import { useId, useState, useTransition } from 'react';
-import { updateReferralStatusAction } from '@/app/actions/school-referral-status';
+import { addReferralStatusUpdate } from '@/app/actions/school-referral-status';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 // Deep import: 'use client' files are exempt from the barrel rule (ADR 0001 / FND-040b).
@@ -41,7 +41,7 @@ export function SchoolReferralStatusForm({ referralId, currentStatus }: Props) {
     e.preventDefault();
     setResult(null);
     startTransition(async () => {
-      const res = await updateReferralStatusAction(
+      const res = await addReferralStatusUpdate(
         referralId,
         selectedStatus,
         note.trim() || undefined,
