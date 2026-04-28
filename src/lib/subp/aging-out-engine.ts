@@ -28,10 +28,7 @@ import type { FosterAgingOutMilestone } from '@/db/schema/enums';
  *   = 0  — today is the 18th birthday
  *   < 0  — youth has already aged out (negative day count past birthday)
  */
-export function computeDaysUntilEighteen(
-  dateOfBirth: Date | string,
-  asOf: Date | string,
-): number {
+export function computeDaysUntilEighteen(dateOfBirth: Date | string, asOf: Date | string): number {
   const dob = toUtcMidnight(dateOfBirth);
   const today = toUtcMidnight(asOf);
 
@@ -59,9 +56,7 @@ function toUtcMidnight(d: Date | string): Date {
   if (Number.isNaN(parsed.getTime())) {
     throw new Error(`Invalid date: ${d}`);
   }
-  return new Date(
-    Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()),
-  );
+  return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()));
 }
 
 /**
@@ -92,9 +87,7 @@ export function computeMilestone(daysUntilEighteen: number): FosterAgingOutMiles
  * first scan, not wait until d=7. The (youth, milestone) UNIQUE on the
  * alerts table makes this safe to call repeatedly.
  */
-export function milestonesReachedBy(
-  daysUntilEighteen: number,
-): FosterAgingOutMilestone[] {
+export function milestonesReachedBy(daysUntilEighteen: number): FosterAgingOutMilestone[] {
   const out: FosterAgingOutMilestone[] = [];
   if (daysUntilEighteen <= 90) out.push('d90');
   if (daysUntilEighteen <= 60) out.push('d60');

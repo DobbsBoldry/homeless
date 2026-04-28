@@ -7,11 +7,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  DcbsGateDeniedError,
-  checkDcbsGate,
-  requireDcbsIndividualRecords,
-} from './dcbs-gate';
+import { checkDcbsGate, DcbsGateDeniedError, requireDcbsIndividualRecords } from './dcbs-gate';
 
 const getActiveAgreementByKind = vi.fn();
 
