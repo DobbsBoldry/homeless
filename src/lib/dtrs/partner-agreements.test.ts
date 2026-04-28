@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   DCBS_DSA_SCOPE_OPTIONS,
   FERPA_SCOPE_OPTIONS,
+  OASIS_DEFAULT_REDACTION_POLICY,
+  OASIS_DSA_SCOPE_OPTIONS,
   validateAgreementTerms,
   validateDcbsDsaTerms,
   validateFerpaTerms,
   validateMouTerms,
+  validateOasisDsaTerms,
 } from './partner-agreements';
 
 // ---------------------------------------------------------------------------
@@ -388,5 +391,163 @@ describe('validateAgreementTerms', () => {
     expect(() => validateAgreementTerms('memo_of_cooperation', {})).toThrow(
       "agreement kind 'memo_of_cooperation' not yet supported",
     );
+  });
+
+  it("dispatches dsa+agency='oasis' to validateOasisDsaTerms", () => {
+    const result = validateAgreementTerms('dsa', validOasisDsa);
+    expect(result.kind).toBe('dsa');
+    if (result.kind === 'dsa') expect(result.agency).toBe('oasis');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateOasisDsaTerms (DTRS-012)
+// ---------------------------------------------------------------------------
+
+const validOasisDsa = {
+  kind: 'dsa',
+  agency: 'oasis',
+  scope: ['survivor_intake_roster', 'safety_plan_status'],
+  agency_legal_name: 'Owensboro Area Shelter and Information Services, Inc.',
+  agency_contact: {
+    name: 'Avery Hart',
+    title: 'Executive Director',
+    email: 'avery.hart@oasisshelter.org',
+    phone: '(270) 685-0260',
+  },
+  redaction_policy: OASIS_DEFAULT_REDACTION_POLICY,
+  abuser_blind_attestation: true,
+  data_destruction_due: 'on_termination',
+};
+
+describe('validateOasisDsaTerms', () => {
+  it('accepts a valid OASIS DSA terms object', () => {
+    const result = validateOasisDsaTerms(validOasisDsa);
+    expect(result.kind).toBe('dsa');
+    expect(result.agency).toBe('oasis');
+    expect(result.scope).toEqual(['survivor_intake_roster', 'safety_plan_status']);
+    expect(result.abuser_blind_attestation).toBe(true);
+    expect(result.redaction_policy.current_address).toBe('suppress');
+  });
+
+  it('accepts all valid scope values', () => {
+    const allScopes = OASIS_DSA_SCOPE_OPTIONS.map((o) => o.value);
+    const result = validateOasisDsaTerms({ ...validOasisDsa, scope: allScopes });
+    expect(result.scope).toEqual(allScopes);
+  });
+
+  it('accepts all valid data_destruction_due values', () => {
+    for (const val of ['on_termination', 'after_3_years', 'after_5_years'] as const) {
+      const result = validateOasisDsaTerms({ ...validOasisDsa, data_destruction_due: val });
+      expect(result.data_destruction_due).toBe(val);
+    }
+  });
+
+  it('accepts a relaxed redaction policy when admin opts in (still abuser-blind via attestation)', () => {
+    const relaxed = {
+      ...validOasisDsa,
+      redaction_policy: {
+        ...OASIS_DEFAULT_REDACTION_POLICY,
+        risk_tier: 'aggregate_only' as const,
+      },
+    };
+    const result = validateOasisDsaTerms(relaxed);
+    expect(result.redaction_policy.risk_tier).toBe('aggregate_only');
+  });
+
+  it('accepts terms without optional phone', () => {
+    const noPhone = {
+      ...validOasisDsa,
+      agency_contact: { name: 'A', title: 'T', email: 'a@x.com' },
+    };
+    const result = validateOasisDsaTerms(noPhone);
+    expect(result.agency_contact.phone).toBeUndefined();
+  });
+
+  it('rejects non-object input', () => {
+    expect(() => validateOasisDsaTerms(null)).toThrow('must be an object');
+    expect(() => validateOasisDsaTerms('dsa')).toThrow('must be an object');
+  });
+
+  it('rejects wrong kind', () => {
+    expect(() => validateOasisDsaTerms({ ...validOasisDsa, kind: 'mou' })).toThrow('kind: "dsa"');
+  });
+
+  it('rejects wrong agency', () => {
+    expect(() => validateOasisDsaTerms({ ...validOasisDsa, agency: 'dcbs' })).toThrow(
+      'agency must be "oasis"',
+    );
+  });
+
+  it('rejects empty scope array', () => {
+    expect(() => validateOasisDsaTerms({ ...validOasisDsa, scope: [] })).toThrow(
+      'at least one scope value',
+    );
+  });
+
+  it('rejects invalid scope value', () => {
+    expect(() => validateOasisDsaTerms({ ...validOasisDsa, scope: ['gps_pings'] })).toThrow(
+      'Invalid OASIS-DSA scope value: "gps_pings"',
+    );
+  });
+
+  it('rejects empty agency_legal_name', () => {
+    expect(() => validateOasisDsaTerms({ ...validOasisDsa, agency_legal_name: '' })).toThrow(
+      'non-empty agency_legal_name',
+    );
+  });
+
+  it('rejects missing agency_contact name', () => {
+    expect(() =>
+      validateOasisDsaTerms({
+        ...validOasisDsa,
+        agency_contact: { name: '', title: 'T', email: 'a@x.com' },
+      }),
+    ).toThrow('non-empty name');
+  });
+
+  it('rejects abuser_blind_attestation = false (the cornerstone of the contract)', () => {
+    expect(() =>
+      validateOasisDsaTerms({ ...validOasisDsa, abuser_blind_attestation: false }),
+    ).toThrow('abuser_blind_attestation must be true');
+  });
+
+  it('rejects abuser_blind_attestation missing entirely', () => {
+    const { abuser_blind_attestation: _omit, ...withoutAttestation } = validOasisDsa;
+    void _omit;
+    expect(() => validateOasisDsaTerms(withoutAttestation)).toThrow(
+      'abuser_blind_attestation must be true',
+    );
+  });
+
+  it('rejects redaction_policy missing a required field', () => {
+    const { current_address: _drop, ...partialPolicy } = OASIS_DEFAULT_REDACTION_POLICY;
+    void _drop;
+    expect(() =>
+      validateOasisDsaTerms({ ...validOasisDsa, redaction_policy: partialPolicy }),
+    ).toThrow('redaction_policy["current_address"]');
+  });
+
+  it('rejects redaction_policy with an invalid treatment value', () => {
+    expect(() =>
+      validateOasisDsaTerms({
+        ...validOasisDsa,
+        redaction_policy: { ...OASIS_DEFAULT_REDACTION_POLICY, current_address: 'show_to_all' },
+      }),
+    ).toThrow('redaction_policy["current_address"]');
+  });
+
+  it('rejects invalid data_destruction_due', () => {
+    expect(() =>
+      validateOasisDsaTerms({ ...validOasisDsa, data_destruction_due: 'never_required' }),
+    ).toThrow('data_destruction_due must be one of');
+  });
+
+  it('strips extra/unexpected keys (does not pass through to JSONB)', () => {
+    const result = validateOasisDsaTerms({
+      ...validOasisDsa,
+      survivor_home_address: '123 Real St',
+    });
+    expect(result).not.toHaveProperty('survivor_home_address');
   });
 });

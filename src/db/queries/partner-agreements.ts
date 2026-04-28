@@ -1,4 +1,4 @@
-import { and, eq, gte, isNotNull, lt, lte } from 'drizzle-orm';
+import { and, eq, gte, isNotNull, lt, lte, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { type NewPartnerAgreement, type PartnerAgreement, partnerAgreements } from '@/db/schema';
 import type { PartnerAgreementKind, PartnerAgreementStatus } from '@/db/schema/enums';
@@ -51,6 +51,33 @@ export async function getActiveAgreementByKind(
         eq(partnerAgreements.partnerOrgId, partnerOrgId),
         eq(partnerAgreements.kind, kind),
         eq(partnerAgreements.status, 'active'),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/**
+ * Return the active OASIS Data-Sharing Agreement for a partner, or null.
+ *
+ * SUBP-004's abuser-blind middleware reads the active agreement before every
+ * survivor-record write and exposes the redaction policy as the contract-of-
+ * record. The JSONB filter `terms->>'agency' = 'oasis'` discriminates OASIS
+ * agreements from DCBS / future KY DOC under the shared `dsa` kind (ADR 0004).
+ *
+ * Returns `null` when no active OASIS DSA exists; SUBP-004 must fail closed
+ * in that case (ADR 0007 § 3.1).
+ */
+export async function getActiveOasisDsa(partnerOrgId: string): Promise<PartnerAgreement | null> {
+  const rows = await db
+    .select()
+    .from(partnerAgreements)
+    .where(
+      and(
+        eq(partnerAgreements.partnerOrgId, partnerOrgId),
+        eq(partnerAgreements.kind, 'dsa'),
+        eq(partnerAgreements.status, 'active'),
+        sql`(${partnerAgreements.terms}->>'agency') = 'oasis'`,
       ),
     )
     .limit(1);

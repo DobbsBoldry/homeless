@@ -78,6 +78,75 @@ export const DCBS_DSA_SCOPE_OPTIONS = [
 
 export type DcbsDsaScopeValue = (typeof DCBS_DSA_SCOPE_OPTIONS)[number]['value'];
 
+/**
+ * OASIS-DSA data classes — the DV-survivor cohort the coalition may receive
+ * from OASIS (Owensboro Area Shelter and Information Services). Survivors
+ * are not in state custody — abuser-blind redaction at the contract layer
+ * is the cornerstone (see ADR 0007).
+ *
+ * Single source of truth — the intake form renders checkboxes from this
+ * array.
+ */
+export const OASIS_DSA_SCOPE_OPTIONS = [
+  {
+    value: 'survivor_intake_roster' as const,
+    label: 'Survivor intake roster (active enrollments + risk tier)',
+  },
+  {
+    value: 'safety_plan_status' as const,
+    label: 'Safety-plan status (on-file flag, last-updated date — never plan content)',
+  },
+  {
+    value: 'service_referral_history' as const,
+    label: 'Service-referral history (legal / housing / childcare / employment)',
+  },
+  {
+    value: 'risk_tier_only' as const,
+    label: 'Risk tier only (Campbell DA-scale band; aggregate fallback)',
+  },
+] as const;
+
+export type OasisDsaScopeValue = (typeof OASIS_DSA_SCOPE_OPTIONS)[number]['value'];
+
+/**
+ * Abuser-blind redaction-policy fields. Each field is classified as:
+ *   - 'share': transmitted as-is to authorized readers
+ *   - 'suppress': never transmitted (or transmitted as null) — risk of
+ *     abuser obtaining survivor location through a coalition data leak
+ *   - 'aggregate_only': only included in aggregate counts, never per-record
+ *
+ * The set of fields below is the v1 minimum-locked policy. Adding a field
+ * later is a contract amendment (ADR 0007 § 3.3).
+ */
+export const OASIS_REDACTABLE_FIELDS = [
+  'current_address',
+  'current_employer',
+  'child_school_id',
+  'risk_tier',
+  'enrolled_at',
+  'assigned_advocate_id',
+] as const;
+
+export type OasisRedactableField = (typeof OASIS_REDACTABLE_FIELDS)[number];
+export type OasisRedactionTreatment = 'share' | 'suppress' | 'aggregate_only';
+export type OasisRedactionPolicy = Record<OasisRedactableField, OasisRedactionTreatment>;
+
+/**
+ * Default redaction policy — abuser-blind by default. Locations and
+ * identifying details suppressed; risk tier and enrollment date shareable.
+ * The intake form starts here; admin may relax fields with explicit
+ * justification, but `abuser_blind_attestation` must remain true to record
+ * the agreement as `active`.
+ */
+export const OASIS_DEFAULT_REDACTION_POLICY: OasisRedactionPolicy = {
+  current_address: 'suppress',
+  current_employer: 'suppress',
+  child_school_id: 'suppress',
+  risk_tier: 'share',
+  enrolled_at: 'share',
+  assigned_advocate_id: 'share',
+};
+
 // ---------------------------------------------------------------------------
 // Terms shapes
 // ---------------------------------------------------------------------------
@@ -160,11 +229,62 @@ export type DcbsDsaTerms = {
 };
 
 /**
- * Union of all DSA-kind terms shapes. Today only DCBS is specified; KY DOC
- * (DTRS-012) will add a sibling type. The `agency` discriminator is the
- * narrowing key.
+ * OASIS Data-Sharing Agreement terms (DTRS-012). Authorizes individual-record
+ * sharing for the DV survivor pathway (SUBP-004).
+ *
+ * Distinguished from DCBS (ADR 0006, state-as-guardian custodial authority):
+ * OASIS survivors are not in state custody. The contract's privacy guarantee
+ * is the abuser-blind redaction policy itself — encoded in the `terms` so
+ * SUBP-004's middleware reads it as the single source of truth, not a
+ * downstream re-derivation. See ADR 0007 for the full contract.
+ *
+ * `abuser_blind_attestation` must be true when status='active'. The
+ * validator enforces this; `validateAgreementTerms` re-runs it on every
+ * insert.
  */
-export type DsaTerms = DcbsDsaTerms;
+export type OasisDsaTerms = {
+  kind: 'dsa';
+  agency: 'oasis';
+  /** Which data classes are covered by this agreement. */
+  scope: OasisDsaScopeValue[];
+  /** Full legal name of the executing OASIS entity. */
+  agency_legal_name: string;
+  /** Single point of contact at OASIS (advocate or program director). */
+  agency_contact: {
+    name: string;
+    title: string;
+    email: string;
+    phone?: string;
+  };
+  /**
+   * Per-field abuser-blind redaction treatment. Reads:
+   *   - `suppress`: SUBP-004 never persists or surfaces this field
+   *   - `aggregate_only`: SUBP-004 may include in counts; never per-record
+   *   - `share`: transmitted to authorized readers per `data-access.ts`
+   *
+   * The default policy (`OASIS_DEFAULT_REDACTION_POLICY`) suppresses every
+   * field that could leak survivor location.
+   */
+  redaction_policy: OasisRedactionPolicy;
+  /**
+   * MUST be true to record this agreement as `status='active'`. The admin
+   * checks this box in the intake form after reviewing the redaction
+   * policy. Validator throws if the policy is `active` and this flag is
+   * not true.
+   */
+  abuser_blind_attestation: boolean;
+  /**
+   * Records-retention deadline. KRS 209A confidentiality and DV best
+   * practice favor `on_termination` for victim-services data.
+   */
+  data_destruction_due: 'on_termination' | 'after_3_years' | 'after_5_years';
+};
+
+/**
+ * Union of all DSA-kind terms shapes. The `agency` discriminator is the
+ * narrowing key. KY DOC reentry (SUBP-005) will add a third sibling.
+ */
+export type DsaTerms = DcbsDsaTerms | OasisDsaTerms;
 
 /**
  * Placeholder for agreement kinds whose intake stories haven't shipped yet
@@ -445,14 +565,158 @@ export function validateDcbsDsaTerms(input: unknown): DcbsDsaTerms {
   };
 }
 
+const OASIS_DSA_SCOPE_VALUES = OASIS_DSA_SCOPE_OPTIONS.map((o) => o.value);
+const OASIS_REDACTION_TREATMENTS: readonly OasisRedactionTreatment[] = [
+  'share',
+  'suppress',
+  'aggregate_only',
+];
+
+/**
+ * Validate OASIS-DSA terms (DTRS-012). Throws on invalid; returns typed value
+ * on success. See ADR 0007 for the privacy contract this validator enforces.
+ *
+ * **Strict abuser-blind enforcement:** `abuser_blind_attestation` MUST be
+ * `true`. Recording an OASIS-DSA without attestation is an architectural
+ * bug — the abuser-blind discipline is the contract, not an option. If a
+ * draft path is ever needed, revisit with an explicit `status` parameter
+ * here rather than weakening the validator (ADR 0007 § 3.3).
+ *
+ * The redaction policy must cover every field in `OASIS_REDACTABLE_FIELDS` —
+ * partial policies are rejected, since SUBP-004's middleware reads this as
+ * its single source of truth and a missing field would silently fall through
+ * to "share." Adding a field to the policy is a contract amendment.
+ */
+export function validateOasisDsaTerms(input: unknown): OasisDsaTerms {
+  if (typeof input !== 'object' || input === null) {
+    throw new Error('DSA terms must be an object');
+  }
+
+  const {
+    kind,
+    agency,
+    scope,
+    agency_legal_name,
+    agency_contact,
+    redaction_policy,
+    abuser_blind_attestation,
+    data_destruction_due,
+  } = input as {
+    kind?: unknown;
+    agency?: unknown;
+    scope?: unknown;
+    agency_legal_name?: unknown;
+    agency_contact?: unknown;
+    redaction_policy?: unknown;
+    abuser_blind_attestation?: unknown;
+    data_destruction_due?: unknown;
+  };
+
+  if (kind !== 'dsa') {
+    throw new Error('DSA terms must have kind: "dsa"');
+  }
+  if (agency !== 'oasis') {
+    throw new Error('DSA terms.agency must be "oasis" for OASIS agreements');
+  }
+
+  if (!Array.isArray(scope) || scope.length === 0) {
+    throw new Error('DSA terms must include at least one scope value');
+  }
+  for (const s of scope as unknown[]) {
+    if (!OASIS_DSA_SCOPE_VALUES.includes(s as OasisDsaScopeValue)) {
+      throw new Error(
+        `Invalid OASIS-DSA scope value: "${String(s)}" (allowed: ${OASIS_DSA_SCOPE_VALUES.join(', ')})`,
+      );
+    }
+  }
+
+  if (typeof agency_legal_name !== 'string' || !agency_legal_name.trim()) {
+    throw new Error('DSA terms must include a non-empty agency_legal_name');
+  }
+
+  if (typeof agency_contact !== 'object' || agency_contact === null) {
+    throw new Error('DSA terms must include an agency_contact object');
+  }
+  const {
+    name: acName,
+    title: acTitle,
+    email: acEmail,
+    phone: acPhone,
+  } = agency_contact as {
+    name?: unknown;
+    title?: unknown;
+    email?: unknown;
+    phone?: unknown;
+  };
+  if (typeof acName !== 'string' || !acName.trim()) {
+    throw new Error('DSA agency_contact must include a non-empty name');
+  }
+  if (typeof acTitle !== 'string' || !acTitle.trim()) {
+    throw new Error('DSA agency_contact must include a non-empty title');
+  }
+  if (typeof acEmail !== 'string' || !acEmail.trim()) {
+    throw new Error('DSA agency_contact must include a non-empty email');
+  }
+  if (acPhone !== undefined && typeof acPhone !== 'string') {
+    throw new Error('DSA agency_contact.phone must be a string when provided');
+  }
+
+  if (typeof redaction_policy !== 'object' || redaction_policy === null) {
+    throw new Error('DSA terms must include a redaction_policy object');
+  }
+  const policyEntries = redaction_policy as Record<string, unknown>;
+  const validatedPolicy: Partial<OasisRedactionPolicy> = {};
+  for (const field of OASIS_REDACTABLE_FIELDS) {
+    const treatment = policyEntries[field];
+    if (
+      typeof treatment !== 'string' ||
+      !OASIS_REDACTION_TREATMENTS.includes(treatment as OasisRedactionTreatment)
+    ) {
+      throw new Error(
+        `Invalid OASIS-DSA redaction_policy["${field}"]: must be one of ${OASIS_REDACTION_TREATMENTS.join(', ')}`,
+      );
+    }
+    validatedPolicy[field] = treatment as OasisRedactionTreatment;
+  }
+
+  if (abuser_blind_attestation !== true) {
+    throw new Error(
+      'DSA terms.abuser_blind_attestation must be true — abuser-blind discipline is the OASIS contract (ADR 0007). ' +
+        'Recording without attestation is not permitted.',
+    );
+  }
+
+  const validDestruction = ['on_termination', 'after_3_years', 'after_5_years'] as const;
+  if (!validDestruction.includes(data_destruction_due as (typeof validDestruction)[number])) {
+    throw new Error(`DSA data_destruction_due must be one of: ${validDestruction.join(', ')}`);
+  }
+
+  return {
+    kind: 'dsa',
+    agency: 'oasis',
+    scope: scope as OasisDsaScopeValue[],
+    agency_legal_name,
+    agency_contact: {
+      name: acName,
+      title: acTitle,
+      email: acEmail,
+      phone: acPhone as string | undefined,
+    },
+    redaction_policy: validatedPolicy as OasisRedactionPolicy,
+    abuser_blind_attestation: true,
+    data_destruction_due: data_destruction_due as OasisDsaTerms['data_destruction_due'],
+  };
+}
+
 /**
  * Dispatcher — picks the right validator for the given agreement kind.
  *
  * Placeholder kinds (baa, qsoa, memo_of_cooperation) are intentionally
  * fail-closed: they throw until their intake stories ship and a real validator
- * is wired in. `dsa` is dispatched on the `agency` discriminator: only
- * `agency='dcbs'` (DTRS-011) is supported today; `ky_doc` is blocked until
- * DTRS-012. See ADR 0004 for the registry plan.
+ * is wired in. `dsa` is dispatched on the `agency` discriminator: `dcbs`
+ * (DTRS-011) and `oasis` (DTRS-012) are supported; `ky_doc` reentry is
+ * blocked until SUBP-005's prerequisite DTRS story lands. See ADR 0004 for
+ * the registry plan.
  */
 export function validateAgreementTerms(
   kind: PartnerAgreementKind,
@@ -469,8 +733,9 @@ export function validateAgreementTerms(
       }
       const agency = (input as { agency?: unknown }).agency;
       if (agency === 'dcbs') return validateDcbsDsaTerms(input);
+      if (agency === 'oasis') return validateOasisDsaTerms(input);
       if (typeof agency !== 'string' || !agency) {
-        throw new Error("DSA terms.agency is required (e.g. 'dcbs')");
+        throw new Error("DSA terms.agency is required (e.g. 'dcbs', 'oasis')");
       }
       throw new Error(
         `DSA agency '${agency}' not yet supported — its intake story has not shipped. ` +
