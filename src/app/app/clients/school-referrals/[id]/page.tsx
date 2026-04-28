@@ -26,7 +26,7 @@ export default async function SchoolReferralDetailPage({ params }: Props) {
   const referral = await getSchoolReferral(id, { userId: actor.id, role: actor.role });
   if (!referral) notFound();
 
-  const events = await getSchoolReferralStatusEvents(id);
+  const events = await getSchoolReferralStatusEvents(id, { userId: actor.id, role: actor.role });
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4 md:p-6">

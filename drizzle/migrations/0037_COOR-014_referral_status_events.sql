@@ -34,3 +34,32 @@ ALTER TABLE "school_referral_status_events"
 -- Descending occurred_at so the latest event is fetched first without re-sorting.
 CREATE INDEX "school_referral_status_events_referral_idx"
   ON "school_referral_status_events" USING btree ("referral_id", "occurred_at" DESC);--> statement-breakpoint
+
+-- Append-only enforcement (mirrors audit_log_append_only, migration 0008).
+-- school_referral_status_events is a FERPA audit log — rows must never be
+-- mutated or deleted. A DB-level trigger is used (not REVOKE) because all
+-- operations share the same service-role user (see 0008 for the rationale;
+-- when ESUC-002 splits roles on AWS RDS, add a REVOKE layer as defense-in-depth).
+CREATE OR REPLACE FUNCTION school_referral_status_events_block_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'school_referral_status_events is append-only; % is not permitted',
+    TG_OP USING ERRCODE = 'feature_not_supported';
+END;
+$$;--> statement-breakpoint
+
+CREATE TRIGGER school_referral_status_events_no_update
+BEFORE UPDATE ON school_referral_status_events
+FOR EACH ROW EXECUTE FUNCTION school_referral_status_events_block_mutation();--> statement-breakpoint
+
+CREATE TRIGGER school_referral_status_events_no_delete
+BEFORE DELETE ON school_referral_status_events
+FOR EACH ROW EXECUTE FUNCTION school_referral_status_events_block_mutation();--> statement-breakpoint
+
+-- BEFORE DELETE FOR EACH ROW does not fire on TRUNCATE — close the last
+-- DDL-adjacent hole with a statement-level trigger (mirrors audit_log, 0008).
+CREATE TRIGGER school_referral_status_events_no_truncate
+BEFORE TRUNCATE ON school_referral_status_events
+FOR EACH STATEMENT EXECUTE FUNCTION school_referral_status_events_block_mutation();--> statement-breakpoint

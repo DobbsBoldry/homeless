@@ -273,12 +273,17 @@ export async function getSchoolReferral(
         accessedByPartnerOrgId: null,
         purpose: 'caseworker_case_detail',
         basis: access.basis,
+        // COOR-014 fix (Important 5): the detail page renders urgency and notes
+        // in addition to the fields below — disclosure log must reflect what was
+        // actually shown to the viewer (FERPA § 99.32 accuracy requirement).
         dataClassesDisclosed: [
           'student_first_initial',
           'guardian_name',
           'guardian_contact',
           'housing_situation',
           'services_requested',
+          'urgency',
+          'notes',
         ],
       });
     }
@@ -428,7 +433,7 @@ export async function updateSchoolReferralStatus(
     await logAuditEvent({
       tx,
       actorUserId,
-      action: 'school_referral.status_updated',
+      action: 'school_referral.status_changed',
       targetTable: 'school_referrals',
       targetId: id,
       metadata: {
@@ -449,26 +454,98 @@ export async function updateSchoolReferralStatus(
 /**
  * Returns all status events for a referral, newest first.
  *
- * Caller must have already verified access (the policy gate runs at the
- * referral level — see getSchoolReferral / listReferralsForLiaison).
- * This is an internal helper; do not expose it directly from the barrel.
+ * FERPA § 99.32 compliance: the timeline events may contain notes with
+ * family-specific prose (e.g. "connected to Boulware Mission shelter, family
+ * intake Friday"). This function runs the canAccessSchoolReferral policy gate
+ * and writes a disclosure-log row inside the same transaction before returning
+ * data. If access is denied or the referral is not found, returns an empty
+ * array (does not 500 the page).
+ *
+ * Caller MUST pass a viewer context. The page MUST call getSchoolReferral
+ * first (which enforces membership); this function also re-runs the gate to
+ * produce a separate disclosure-log row for the timeline access with the
+ * correct purpose and data classes.
  */
 export async function getSchoolReferralStatusEvents(
   referralId: string,
+  viewer: ViewerContext,
 ): Promise<SchoolReferralStatusEvent[]> {
-  return db
-    .select()
-    .from(schoolReferralStatusEvents)
-    .where(eq(schoolReferralStatusEvents.referralId, referralId))
-    .orderBy(desc(schoolReferralStatusEvents.occurredAt));
+  return db.transaction(async (tx) => {
+    // Resolve the referral's consent basis for the disclosure log.
+    const [referralWithBasis] = await tx
+      .select({
+        id: schoolReferrals.id,
+        basis: schoolReferralConsents.basis,
+        status: schoolReferrals.status,
+        partnerOrgId: schoolReferrals.partnerOrgId,
+      })
+      .from(schoolReferrals)
+      .innerJoin(schoolReferralConsents, eq(schoolReferralConsents.referralId, schoolReferrals.id))
+      .where(eq(schoolReferrals.id, referralId))
+      .limit(1);
+
+    if (!referralWithBasis) return [];
+
+    // Policy gate — role check.
+    const access = canAccessSchoolReferral(viewer, referralWithBasis);
+    if (!access.allow) return [];
+
+    // Fetch the events.
+    const events = await tx
+      .select()
+      .from(schoolReferralStatusEvents)
+      .where(eq(schoolReferralStatusEvents.referralId, referralId))
+      .orderBy(desc(schoolReferralStatusEvents.occurredAt));
+
+    // Write FERPA § 99.32 disclosure-log row for timeline access.
+    if (access.requireDisclosureLog && access.basis) {
+      // Resolve viewer's partner org if applicable (non-admin viewers).
+      let accessedByPartnerOrgId: string | null = null;
+      if (viewer.role !== 'admin') {
+        const [membership] = await tx
+          .select({ partnerOrgId: orgMemberships.partnerOrgId })
+          .from(orgMemberships)
+          .where(
+            and(
+              eq(orgMemberships.userId, viewer.userId),
+              eq(orgMemberships.partnerOrgId, referralWithBasis.partnerOrgId),
+            ),
+          )
+          .limit(1);
+        accessedByPartnerOrgId = membership?.partnerOrgId ?? null;
+      }
+
+      await recordDisclosure({
+        tx,
+        referralId,
+        accessedByUserId: viewer.userId,
+        accessedByPartnerOrgId,
+        purpose: 'caseworker_case_detail_history',
+        basis: referralWithBasis.basis,
+        dataClassesDisclosed: ['status_event_note', 'status_transition_history'],
+      });
+    }
+
+    return events;
+  });
 }
 
 // ---------------------------------------------------------------------------
 // listReferralsForLiaison
 // ---------------------------------------------------------------------------
 
+/**
+ * Projected event shape for the liaison dashboard — only the fields the UI
+ * renders. Projecting here prevents the full event row (including actorUserId)
+ * from shipping in the React tree when it is not needed. (Minor: COOR-014 review.)
+ */
+export type LatestEventSummary = Pick<
+  SchoolReferralStatusEvent,
+  'note' | 'occurredAt' | 'toStatus' | 'fromStatus'
+>;
+
 export type ReferralWithLatestEvent = SchoolReferral & {
-  latestEvent: SchoolReferralStatusEvent | null;
+  latestEvent: LatestEventSummary | null;
 };
 
 /**
@@ -569,9 +646,19 @@ export async function listReferralsForLiaison(
       });
     }
 
-    return allowed.map(({ referral }) => ({
-      ...referral,
-      latestEvent: latestEventMap.get(referral.id) ?? null,
-    }));
+    return allowed.map(({ referral }) => {
+      const evt = latestEventMap.get(referral.id);
+      // Project to LatestEventSummary — only fields the dashboard renders.
+      // Keeps actorUserId out of the React tree (COOR-014 minor review item).
+      const latestEvent: LatestEventSummary | null = evt
+        ? {
+            note: evt.note,
+            occurredAt: evt.occurredAt,
+            toStatus: evt.toStatus,
+            fromStatus: evt.fromStatus,
+          }
+        : null;
+      return { ...referral, latestEvent };
+    });
   });
 }

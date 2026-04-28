@@ -13,6 +13,11 @@
  *      the returned referrals; referrals from other orgs are not included.
  *   6. listReferralsForLiaison: writes one disclosure-log row per returned
  *      referral, each with purpose 'liaison_dashboard_view' and actual basis.
+ *   7. (Critical 1 review) addReferralStatusUpdate: a caseworker WITHOUT
+ *      membership in the referral's school org is rejected — the action's
+ *      getSchoolReferral gate fires before updateSchoolReferralStatus is called.
+ *   8. (Critical 2 review) getSchoolReferralStatusEvents: writes a disclosure-log
+ *      row with purpose='caseworker_case_detail_history' when access is allowed.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -32,8 +37,13 @@ let schoolOrgRows: unknown[] = [];
 let statusEventRows: unknown[] = [];
 // Controls what tx.select().from(school_referrals).where(eq(id))... returns (current status).
 let currentStatusRows: unknown[] = [];
-// Controls consentJoinRows for the referral+basis query in listReferralsForLiaison.
-let consentJoinRows: { referral: unknown; basis: string }[] = [];
+// Controls consentJoinRows for the referral+basis query in listReferralsForLiaison
+// AND for getSchoolReferralStatusEvents (school_referrals innerJoin school_referral_consents).
+// The extra fields (id, status, partnerOrgId) are used when mocking the select-projection
+// shape returned by getSchoolReferralStatusEvents.
+let consentJoinRows: Record<string, unknown>[] = [];
+// Controls org_memberships rows for non-admin membership lookup in getSchoolReferralStatusEvents.
+let membershipRows: unknown[] = [];
 
 // ---------------------------------------------------------------------------
 // DB mock
@@ -64,21 +74,25 @@ vi.mock('@/db/client', () => {
 
       if (tableName === 'school_referrals') {
         return {
-          // getSchoolReferral / updateSchoolReferralStatus current-status read:
+          // updateSchoolReferralStatus current-status read (plain .where().limit()):
           where: () => ({ limit: () => Promise.resolve(currentStatusRows) }),
-          // listReferralsForLiaison referral+basis join:
+          // listReferralsForLiaison referral+basis join AND getSchoolReferralStatusEvents
+          // referral+basis join — both use school_referrals.innerJoin(school_referral_consents):
           innerJoin: () => ({
             where: () => ({
               orderBy: () => ({ limit: () => Promise.resolve(consentJoinRows) }),
+              limit: () => Promise.resolve(consentJoinRows),
             }),
+            limit: () => Promise.resolve(consentJoinRows),
           }),
         };
       }
 
       if (tableName === 'org_memberships') {
         return {
-          // listReferralsForLiaison membership check (outer db.select, not tx):
-          where: () => ({ limit: () => Promise.resolve([]) }),
+          // getSchoolReferralStatusEvents partner-org lookup for non-admin:
+          where: () => ({ limit: () => Promise.resolve(membershipRows) }),
+          // listReferralsForLiaison school org membership check (outer db.select):
           innerJoin: () => ({
             where: () => Promise.resolve(schoolOrgRows),
           }),
@@ -165,7 +179,8 @@ vi.mock('@/db/schema/partner-orgs', () => ({
   partnerOrgs: { _: { name: 'partner_orgs' } },
 }));
 
-const { updateSchoolReferralStatus, listReferralsForLiaison } = await import('./school-referrals');
+const { updateSchoolReferralStatus, listReferralsForLiaison, getSchoolReferralStatusEvents } =
+  await import('./school-referrals');
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -196,6 +211,7 @@ describe('updateSchoolReferralStatus — COOR-014 event log + privacy', () => {
     consentJoinRows = [];
     schoolOrgRows = [];
     statusEventRows = [];
+    membershipRows = [];
     vi.clearAllMocks();
   });
 
@@ -239,6 +255,14 @@ describe('updateSchoolReferralStatus — COOR-014 event log + privacy', () => {
     expect(JSON.stringify(meta)).not.toContain('sensitive family detail');
     expect(meta).not.toHaveProperty('note');
     expect(meta).not.toHaveProperty('confirmationNote');
+  });
+
+  it('audit-log action is school_referral.status_changed (ADR 0005)', async () => {
+    await updateSchoolReferralStatus('ref-uuid-001', 'triaged', 'user-cw-001');
+
+    expect(auditEvents).toHaveLength(1);
+    const auditEvent = auditEvents[0] as Record<string, unknown>;
+    expect(auditEvent.action).toBe('school_referral.status_changed');
   });
 
   it('audit-log tx is passed so event write is atomic with the update', async () => {
@@ -292,6 +316,7 @@ describe('listReferralsForLiaison — membership gate and disclosure log', () =>
     consentJoinRows = [];
     schoolOrgRows = [];
     statusEventRows = [];
+    membershipRows = [];
     vi.clearAllMocks();
   });
 
@@ -405,6 +430,36 @@ describe('listReferralsForLiaison — membership gate and disclosure log', () =>
     expect(results[0].latestEvent?.toStatus).toBe('triaged');
   });
 
+  it('latestEvent projection omits actorUserId (not present in LatestEventSummary)', async () => {
+    schoolOrgRows = [{ partnerOrgId: 'org-school-001' }];
+    consentJoinRows = [
+      {
+        referral: { ...baseReferralRow, id: 'ref-A', partnerOrgId: 'org-school-001' },
+        basis: 'mckinney_vento_authorization',
+      },
+    ];
+    statusEventRows = [
+      {
+        id: 'evt-001',
+        referralId: 'ref-A',
+        fromStatus: 'received',
+        toStatus: 'triaged',
+        actorUserId: 'user-cw-secret',
+        note: 'Triage complete.',
+        occurredAt: new Date(),
+      },
+    ];
+
+    const results = await listReferralsForLiaison({
+      userId: 'user-liaison-001',
+      role: 'caseworker',
+    });
+
+    expect(results).toHaveLength(1);
+    // actorUserId must NOT be present in the projected latestEvent shape
+    expect(results[0].latestEvent).not.toHaveProperty('actorUserId');
+  });
+
   it('returns null latestEvent when no events exist for a referral', async () => {
     schoolOrgRows = [{ partnerOrgId: 'org-school-001' }];
     consentJoinRows = [
@@ -422,5 +477,99 @@ describe('listReferralsForLiaison — membership gate and disclosure log', () =>
 
     expect(results).toHaveLength(1);
     expect(results[0].latestEvent).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getSchoolReferralStatusEvents — Critical 2: disclosure log + policy gate
+// ---------------------------------------------------------------------------
+
+describe('getSchoolReferralStatusEvents — FERPA disclosure log (Critical 2)', () => {
+  beforeEach(() => {
+    txInsertedRows.length = 0;
+    auditEvents.length = 0;
+    disclosureRows.length = 0;
+    referralRows = [];
+    currentStatusRows = [];
+    consentJoinRows = [];
+    schoolOrgRows = [];
+    statusEventRows = [];
+    membershipRows = [];
+    vi.clearAllMocks();
+  });
+
+  it('writes a disclosure-log row with purpose caseworker_case_detail_history when admin reads events', async () => {
+    // consentJoinRows drives the school_referrals.innerJoin(school_referral_consents) query.
+    consentJoinRows = [
+      {
+        id: 'ref-uuid-001',
+        basis: 'mckinney_vento_authorization',
+        status: 'received',
+        partnerOrgId: 'org-school-001',
+        referral: baseReferralRow,
+      },
+    ];
+    statusEventRows = [
+      {
+        id: 'evt-001',
+        referralId: 'ref-uuid-001',
+        fromStatus: 'received',
+        toStatus: 'triaged',
+        actorUserId: 'user-cw-001',
+        note: 'Connected to Boulware Mission shelter, family intake Friday.',
+        occurredAt: new Date(),
+      },
+    ];
+
+    const events = await getSchoolReferralStatusEvents('ref-uuid-001', {
+      userId: 'user-admin-001',
+      role: 'admin',
+    });
+
+    expect(events).toHaveLength(1);
+    // Disclosure row must have been written
+    expect(disclosureRows).toHaveLength(1);
+    const disclosure = disclosureRows[0] as Record<string, unknown>;
+    expect(disclosure.purpose).toBe('caseworker_case_detail_history');
+    expect(disclosure.referralId).toBe('ref-uuid-001');
+    expect(disclosure.accessedByUserId).toBe('user-admin-001');
+    expect(disclosure.dataClassesDisclosed).toEqual(
+      expect.arrayContaining(['status_event_note', 'status_transition_history']),
+    );
+  });
+
+  it('returns empty array when referral is not found (no disclosure written)', async () => {
+    consentJoinRows = []; // referral not found
+
+    const events = await getSchoolReferralStatusEvents('ref-uuid-999', {
+      userId: 'user-admin-001',
+      role: 'admin',
+    });
+
+    expect(events).toHaveLength(0);
+    expect(disclosureRows).toHaveLength(0);
+  });
+
+  it('returns empty array and writes no disclosure when role is denied (attorney)', async () => {
+    consentJoinRows = [
+      {
+        id: 'ref-uuid-001',
+        basis: 'mckinney_vento_authorization',
+        status: 'received',
+        partnerOrgId: 'org-school-001',
+        referral: baseReferralRow,
+      },
+    ];
+    statusEventRows = [
+      { id: 'evt-001', referralId: 'ref-uuid-001', note: 'note', occurredAt: new Date() },
+    ];
+
+    const events = await getSchoolReferralStatusEvents('ref-uuid-001', {
+      userId: 'user-atty-001',
+      role: 'attorney',
+    });
+
+    expect(events).toHaveLength(0);
+    expect(disclosureRows).toHaveLength(0);
   });
 });

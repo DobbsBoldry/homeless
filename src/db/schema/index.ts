@@ -25,6 +25,7 @@ export * from './person-partner-consents';
 export * from './rental-assistance-programs';
 export * from './school-referral-consents';
 export * from './school-referral-disclosures';
+export * from './school-referral-status-events';
 export * from './school-referrals';
 export * from './shelters';
 export * from './sms-conversations';
