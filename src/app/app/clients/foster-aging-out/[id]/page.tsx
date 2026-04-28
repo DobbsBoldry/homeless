@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { FosterYouthDetailClient } from '@/components/subp/foster-youth-detail-client';
 import { getFosterYouth, listAlertsForYouth } from '@/db/queries/foster-youth';
+import { getLatestApplicationForYouth } from '@/db/queries/medicaid-extension';
 import { requireRole } from '@/lib/auth';
 import { classifyTier, computeDaysUntilEighteen } from '@/lib/subp';
 
@@ -19,6 +20,7 @@ export default async function FosterYouthDetailPage({ params }: Props) {
   if (!youth) notFound();
 
   const alerts = await listAlertsForYouth(youth.id);
+  const latestMedicaid = await getLatestApplicationForYouth(youth.id);
   const days = computeDaysUntilEighteen(youth.dateOfBirth, new Date());
   const tier = classifyTier(days);
 
@@ -53,6 +55,35 @@ export default async function FosterYouthDetailPage({ params }: Props) {
         <p className="mt-1 text-xs text-muted-foreground">
           Tier: <span className="font-medium capitalize">{tier}</span> · DOB{' '}
           {String(youth.dateOfBirth)} · status {youth.status}
+        </p>
+      </section>
+
+      <section className="rounded-md border border-border p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">TEAMKY Medicaid extension</h2>
+          <Link
+            href={`/app/clients/foster-aging-out/${youth.id}/medicaid-extension`}
+            className="text-xs underline underline-offset-2 hover:text-foreground"
+          >
+            Manage →
+          </Link>
+        </div>
+        <p className="mt-2 text-sm">
+          {latestMedicaid ? (
+            <>
+              Status: <span className="font-medium capitalize">{latestMedicaid.status}</span>
+              {latestMedicaid.kynectReference && (
+                <span className="text-xs text-muted-foreground">
+                  {' · kynect '}
+                  <code className="font-mono">{latestMedicaid.kynectReference}</code>
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-muted-foreground">
+              No application on file — draft one when the youth is within ~90 days of 18.
+            </span>
+          )}
         </p>
       </section>
 
