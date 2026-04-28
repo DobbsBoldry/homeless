@@ -15,42 +15,17 @@ import { db } from '@/db/client';
 import type { SchoolReferralBasis, UserRole } from '@/db/schema/enums';
 import { schoolReferralDisclosures } from '@/db/schema/school-referral-disclosures';
 import type { SchoolReferral } from '@/db/schema/school-referrals';
+import {
+  MV_HOUSING_RELATED_SERVICES,
+  SCHOOL_REFERRAL_SERVICES,
+  type SchoolReferralService,
+} from './school-referral-vocabulary';
 
-// ---------------------------------------------------------------------------
-// Controlled vocabulary
-// ---------------------------------------------------------------------------
-
-/**
- * Services a school liaison may request on behalf of a referred family.
- * This is the complete controlled vocabulary for servicesRequested JSONB.
- */
-export const SCHOOL_REFERRAL_SERVICES = [
-  'shelter_placement',
-  'rental_assistance',
-  'case_management',
-  'utility_assistance',
-  'transportation',
-  'school_supplies',
-  'food_assistance',
-  'mental_health',
-] as const;
-
-export type SchoolReferralService = (typeof SCHOOL_REFERRAL_SERVICES)[number];
-
-/**
- * Housing-related services that qualify a referral for McKinney-Vento
- * authorization. The M-V act exception only covers disclosures made "to
- * facilitate access to housing or related services." Transportation alone
- * and school_supplies alone are not housing-related.
- */
-const MV_HOUSING_RELATED_SERVICES = new Set<SchoolReferralService>([
-  'shelter_placement',
-  'rental_assistance',
-  'case_management',
-  'utility_assistance',
-  'food_assistance',
-  'mental_health',
-]);
+// Controlled vocabulary lives in school-referral-vocabulary.ts so client
+// components (the liaison intake form) can deep-import the constants
+// without dragging postgres into the browser bundle. Re-exported here so
+// existing server-side callers don't break.
+export { MV_HOUSING_RELATED_SERVICES, SCHOOL_REFERRAL_SERVICES, type SchoolReferralService };
 
 // ---------------------------------------------------------------------------
 // canAccessSchoolReferral

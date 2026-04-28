@@ -13,7 +13,7 @@ import {
   FERPA_ELIGIBLE_STUDENT_CONSENT_V1,
   FERPA_PARENTAL_CONSENT_V1,
 } from '@/lib/dtrs/ferpa-consent-text';
-import { SCHOOL_REFERRAL_SERVICES } from '@/lib/dtrs/school-referral-policy';
+import { SCHOOL_REFERRAL_SERVICES } from '@/lib/dtrs/school-referral-vocabulary';
 
 type SchoolPartnerOrg = {
   id: string;
