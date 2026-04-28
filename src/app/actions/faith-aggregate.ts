@@ -1,8 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createFaithAggregateSubmission } from '@/db/queries/faith-aggregate';
+import { createFaithAggregateSubmission, getFaithMinistry } from '@/db/queries/faith-aggregate';
 import { requireRole } from '@/lib/auth';
+import { processBreakouts, processMetrics } from '@/lib/dtrs';
 import { parseIntakeFormData } from './faith-aggregate-parse';
 
 export type { ParsedIntakeInput } from './faith-aggregate-parse';
@@ -29,13 +30,21 @@ export async function submitFaithAggregateAction(
   if (!parsed.ok) return { ok: false, error: parsed.error };
 
   try {
+    const ministry = await getFaithMinistry(parsed.input.ministryId);
+    if (!ministry) return { ok: false, error: 'Ministry not found.' };
+
+    const minCellSize = ministry.minCellSize;
+    const suppressedCount =
+      processMetrics(parsed.input.metrics, minCellSize).filter((m) => m.suppressed).length +
+      processBreakouts(parsed.input.breakouts, minCellSize).filter((b) => b.suppressed).length;
+
     const submission = await createFaithAggregateSubmission({
       ...parsed.input,
       submittedByUserId: user.id,
     });
 
     revalidatePath('/app/admin/faith-aggregate');
-    return { ok: true, submissionId: submission.id, suppressedCount: 0 };
+    return { ok: true, submissionId: submission.id, suppressedCount };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Submission failed.';
     return { ok: false, error: msg };

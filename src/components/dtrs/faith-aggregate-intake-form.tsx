@@ -108,13 +108,16 @@ export function FaithAggregateIntakeForm({ ministries }: { ministries: MinistryO
   };
 
   if (result?.ok) {
+    const { suppressedCount } = result;
     return (
       <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-4 text-sm">
         <p className="font-semibold text-emerald-700 dark:text-emerald-400">Submission recorded.</p>
-        <p className="mt-1 text-muted-foreground">
-          Aggregate data saved. Any counts below the ministry&apos;s cell-size threshold were
-          automatically suppressed before storage.
-        </p>
+        {suppressedCount > 0 && (
+          <p className="mt-1 text-muted-foreground">
+            {suppressedCount} cell{suppressedCount === 1 ? '' : 's'} suppressed at the
+            ministry&apos;s threshold.
+          </p>
+        )}
         <Button type="button" variant="outline" className="mt-3" onClick={() => setResult(null)}>
           Enter another submission
         </Button>
