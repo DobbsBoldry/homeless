@@ -1,5 +1,5 @@
-import type { RankedDocketRow } from '@/lib/eviction/docket-ranking';
-import { riskBandLabel } from '@/lib/eviction/risk-band';
+import type { RankedDocketRow } from '@/lib/eviction';
+import { riskBandLabel } from '@/lib/eviction';
 
 const fmtDate = (d: Date) =>
   new Intl.DateTimeFormat('en-US', { dateStyle: 'long' }).format(new Date(d));

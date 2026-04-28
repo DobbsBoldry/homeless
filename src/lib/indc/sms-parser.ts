@@ -1,4 +1,4 @@
-import type { BedFilter } from '@/lib/coordination/bed-availability';
+import type { BedFilter } from '@/lib/coordination';
 
 /**
  * Inbound SMS commands the bed-finder understands. Every command maps

@@ -2,7 +2,7 @@
 
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { CONSENT_TOKEN_TTL_MS, createConsentAccessToken } from '@/lib/dtrs/consent-token';
+import { CONSENT_TOKEN_TTL_MS, createConsentAccessToken } from '@/lib/dtrs';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export type MintTokenResult =

@@ -9,8 +9,8 @@ import { getPersonProfile } from '@/db/queries/person-profile';
 import { type ClientCaseNote, clientCaseNotes } from '@/db/schema/client-case-notes';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { generateCaseNoteDraft } from '@/lib/cwt/case-note-generator';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
+import { generateCaseNoteDraft } from '@/lib/cwt';
+import { recordAiGeneration } from '@/lib/dtrs';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export type DraftCaseNoteResult = { ok: true; note: ClientCaseNote } | { ok: false; error: string };

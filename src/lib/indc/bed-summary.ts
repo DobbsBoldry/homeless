@@ -1,5 +1,5 @@
 import type { Shelter } from '@/db/schema/shelters';
-import { effectiveFreeBeds } from '@/lib/coordination/bed-availability';
+import { effectiveFreeBeds } from '@/lib/coordination';
 
 /**
  * Coalition-wide bed summary suitable for a 211 dispatcher or

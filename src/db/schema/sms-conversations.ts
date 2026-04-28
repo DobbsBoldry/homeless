@@ -1,5 +1,5 @@
 import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
-import type { BedFilter } from '@/lib/coordination/bed-availability';
+import type { BedFilter } from '@/lib/coordination';
 import { smsConversationStateEnum } from './enums';
 
 /**

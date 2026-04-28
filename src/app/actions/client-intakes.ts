@@ -7,8 +7,8 @@ import { db } from '@/db/client';
 import { clientIntakes } from '@/db/schema/client-intakes';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { extractIntake } from '@/lib/cwt/intake-extraction';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
+import { extractIntake } from '@/lib/cwt';
+import { recordAiGeneration } from '@/lib/dtrs';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export type SaveIntakeInput = {

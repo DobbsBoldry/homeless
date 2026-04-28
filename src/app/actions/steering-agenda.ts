@@ -5,8 +5,8 @@ import { getCoalitionWeeklyDigest } from '@/db/queries/coalition-weekly-digest';
 import { getMostRecentPostedMeeting, getSteeringMeetingById } from '@/db/queries/steering-meetings';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { draftSteeringAgenda } from '@/lib/coalition/steering-agenda';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
+import { draftSteeringAgenda } from '@/lib/coalition';
+import { recordAiGeneration } from '@/lib/dtrs';
 
 export type DraftSteeringAgendaResult =
   | { ok: true; agendaMd: string; modelId: string; promptVersion: string }

@@ -6,7 +6,7 @@ import { db } from '@/db/client';
 import { bedCountUpdates, bedHolds, shelters } from '@/db/schema/shelters';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { validateBedCount } from '@/lib/coordination/bed-availability';
+import { validateBedCount } from '@/lib/coordination';
 
 export type UpdateBedCountResult = { ok: true } | { ok: false; error: string };
 

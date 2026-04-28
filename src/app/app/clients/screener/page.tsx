@@ -4,7 +4,7 @@ import { BenefitsScreener } from '@/components/cwt/benefits-screener';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getClientIntakeById } from '@/db/queries/client-intakes';
 import { requireRole } from '@/lib/auth';
-import { intakeProfileToScreenerPrefill } from '@/lib/cwt/intake-to-screener';
+import { intakeProfileToScreenerPrefill } from '@/lib/cwt';
 
 export const dynamic = 'force-dynamic';
 

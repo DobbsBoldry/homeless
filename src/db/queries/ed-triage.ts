@@ -2,7 +2,7 @@ import { desc, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import type { EsucCarePlanStatus } from '@/db/schema/enums';
 import { esucCarePlans } from '@/db/schema/esuc-care-plans';
-import type { SuperUtilizerRow } from '@/lib/esuc/super-utilizer-ranking';
+import type { SuperUtilizerRow } from '@/lib/esuc';
 import { listSuperUtilizers } from './ed-encounters';
 
 export type EdTriageCandidate = SuperUtilizerRow & {

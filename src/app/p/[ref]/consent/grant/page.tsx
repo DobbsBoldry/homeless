@@ -2,8 +2,7 @@ import { notFound } from 'next/navigation';
 import { ConsentForm } from '@/components/consent/consent-form';
 import { Card, CardContent } from '@/components/ui/card';
 import { type ConsentType, consentTypeEnum } from '@/db/schema/enums';
-import { consentTextFor } from '@/lib/dtrs/consent-text';
-import { lookupConsentAccessToken } from '@/lib/dtrs/consent-token';
+import { consentTextFor, lookupConsentAccessToken } from '@/lib/dtrs';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export const metadata = {

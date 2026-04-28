@@ -5,7 +5,7 @@ import {
   type SmsConversation,
   smsConversations,
 } from '@/db/schema/sms-conversations';
-import type { BedFilter } from '@/lib/coordination/bed-availability';
+import type { BedFilter } from '@/lib/coordination';
 
 /** Conversation TTL: 10 minutes of silence rolls the user back to idle. */
 export const CONVERSATION_TTL_MS = 10 * 60 * 1000;

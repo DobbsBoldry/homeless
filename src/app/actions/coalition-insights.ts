@@ -7,8 +7,8 @@ import {
 } from '@/db/queries/coalition-weekly-digest';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { generateCoalitionInsights } from '@/lib/coalition/weekly-insights';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
+import { generateCoalitionInsights } from '@/lib/coalition';
+import { recordAiGeneration } from '@/lib/dtrs';
 
 export type CoalitionInsightsResult =
   | {

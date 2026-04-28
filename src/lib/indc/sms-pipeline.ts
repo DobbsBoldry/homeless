@@ -1,9 +1,5 @@
 import { activeBedHoldCounts, listActiveShelters } from '@/db/queries/shelters';
-import {
-  type BedFilter,
-  effectiveFreeBeds,
-  matchesFilter,
-} from '@/lib/coordination/bed-availability';
+import { type BedFilter, effectiveFreeBeds, matchesFilter } from '@/lib/coordination';
 import { type BedFinderResult, findOpenBeds } from './bed-finder';
 import { summarizeBeds } from './bed-summary';
 import { createBedHoldFromSms, releaseBedHoldFromSms } from './sms-bed-holds';

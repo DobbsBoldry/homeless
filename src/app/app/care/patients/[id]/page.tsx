@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getReferralIntakeForPatient } from '@/db/queries/client-intakes';
 import { listEncountersForPatient } from '@/db/queries/ed-encounters';
 import { requireRole } from '@/lib/auth';
-import { getCarePlanByPatient } from '@/lib/esuc/care-plan';
+import { getCarePlanByPatient } from '@/lib/esuc';
 
 const fmtDate = (d: Date) =>
   new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(d));

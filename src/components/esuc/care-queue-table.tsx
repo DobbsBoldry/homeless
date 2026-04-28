@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { HousingStatus } from '@/db/schema/enums';
-import type { SuperUtilizerRow } from '@/lib/esuc/super-utilizer-ranking';
+import type { SuperUtilizerRow } from '@/lib/esuc';
 
 const fmtDate = (d: Date) =>
   new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(d));

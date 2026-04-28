@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listCaseNotesForPerson } from '@/db/queries/client-case-notes';
 import { getPersonProfile } from '@/db/queries/person-profile';
 import { requireRole } from '@/lib/auth';
-import { recordDataAccess } from '@/lib/dtrs/data-access';
+import { recordDataAccess } from '@/lib/dtrs';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export const dynamic = 'force-dynamic';

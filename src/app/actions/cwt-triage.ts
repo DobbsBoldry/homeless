@@ -9,9 +9,8 @@ import {
 import { getPersonProfileDelta } from '@/db/queries/person-profile';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { type CwtTriageResult, generateCwtTriage } from '@/lib/cwt/cwt-triage';
-import { generatePreMeetingSummary } from '@/lib/cwt/pre-meeting-summary';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
+import { type CwtTriageResult, generateCwtTriage, generatePreMeetingSummary } from '@/lib/cwt';
+import { recordAiGeneration } from '@/lib/dtrs';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 const ROLES = ['caseworker', 'shelter_staff', 'admin'] as const;

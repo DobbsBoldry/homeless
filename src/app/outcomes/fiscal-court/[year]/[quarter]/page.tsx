@@ -9,7 +9,7 @@ import {
   listQuarterlyEvictionAggregates,
   type Quarter,
 } from '@/db/queries/public-outcomes';
-import { renderFiscalCourtBrief } from '@/lib/dtrs/fiscal-court-brief';
+import { renderFiscalCourtBrief } from '@/lib/dtrs';
 
 export const dynamic = 'force-dynamic';
 

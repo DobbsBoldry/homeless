@@ -4,7 +4,7 @@ import { db } from '@/db/client';
 import { triageOverrides } from '@/db/schema/triage-overrides';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { recommendTriageTier, type TriageInputs, type TriageTier } from '@/lib/cwt/triage';
+import { recommendTriageTier, type TriageInputs, type TriageTier } from '@/lib/cwt';
 
 export type RecordTriageOverrideResult =
   | { ok: true; id: string; isOverride: boolean }

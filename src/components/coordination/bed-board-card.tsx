@@ -1,7 +1,7 @@
 import { BedHoldControls } from '@/components/coordination/bed-hold-controls';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BedHoldWithHolder, ShelterWithOrg } from '@/db/queries/shelters';
-import { effectiveFreeBeds, freeBeds, occupancyRate } from '@/lib/coordination/bed-availability';
+import { effectiveFreeBeds, freeBeds, occupancyRate } from '@/lib/coordination';
 
 const fmtTime = (d: Date) =>
   new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(d));
