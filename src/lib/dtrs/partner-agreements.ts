@@ -1,17 +1,16 @@
 /**
- * Partner-agreements domain logic — DTRS-010, DTRS-011.
+ * Partner-agreements domain logic — DTRS-010, DTRS-011, DTRS-012, DTRS-013.
  *
  * Discriminated-union types for the `terms` JSONB column in
  * `partner_agreements`. Each agreement kind owns its terms shape. As of
- * Sprint 10: `ferpa`, `mou`, and `dsa` (DCBS variant only) are fully
- * specified. `baa`, `qsoa`, `memo_of_cooperation` carry a permissive
- * placeholder until their stories ship; `dsa` with `agency='ky_doc'` is
- * blocked until DTRS-012.
+ * Sprint 12: `ferpa`, `mou`, and `dsa` (DCBS / OASIS / KY DOC variants) are
+ * fully specified. `baa`, `qsoa`, `memo_of_cooperation` carry a permissive
+ * placeholder until their stories ship.
  *
  * Validators (`validateFerpaTerms`, `validateMouTerms`, `validateDcbsDsaTerms`,
- * `validateAgreementTerms`) are pure functions — throw on invalid shape,
- * return typed value on success. They run BEFORE any DB insert so bad data
- * never reaches storage.
+ * `validateOasisDsaTerms`, `validateKyDocDsaTerms`, `validateAgreementTerms`)
+ * are pure functions — throw on invalid shape, return typed value on success.
+ * They run BEFORE any DB insert so bad data never reaches storage.
  */
 
 import type { PartnerAgreementKind } from '@/db/schema/enums';
@@ -130,6 +129,47 @@ export const OASIS_REDACTABLE_FIELDS = [
 export type OasisRedactableField = (typeof OASIS_REDACTABLE_FIELDS)[number];
 export type OasisRedactionTreatment = 'share' | 'suppress' | 'aggregate_only';
 export type OasisRedactionPolicy = Record<OasisRedactableField, OasisRedactionTreatment>;
+
+/**
+ * KY DOC DSA data classes — the pre-release cohort the coalition may receive
+ * from the Kentucky Department of Corrections to support reentry coordination
+ * (SUBP-005). Subjects are in state custody at the time of receipt; the legal
+ * authority executing the agreement is KY DOC under KRS Chapter 197 and the
+ * Second Chance Act (42 U.S.C. § 17501 et seq.). See ADR 0009.
+ *
+ * Single source of truth — the intake form renders checkboxes from this array.
+ */
+export const KY_DOC_DSA_SCOPE_OPTIONS = [
+  {
+    value: 'pre_release_roster' as const,
+    label: 'Pre-release roster (Daviess County residents within the configured window)',
+  },
+  {
+    value: 'release_date_changes' as const,
+    label: 'Release-date changes (transfers, parole grants, sentence expirations)',
+  },
+  {
+    value: 'supports_in_place' as const,
+    label: 'Supports-in-place (KY DOC pre-release plan: housing / employment / healthcare)',
+  },
+  {
+    value: 'reentry_eligibility' as const,
+    label: 'Reentry-program eligibility (housing voucher, Medicaid resumption, treatment programs)',
+  },
+] as const;
+
+export type KyDocDsaScopeValue = (typeof KY_DOC_DSA_SCOPE_OPTIONS)[number]['value'];
+
+/**
+ * Pre-release window bounds. The window is the number of days before
+ * projected release that KY DOC may share an individual's record with the
+ * Coalition. Below 30 days is operationally too short for housing
+ * coordination; above 180 is risk without value (records drift, identifying
+ * data sits in the system longer than necessary). See ADR 0009 § Decision.3.
+ */
+export const KY_DOC_PRE_RELEASE_WINDOW_DEFAULT_DAYS = 60;
+export const KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS = 30;
+export const KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS = 180;
 
 /**
  * Default redaction policy — abuser-blind by default. Locations and
@@ -281,10 +321,76 @@ export type OasisDsaTerms = {
 };
 
 /**
- * Union of all DSA-kind terms shapes. The `agency` discriminator is the
- * narrowing key. KY DOC reentry (SUBP-005) will add a third sibling.
+ * KY DOC Data-Sharing Agreement terms (DTRS-013). Authorizes individual-record
+ * sharing for the reentry pathway (SUBP-005), bounded by a configurable
+ * pre-release window.
+ *
+ * Distinguished from DCBS (ADR 0006, foster aging-out — same state-as-custodian
+ * shape, but no time-bounded window) and OASIS (ADR 0007, voluntary survivor
+ * enrollment with abuser-blind redaction): KY DOC subjects are in state custody
+ * at the time of receipt, and the cohort is bounded both ways — by Daviess
+ * County residency and by the pre-release window. See ADR 0009 for the
+ * privacy contract.
+ *
+ * `individual_records_authorized` is the runtime gate for SUBP-005 (mirrors
+ * DCBS pattern). `pre_release_window_days` bounds which records may flow.
+ * `no_recidivism_prediction_attestation` MUST be `true` when status='active' —
+ * the validator enforces this; the Coalition contractually commits to never
+ * use this data for actuarial recidivism scoring.
  */
-export type DsaTerms = DcbsDsaTerms | OasisDsaTerms;
+export type KyDocDsaTerms = {
+  kind: 'dsa';
+  agency: 'ky_doc';
+  /** Which data classes are covered by this agreement. */
+  scope: KyDocDsaScopeValue[];
+  /** Full legal name of the executing agency office (e.g. "Kentucky Department of Corrections"). */
+  agency_legal_name: string;
+  /** Single point of contact at KY DOC (reentry coordinator, regional warden, or designee). */
+  state_contact: {
+    name: string;
+    title: string;
+    email: string;
+    phone?: string;
+  };
+  /**
+   * Population scope of this agreement. Sprint 12 ships `pre_release` only;
+   * future amendments may expand to `parole_supervision` or `expungement_support`
+   * — each requires a separate ADR.
+   */
+  population_focus: 'pre_release';
+  /**
+   * Number of days before projected release that KY DOC may share an
+   * individual's record with the Coalition. SUBP-005's ingest middleware
+   * reads this as its single source of truth. Bounded by
+   * KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS / KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS.
+   */
+  pre_release_window_days: number;
+  /**
+   * MUST be true for any individual-record ingest. SUBP-005 reads this flag
+   * before enabling per-individual views; if false, the agreement is
+   * informational only and no individual records may be persisted.
+   */
+  individual_records_authorized: boolean;
+  /**
+   * MUST be true to record this agreement as `status='active'`. The admin
+   * checks this box in the intake form after reviewing the no-recidivism-
+   * prediction commitment. Validator throws if not true.
+   */
+  no_recidivism_prediction_attestation: boolean;
+  /**
+   * Records-retention deadline. Reentry best practice favors `on_termination`
+   * or `after_3_years` — pre-release records that have outlived the warm-
+   * handoff window add risk without operational value.
+   */
+  data_destruction_due: 'on_termination' | 'after_3_years' | 'after_5_years';
+};
+
+/**
+ * Union of all DSA-kind terms shapes. The `agency` discriminator is the
+ * narrowing key. As of Sprint 12: DCBS (foster), OASIS (DV survivor), and
+ * KY DOC (reentry) are fully specified.
+ */
+export type DsaTerms = DcbsDsaTerms | OasisDsaTerms | KyDocDsaTerms;
 
 /**
  * Placeholder for agreement kinds whose intake stories haven't shipped yet
@@ -708,15 +814,161 @@ export function validateOasisDsaTerms(input: unknown): OasisDsaTerms {
   };
 }
 
+const KY_DOC_DSA_SCOPE_VALUES = KY_DOC_DSA_SCOPE_OPTIONS.map((o) => o.value);
+
+/**
+ * Validate KY DOC-DSA terms (DTRS-013). Throws on invalid; returns typed
+ * value on success. See ADR 0009 for the privacy contract this validator
+ * enforces.
+ *
+ * **Strict no-recidivism-prediction enforcement:**
+ * `no_recidivism_prediction_attestation` MUST be `true`. Recording a KY DOC
+ * DSA without it is an architectural bug — the prohibition is the contract,
+ * not an option. If a future research / IRB-supervised study needs different
+ * terms, that gets a separate agreement and a separate ADR.
+ *
+ * **Pre-release window bounds:** `pre_release_window_days` must fall within
+ * `[KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS, KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS]`.
+ * SUBP-005's ingest middleware reads this as its single source of truth.
+ */
+export function validateKyDocDsaTerms(input: unknown): KyDocDsaTerms {
+  if (typeof input !== 'object' || input === null) {
+    throw new Error('DSA terms must be an object');
+  }
+
+  const {
+    kind,
+    agency,
+    scope,
+    agency_legal_name,
+    state_contact,
+    population_focus,
+    pre_release_window_days,
+    individual_records_authorized,
+    no_recidivism_prediction_attestation,
+    data_destruction_due,
+  } = input as {
+    kind?: unknown;
+    agency?: unknown;
+    scope?: unknown;
+    agency_legal_name?: unknown;
+    state_contact?: unknown;
+    population_focus?: unknown;
+    pre_release_window_days?: unknown;
+    individual_records_authorized?: unknown;
+    no_recidivism_prediction_attestation?: unknown;
+    data_destruction_due?: unknown;
+  };
+
+  if (kind !== 'dsa') {
+    throw new Error('DSA terms must have kind: "dsa"');
+  }
+  if (agency !== 'ky_doc') {
+    throw new Error('DSA terms.agency must be "ky_doc" for KY DOC agreements');
+  }
+
+  if (!Array.isArray(scope) || scope.length === 0) {
+    throw new Error('DSA terms must include at least one scope value');
+  }
+  for (const s of scope as unknown[]) {
+    if (!KY_DOC_DSA_SCOPE_VALUES.includes(s as KyDocDsaScopeValue)) {
+      throw new Error(
+        `Invalid KY-DOC-DSA scope value: "${String(s)}" (allowed: ${KY_DOC_DSA_SCOPE_VALUES.join(', ')})`,
+      );
+    }
+  }
+
+  if (typeof agency_legal_name !== 'string' || !agency_legal_name.trim()) {
+    throw new Error('DSA terms must include a non-empty agency_legal_name');
+  }
+
+  if (typeof state_contact !== 'object' || state_contact === null) {
+    throw new Error('DSA terms must include a state_contact object');
+  }
+  const {
+    name: scName,
+    title: scTitle,
+    email: scEmail,
+    phone: scPhone,
+  } = state_contact as {
+    name?: unknown;
+    title?: unknown;
+    email?: unknown;
+    phone?: unknown;
+  };
+  if (typeof scName !== 'string' || !scName.trim()) {
+    throw new Error('DSA state_contact must include a non-empty name');
+  }
+  if (typeof scTitle !== 'string' || !scTitle.trim()) {
+    throw new Error('DSA state_contact must include a non-empty title');
+  }
+  if (typeof scEmail !== 'string' || !scEmail.trim()) {
+    throw new Error('DSA state_contact must include a non-empty email');
+  }
+  if (scPhone !== undefined && typeof scPhone !== 'string') {
+    throw new Error('DSA state_contact.phone must be a string when provided');
+  }
+
+  if (population_focus !== 'pre_release') {
+    throw new Error('DSA terms.population_focus must be "pre_release" (Sprint 12 scope)');
+  }
+
+  if (
+    typeof pre_release_window_days !== 'number' ||
+    !Number.isInteger(pre_release_window_days) ||
+    pre_release_window_days < KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS ||
+    pre_release_window_days > KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS
+  ) {
+    throw new Error(
+      `DSA terms.pre_release_window_days must be an integer in ` +
+        `[${KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS}, ${KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS}] ` +
+        `(see ADR 0009 § Decision.3)`,
+    );
+  }
+
+  if (typeof individual_records_authorized !== 'boolean') {
+    throw new Error('DSA terms.individual_records_authorized must be a boolean');
+  }
+
+  if (no_recidivism_prediction_attestation !== true) {
+    throw new Error(
+      'DSA terms.no_recidivism_prediction_attestation must be true — the no-recidivism-prediction ' +
+        'commitment is the KY DOC contract (ADR 0009). Recording without attestation is not permitted.',
+    );
+  }
+
+  const validDestruction = ['on_termination', 'after_3_years', 'after_5_years'] as const;
+  if (!validDestruction.includes(data_destruction_due as (typeof validDestruction)[number])) {
+    throw new Error(`DSA data_destruction_due must be one of: ${validDestruction.join(', ')}`);
+  }
+
+  return {
+    kind: 'dsa',
+    agency: 'ky_doc',
+    scope: scope as KyDocDsaScopeValue[],
+    agency_legal_name,
+    state_contact: {
+      name: scName,
+      title: scTitle,
+      email: scEmail,
+      phone: scPhone as string | undefined,
+    },
+    population_focus: 'pre_release',
+    pre_release_window_days,
+    individual_records_authorized,
+    no_recidivism_prediction_attestation: true,
+    data_destruction_due: data_destruction_due as KyDocDsaTerms['data_destruction_due'],
+  };
+}
+
 /**
  * Dispatcher — picks the right validator for the given agreement kind.
  *
  * Placeholder kinds (baa, qsoa, memo_of_cooperation) are intentionally
  * fail-closed: they throw until their intake stories ship and a real validator
  * is wired in. `dsa` is dispatched on the `agency` discriminator: `dcbs`
- * (DTRS-011) and `oasis` (DTRS-012) are supported; `ky_doc` reentry is
- * blocked until SUBP-005's prerequisite DTRS story lands. See ADR 0004 for
- * the registry plan.
+ * (DTRS-011), `oasis` (DTRS-012), and `ky_doc` (DTRS-013) are supported.
+ * See ADR 0004 for the registry plan.
  */
 export function validateAgreementTerms(
   kind: PartnerAgreementKind,
@@ -734,8 +986,9 @@ export function validateAgreementTerms(
       const agency = (input as { agency?: unknown }).agency;
       if (agency === 'dcbs') return validateDcbsDsaTerms(input);
       if (agency === 'oasis') return validateOasisDsaTerms(input);
+      if (agency === 'ky_doc') return validateKyDocDsaTerms(input);
       if (typeof agency !== 'string' || !agency) {
-        throw new Error("DSA terms.agency is required (e.g. 'dcbs', 'oasis')");
+        throw new Error("DSA terms.agency is required (e.g. 'dcbs', 'oasis', 'ky_doc')");
       }
       throw new Error(
         `DSA agency '${agency}' not yet supported — its intake story has not shipped. ` +

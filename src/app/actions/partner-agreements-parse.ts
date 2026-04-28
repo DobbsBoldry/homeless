@@ -11,6 +11,10 @@
 import {
   DCBS_DSA_SCOPE_OPTIONS,
   FERPA_SCOPE_OPTIONS,
+  KY_DOC_DSA_SCOPE_OPTIONS,
+  KY_DOC_PRE_RELEASE_WINDOW_DEFAULT_DAYS,
+  KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS,
+  KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS,
   OASIS_DEFAULT_REDACTION_POLICY,
   OASIS_DSA_SCOPE_OPTIONS,
   OASIS_REDACTABLE_FIELDS,
@@ -21,6 +25,7 @@ import {
 const FERPA_SCOPE_VALUES = FERPA_SCOPE_OPTIONS.map((o) => o.value);
 const DCBS_DSA_SCOPE_VALUES = DCBS_DSA_SCOPE_OPTIONS.map((o) => o.value);
 const OASIS_DSA_SCOPE_VALUES = OASIS_DSA_SCOPE_OPTIONS.map((o) => o.value);
+const KY_DOC_DSA_SCOPE_VALUES = KY_DOC_DSA_SCOPE_OPTIONS.map((o) => o.value);
 const OASIS_REDACTION_TREATMENTS: readonly OasisRedactionTreatment[] = [
   'share',
   'suppress',
@@ -474,6 +479,189 @@ export function parseOasisDsaAgreementForm(
         },
         redaction_policy: redaction_policy as OasisRedactionPolicy,
         abuser_blind_attestation: true,
+        data_destruction_due,
+      },
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// DTRS-013 — KY DOC DSA parser
+// ---------------------------------------------------------------------------
+
+export type ParsedKyDocDsaAgreementInput = {
+  partnerOrgId: string;
+  effectiveDate: string;
+  endDate: string | null;
+  signedByPartner: string | null;
+  notes: string | null;
+  terms: {
+    kind: 'dsa';
+    agency: 'ky_doc';
+    scope: string[];
+    agency_legal_name: string;
+    state_contact: { name: string; title: string; email: string; phone?: string };
+    population_focus: 'pre_release';
+    pre_release_window_days: number;
+    individual_records_authorized: boolean;
+    no_recidivism_prediction_attestation: true;
+    data_destruction_due: 'on_termination' | 'after_3_years' | 'after_5_years';
+  };
+};
+
+/**
+ * Parse + validate a FormData from the KY DOC DSA agreement intake form.
+ *
+ * Per ADR 0009, the no-recidivism-prediction attestation is required (the
+ * form's submit button is disabled until checked, and this parser fails closed
+ * if the box was bypassed). The pre-release window must fall within
+ * [KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS, KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS];
+ * empty input falls back to KY_DOC_PRE_RELEASE_WINDOW_DEFAULT_DAYS.
+ *
+ * FormData shape:
+ *   partnerOrgId                            — uuid of the KY DOC partner_org
+ *   effectiveDate                           — YYYY-MM-DD (required)
+ *   endDate                                 — YYYY-MM-DD (optional)
+ *   signedByPartner                         — text (optional)
+ *   notes                                   — text (optional)
+ *   agency_legal_name                       — text (required)
+ *   state_contact_name                      — text (required)
+ *   state_contact_title                     — text (required)
+ *   state_contact_email                     — text (required, basic format check)
+ *   state_contact_phone                     — text (optional)
+ *   scope_{value}                           — checkbox "on" when checked
+ *   pre_release_window_days                 — integer in [MIN, MAX]; defaults to DEFAULT
+ *   individual_records_authorized           — "true" | "false"
+ *   no_recidivism_prediction_attestation    — "true" required (any other value rejected)
+ *   data_destruction_due                    — 'on_termination' | 'after_3_years' | 'after_5_years'
+ */
+export function parseKyDocDsaAgreementForm(
+  formData: FormData,
+): { ok: true; input: ParsedKyDocDsaAgreementInput } | { ok: false; error: string } {
+  const str = (key: string) => (formData.get(key) ?? '').toString().trim();
+
+  const partnerOrgId = str('partnerOrgId');
+  if (!partnerOrgId) return { ok: false, error: 'KY DOC partner is required.' };
+
+  const effectiveDateRaw = str('effectiveDate');
+  if (!effectiveDateRaw) return { ok: false, error: 'Effective date is required.' };
+  if (Number.isNaN(Date.parse(effectiveDateRaw))) {
+    return { ok: false, error: 'Effective date is not a valid date.' };
+  }
+
+  const endDateRaw = str('endDate');
+  let endDate: string | null = null;
+  if (endDateRaw) {
+    if (Number.isNaN(Date.parse(endDateRaw))) {
+      return { ok: false, error: 'End date is not a valid date.' };
+    }
+    if (endDateRaw < effectiveDateRaw) {
+      return { ok: false, error: 'End date must be on or after effective date.' };
+    }
+    endDate = endDateRaw;
+  }
+
+  const signedByPartner = str('signedByPartner') || null;
+
+  const notes = str('notes') || null;
+  if (notes && notes.length > 2000) {
+    return { ok: false, error: 'Notes must be 2 000 characters or fewer.' };
+  }
+
+  const agency_legal_name = str('agency_legal_name');
+  if (!agency_legal_name) {
+    return { ok: false, error: 'Agency legal name is required.' };
+  }
+
+  const sc_name = str('state_contact_name');
+  if (!sc_name) return { ok: false, error: 'KY DOC contact name is required.' };
+
+  const sc_title = str('state_contact_title');
+  if (!sc_title) return { ok: false, error: 'KY DOC contact title is required.' };
+
+  const sc_email = str('state_contact_email');
+  if (!sc_email) return { ok: false, error: 'KY DOC contact email is required.' };
+  if (!sc_email.includes('@')) {
+    return { ok: false, error: 'KY DOC contact email must be a valid email address.' };
+  }
+
+  const sc_phone = str('state_contact_phone') || undefined;
+
+  const scope: string[] = [];
+  for (const opt of KY_DOC_DSA_SCOPE_VALUES) {
+    const val = formData.get(`scope_${opt}`);
+    if (val === 'on' || val === 'true' || val === opt) {
+      scope.push(opt);
+    }
+  }
+  if (scope.length === 0) {
+    return { ok: false, error: 'At least one data scope must be selected.' };
+  }
+
+  const windowRaw = str('pre_release_window_days');
+  let pre_release_window_days = KY_DOC_PRE_RELEASE_WINDOW_DEFAULT_DAYS;
+  if (windowRaw) {
+    const n = Number(windowRaw);
+    if (!Number.isInteger(n)) {
+      return { ok: false, error: 'Pre-release window must be a whole number of days.' };
+    }
+    if (n < KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS || n > KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS) {
+      return {
+        ok: false,
+        error:
+          `Pre-release window must be between ${KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS} ` +
+          `and ${KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS} days (ADR 0009 § Decision.3).`,
+      };
+    }
+    pre_release_window_days = n;
+  }
+
+  const indivAuthRaw = str('individual_records_authorized');
+  if (indivAuthRaw !== 'true' && indivAuthRaw !== 'false') {
+    return { ok: false, error: 'Individual-records authorization selection is required.' };
+  }
+  const individual_records_authorized = indivAuthRaw === 'true';
+
+  const attestationRaw = str('no_recidivism_prediction_attestation');
+  if (attestationRaw !== 'true') {
+    return {
+      ok: false,
+      error:
+        'The no-recidivism-prediction attestation must be checked. Recording a KY DOC DSA without it is not permitted (ADR 0009).',
+    };
+  }
+
+  const VALID_DESTRUCTION = ['on_termination', 'after_3_years', 'after_5_years'] as const;
+  type DestructionValue = (typeof VALID_DESTRUCTION)[number];
+  const destructionRaw = str('data_destruction_due');
+  if (!VALID_DESTRUCTION.includes(destructionRaw as DestructionValue)) {
+    return { ok: false, error: 'Data destruction policy selection is required.' };
+  }
+  const data_destruction_due = destructionRaw as DestructionValue;
+
+  return {
+    ok: true,
+    input: {
+      partnerOrgId,
+      effectiveDate: effectiveDateRaw,
+      endDate,
+      signedByPartner,
+      notes,
+      terms: {
+        kind: 'dsa',
+        agency: 'ky_doc',
+        scope,
+        agency_legal_name,
+        state_contact: {
+          name: sc_name,
+          title: sc_title,
+          email: sc_email,
+          phone: sc_phone,
+        },
+        population_focus: 'pre_release',
+        pre_release_window_days,
+        individual_records_authorized,
+        no_recidivism_prediction_attestation: true,
         data_destruction_due,
       },
     },

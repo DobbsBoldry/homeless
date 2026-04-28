@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseDcbsDsaAgreementForm,
+  parseKyDocDsaAgreementForm,
   parseMouAgreementForm,
   parseOasisDsaAgreementForm,
   parsePartnerAgreementForm,
@@ -616,6 +617,191 @@ describe('parseOasisDsaAgreementForm', () => {
 
   it('rejects notes longer than 2000 chars', () => {
     const r = parseOasisDsaAgreementForm(makeOasisFormData({ notes: 'x'.repeat(2001) }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/2 000 characters/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseKyDocDsaAgreementForm (DTRS-013)
+// ---------------------------------------------------------------------------
+
+function makeKyDocFormData(overrides: Record<string, string> = {}): FormData {
+  const fd = new FormData();
+  fd.set('partnerOrgId', 'kydoc-uuid-001');
+  fd.set('effectiveDate', '2026-11-01');
+  fd.set('agency_legal_name', 'Kentucky Department of Corrections');
+  fd.set('state_contact_name', 'Reentry Coordinator');
+  fd.set('state_contact_title', 'Reentry Services Branch Manager');
+  fd.set('state_contact_email', 'reentry@ky.gov');
+  fd.set('scope_pre_release_roster', 'on');
+  fd.set('individual_records_authorized', 'true');
+  fd.set('no_recidivism_prediction_attestation', 'true');
+  fd.set('data_destruction_due', 'on_termination');
+  // pre_release_window_days omitted = parser falls back to default (60).
+  for (const [k, v] of Object.entries(overrides)) {
+    if (v === '__DELETE__') {
+      fd.delete(k);
+    } else {
+      fd.set(k, v);
+    }
+  }
+  return fd;
+}
+
+describe('parseKyDocDsaAgreementForm', () => {
+  it('returns ok:true for a valid form (defaults to 60-day pre-release window)', () => {
+    const r = parseKyDocDsaAgreementForm(makeKyDocFormData());
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.partnerOrgId).toBe('kydoc-uuid-001');
+    expect(r.input.terms.kind).toBe('dsa');
+    expect(r.input.terms.agency).toBe('ky_doc');
+    expect(r.input.terms.scope).toContain('pre_release_roster');
+    expect(r.input.terms.population_focus).toBe('pre_release');
+    expect(r.input.terms.pre_release_window_days).toBe(60);
+    expect(r.input.terms.individual_records_authorized).toBe(true);
+    expect(r.input.terms.no_recidivism_prediction_attestation).toBe(true);
+  });
+
+  it('rejects missing partnerOrgId', () => {
+    const r = parseKyDocDsaAgreementForm(makeKyDocFormData({ partnerOrgId: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/ky doc partner/i);
+  });
+
+  it('rejects missing agency_legal_name', () => {
+    const r = parseKyDocDsaAgreementForm(makeKyDocFormData({ agency_legal_name: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/agency legal name/i);
+  });
+
+  it('rejects missing state_contact_name', () => {
+    const r = parseKyDocDsaAgreementForm(makeKyDocFormData({ state_contact_name: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/contact name/i);
+  });
+
+  it('rejects state_contact_email without @', () => {
+    const r = parseKyDocDsaAgreementForm(
+      makeKyDocFormData({ state_contact_email: 'not-an-email' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/valid email/i);
+  });
+
+  it('rejects no scope checkboxes selected', () => {
+    const r = parseKyDocDsaAgreementForm(makeKyDocFormData({ scope_pre_release_roster: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/at least one data scope/i);
+  });
+
+  it('collects multiple scope checkboxes', () => {
+    const r = parseKyDocDsaAgreementForm(
+      makeKyDocFormData({
+        scope_release_date_changes: 'on',
+        scope_supports_in_place: 'on',
+        scope_reentry_eligibility: 'on',
+      }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.scope.sort()).toEqual([
+      'pre_release_roster',
+      'reentry_eligibility',
+      'release_date_changes',
+      'supports_in_place',
+    ]);
+  });
+
+  it('accepts pre_release_window_days at the lower bound (30)', () => {
+    const r = parseKyDocDsaAgreementForm(makeKyDocFormData({ pre_release_window_days: '30' }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.pre_release_window_days).toBe(30);
+  });
+
+  it('accepts pre_release_window_days at the upper bound (180)', () => {
+    const r = parseKyDocDsaAgreementForm(makeKyDocFormData({ pre_release_window_days: '180' }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.pre_release_window_days).toBe(180);
+  });
+
+  it('rejects pre_release_window_days below the minimum', () => {
+    const r = parseKyDocDsaAgreementForm(makeKyDocFormData({ pre_release_window_days: '14' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/pre-release window must be between/i);
+  });
+
+  it('rejects pre_release_window_days above the maximum', () => {
+    const r = parseKyDocDsaAgreementForm(makeKyDocFormData({ pre_release_window_days: '365' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/pre-release window must be between/i);
+  });
+
+  it('rejects non-integer pre_release_window_days', () => {
+    const r = parseKyDocDsaAgreementForm(makeKyDocFormData({ pre_release_window_days: '60.5' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/whole number of days/i);
+  });
+
+  it('rejects missing individual_records_authorized', () => {
+    const r = parseKyDocDsaAgreementForm(makeKyDocFormData({ individual_records_authorized: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/individual-records authorization/i);
+  });
+
+  it('rejects no_recidivism_prediction_attestation missing', () => {
+    const r = parseKyDocDsaAgreementForm(
+      makeKyDocFormData({ no_recidivism_prediction_attestation: '' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/no-recidivism-prediction attestation/i);
+  });
+
+  it('rejects no_recidivism_prediction_attestation set to anything other than "true"', () => {
+    const r = parseKyDocDsaAgreementForm(
+      makeKyDocFormData({ no_recidivism_prediction_attestation: 'false' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/no-recidivism-prediction attestation/i);
+  });
+
+  it('rejects unknown data_destruction_due value', () => {
+    const r = parseKyDocDsaAgreementForm(
+      makeKyDocFormData({ data_destruction_due: 'never_required' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/data destruction policy/i);
+  });
+
+  it('accepts open-ended agreement (no endDate)', () => {
+    const r = parseKyDocDsaAgreementForm(makeKyDocFormData({ endDate: '' }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.endDate).toBeNull();
+  });
+
+  it('rejects endDate before effectiveDate', () => {
+    const r = parseKyDocDsaAgreementForm(
+      makeKyDocFormData({ effectiveDate: '2026-11-01', endDate: '2026-10-01' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/end date must be on or after/i);
+  });
+
+  it('includes optional state_contact_phone when provided', () => {
+    const r = parseKyDocDsaAgreementForm(
+      makeKyDocFormData({ state_contact_phone: '(502) 564-4726' }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.state_contact.phone).toBe('(502) 564-4726');
+  });
+
+  it('rejects notes longer than 2000 chars', () => {
+    const r = parseKyDocDsaAgreementForm(makeKyDocFormData({ notes: 'x'.repeat(2001) }));
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/2 000 characters/i);
   });
