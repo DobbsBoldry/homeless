@@ -6,7 +6,7 @@
  * See STATE.md known quirk: Next.js 'use server' × vitest incompatibility.
  */
 import { describe, expect, it } from 'vitest';
-import { parsePartnerAgreementForm } from './partner-agreements-parse';
+import { parseDcbsDsaAgreementForm, parsePartnerAgreementForm } from './partner-agreements-parse';
 
 function makeFormData(overrides: Record<string, string> = {}): FormData {
   const fd = new FormData();
@@ -199,5 +199,168 @@ describe('parsePartnerAgreementForm', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.input.terms.liaison_contact.phone).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseDcbsDsaAgreementForm (DTRS-011)
+// ---------------------------------------------------------------------------
+
+function makeDcbsFormData(overrides: Record<string, string> = {}): FormData {
+  const fd = new FormData();
+  fd.set('partnerOrgId', 'dcbs-uuid-001');
+  fd.set('effectiveDate', '2026-09-01');
+  fd.set(
+    'agency_legal_name',
+    'Kentucky Cabinet for Health and Family Services, Department for Community Based Services',
+  );
+  fd.set('state_contact_name', 'Robin Davis');
+  fd.set('state_contact_title', 'Service Region Administrator');
+  fd.set('state_contact_email', 'robin.davis@ky.gov');
+  fd.set('scope_foster_aging_out_roster', 'on');
+  fd.set('individual_records_authorized', 'true');
+  fd.set('data_destruction_due', 'on_termination');
+  for (const [k, v] of Object.entries(overrides)) {
+    if (v === '__DELETE__') {
+      fd.delete(k);
+    } else {
+      fd.set(k, v);
+    }
+  }
+  return fd;
+}
+
+describe('parseDcbsDsaAgreementForm', () => {
+  it('returns ok:true for a valid form', () => {
+    const r = parseDcbsDsaAgreementForm(makeDcbsFormData());
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.partnerOrgId).toBe('dcbs-uuid-001');
+    expect(r.input.effectiveDate).toBe('2026-09-01');
+    expect(r.input.endDate).toBeNull();
+    expect(r.input.terms.kind).toBe('dsa');
+    expect(r.input.terms.agency).toBe('dcbs');
+    expect(r.input.terms.scope).toContain('foster_aging_out_roster');
+    expect(r.input.terms.individual_records_authorized).toBe(true);
+    expect(r.input.terms.population_focus).toBe('foster_aging_out');
+    expect(r.input.terms.data_destruction_due).toBe('on_termination');
+  });
+
+  it('rejects missing partnerOrgId', () => {
+    const r = parseDcbsDsaAgreementForm(makeDcbsFormData({ partnerOrgId: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/dcbs partner/i);
+  });
+
+  it('rejects missing agency_legal_name', () => {
+    const r = parseDcbsDsaAgreementForm(makeDcbsFormData({ agency_legal_name: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/agency legal name/i);
+  });
+
+  it('rejects missing state_contact_name', () => {
+    const r = parseDcbsDsaAgreementForm(makeDcbsFormData({ state_contact_name: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/contact name/i);
+  });
+
+  it('rejects missing state_contact_title', () => {
+    const r = parseDcbsDsaAgreementForm(makeDcbsFormData({ state_contact_title: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/contact title/i);
+  });
+
+  it('rejects state_contact_email without @', () => {
+    const r = parseDcbsDsaAgreementForm(makeDcbsFormData({ state_contact_email: 'not-an-email' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/valid email/i);
+  });
+
+  it('rejects no scope checkboxes selected', () => {
+    const r = parseDcbsDsaAgreementForm(makeDcbsFormData({ scope_foster_aging_out_roster: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/at least one data scope/i);
+  });
+
+  it('collects multiple scope checkboxes', () => {
+    const r = parseDcbsDsaAgreementForm(
+      makeDcbsFormData({
+        scope_placement_history: 'on',
+        scope_supports_in_place: 'on',
+        scope_teamky_eligibility: 'on',
+      }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.scope.sort()).toEqual([
+      'foster_aging_out_roster',
+      'placement_history',
+      'supports_in_place',
+      'teamky_eligibility',
+    ]);
+  });
+
+  it('rejects unknown individual_records_authorized value', () => {
+    const r = parseDcbsDsaAgreementForm(
+      makeDcbsFormData({ individual_records_authorized: 'maybe' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/individual-records authorization/i);
+  });
+
+  it('parses individual_records_authorized=false correctly', () => {
+    const r = parseDcbsDsaAgreementForm(
+      makeDcbsFormData({ individual_records_authorized: 'false' }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.individual_records_authorized).toBe(false);
+  });
+
+  it('rejects unknown data_destruction_due value', () => {
+    const r = parseDcbsDsaAgreementForm(
+      makeDcbsFormData({ data_destruction_due: 'never_required' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/data destruction policy/i);
+  });
+
+  it('accepts after_3_years and after_5_years destruction values', () => {
+    for (const val of ['after_3_years', 'after_5_years']) {
+      const r = parseDcbsDsaAgreementForm(makeDcbsFormData({ data_destruction_due: val }));
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.input.terms.data_destruction_due).toBe(val);
+    }
+  });
+
+  it('rejects endDate before effectiveDate', () => {
+    const r = parseDcbsDsaAgreementForm(
+      makeDcbsFormData({ effectiveDate: '2026-09-01', endDate: '2026-08-01' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/end date must be on or after/i);
+  });
+
+  it('accepts open-ended agreement (no endDate)', () => {
+    const r = parseDcbsDsaAgreementForm(makeDcbsFormData({ endDate: '' }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.endDate).toBeNull();
+  });
+
+  it('includes optional state_contact_phone when provided', () => {
+    const r = parseDcbsDsaAgreementForm(
+      makeDcbsFormData({ state_contact_phone: '(502) 555-0100' }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.state_contact.phone).toBe('(502) 555-0100');
+  });
+
+  it('rejects notes longer than 2000 chars', () => {
+    const r = parseDcbsDsaAgreementForm(makeDcbsFormData({ notes: 'x'.repeat(2001) }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/2 000 characters/i);
   });
 });

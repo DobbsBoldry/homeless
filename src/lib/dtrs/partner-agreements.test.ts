@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DCBS_DSA_SCOPE_OPTIONS,
   FERPA_SCOPE_OPTIONS,
   validateAgreementTerms,
+  validateDcbsDsaTerms,
   validateFerpaTerms,
   validateMouTerms,
 } from './partner-agreements';
@@ -189,6 +191,151 @@ describe('validateMouTerms', () => {
 });
 
 // ---------------------------------------------------------------------------
+// validateDcbsDsaTerms (DTRS-011)
+// ---------------------------------------------------------------------------
+
+const validDcbsDsa = {
+  kind: 'dsa',
+  agency: 'dcbs',
+  scope: ['foster_aging_out_roster', 'placement_history'],
+  agency_legal_name:
+    'Kentucky Cabinet for Health and Family Services, Department for Community Based Services',
+  state_contact: {
+    name: 'Robin Davis',
+    title: 'Service Region Administrator',
+    email: 'robin.davis@ky.gov',
+    phone: '(502) 564-0000',
+  },
+  population_focus: 'foster_aging_out',
+  individual_records_authorized: true,
+  data_destruction_due: 'on_termination',
+};
+
+describe('validateDcbsDsaTerms', () => {
+  it('accepts a valid DCBS DSA terms object', () => {
+    const result = validateDcbsDsaTerms(validDcbsDsa);
+    expect(result.kind).toBe('dsa');
+    expect(result.agency).toBe('dcbs');
+    expect(result.scope).toEqual(['foster_aging_out_roster', 'placement_history']);
+    expect(result.population_focus).toBe('foster_aging_out');
+    expect(result.individual_records_authorized).toBe(true);
+    expect(result.data_destruction_due).toBe('on_termination');
+  });
+
+  it('accepts all valid scope values', () => {
+    const allScopes = DCBS_DSA_SCOPE_OPTIONS.map((o) => o.value);
+    const result = validateDcbsDsaTerms({ ...validDcbsDsa, scope: allScopes });
+    expect(result.scope).toEqual(allScopes);
+  });
+
+  it('accepts all valid data_destruction_due values', () => {
+    for (const val of ['on_termination', 'after_3_years', 'after_5_years'] as const) {
+      const result = validateDcbsDsaTerms({ ...validDcbsDsa, data_destruction_due: val });
+      expect(result.data_destruction_due).toBe(val);
+    }
+  });
+
+  it('accepts terms without optional phone', () => {
+    const noPhone = {
+      ...validDcbsDsa,
+      state_contact: {
+        name: 'R',
+        title: 'T',
+        email: 'r@x.com',
+      },
+    };
+    const result = validateDcbsDsaTerms(noPhone);
+    expect(result.state_contact.phone).toBeUndefined();
+  });
+
+  it('rejects non-object input', () => {
+    expect(() => validateDcbsDsaTerms(null)).toThrow('must be an object');
+    expect(() => validateDcbsDsaTerms('dsa')).toThrow('must be an object');
+  });
+
+  it('rejects wrong kind', () => {
+    expect(() => validateDcbsDsaTerms({ ...validDcbsDsa, kind: 'mou' })).toThrow('kind: "dsa"');
+  });
+
+  it('rejects wrong agency', () => {
+    expect(() => validateDcbsDsaTerms({ ...validDcbsDsa, agency: 'ky_doc' })).toThrow(
+      'agency must be "dcbs"',
+    );
+  });
+
+  it('rejects empty scope array', () => {
+    expect(() => validateDcbsDsaTerms({ ...validDcbsDsa, scope: [] })).toThrow(
+      'at least one scope value',
+    );
+  });
+
+  it('rejects invalid scope value', () => {
+    expect(() =>
+      validateDcbsDsaTerms({ ...validDcbsDsa, scope: ['mental_health_records'] }),
+    ).toThrow('Invalid DCBS-DSA scope value: "mental_health_records"');
+  });
+
+  it('rejects empty agency_legal_name', () => {
+    expect(() => validateDcbsDsaTerms({ ...validDcbsDsa, agency_legal_name: '' })).toThrow(
+      'non-empty agency_legal_name',
+    );
+  });
+
+  it('rejects missing state_contact name', () => {
+    expect(() =>
+      validateDcbsDsaTerms({
+        ...validDcbsDsa,
+        state_contact: { name: '', title: 'T', email: 'r@x.com' },
+      }),
+    ).toThrow('non-empty name');
+  });
+
+  it('rejects missing state_contact title', () => {
+    expect(() =>
+      validateDcbsDsaTerms({
+        ...validDcbsDsa,
+        state_contact: { name: 'R', title: '', email: 'r@x.com' },
+      }),
+    ).toThrow('non-empty title');
+  });
+
+  it('rejects missing state_contact email', () => {
+    expect(() =>
+      validateDcbsDsaTerms({
+        ...validDcbsDsa,
+        state_contact: { name: 'R', title: 'T', email: '' },
+      }),
+    ).toThrow('non-empty email');
+  });
+
+  it('rejects expanded population_focus (Sprint 10 lock)', () => {
+    expect(() =>
+      validateDcbsDsaTerms({ ...validDcbsDsa, population_focus: 'all_open_cases' }),
+    ).toThrow('population_focus must be "foster_aging_out"');
+  });
+
+  it('rejects non-boolean individual_records_authorized', () => {
+    expect(() =>
+      validateDcbsDsaTerms({ ...validDcbsDsa, individual_records_authorized: 'yes' }),
+    ).toThrow('individual_records_authorized must be a boolean');
+  });
+
+  it('rejects invalid data_destruction_due', () => {
+    expect(() =>
+      validateDcbsDsaTerms({ ...validDcbsDsa, data_destruction_due: 'never_required' }),
+    ).toThrow('data_destruction_due must be one of');
+  });
+
+  it('strips extra/unexpected keys (does not pass through to JSONB)', () => {
+    const result = validateDcbsDsaTerms({
+      ...validDcbsDsa,
+      malicious_extra_field: 'should not survive',
+    });
+    expect(result).not.toHaveProperty('malicious_extra_field');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // validateAgreementTerms dispatcher
 // ---------------------------------------------------------------------------
 
@@ -203,6 +350,28 @@ describe('validateAgreementTerms', () => {
     expect(result.kind).toBe('mou');
   });
 
+  it("dispatches dsa+agency='dcbs' to validateDcbsDsaTerms", () => {
+    const result = validateAgreementTerms('dsa', validDcbsDsa);
+    expect(result.kind).toBe('dsa');
+    if (result.kind === 'dsa') expect(result.agency).toBe('dcbs');
+  });
+
+  it('rejects dsa with missing agency discriminator', () => {
+    expect(() => validateAgreementTerms('dsa', { kind: 'dsa', scope: [] })).toThrow(
+      'agency is required',
+    );
+  });
+
+  it("rejects dsa with agency='ky_doc' (DTRS-012 not yet shipped)", () => {
+    expect(() =>
+      validateAgreementTerms('dsa', { kind: 'dsa', agency: 'ky_doc', scope: [] }),
+    ).toThrow("DSA agency 'ky_doc' not yet supported");
+  });
+
+  it('rejects dsa with non-object input', () => {
+    expect(() => validateAgreementTerms('dsa', null)).toThrow('must be an object');
+  });
+
   it('throws for placeholder kind baa (intake story not yet shipped)', () => {
     expect(() => validateAgreementTerms('baa', { kind: 'baa', foo: 'bar' })).toThrow(
       "agreement kind 'baa' not yet supported",
@@ -212,12 +381,6 @@ describe('validateAgreementTerms', () => {
   it('throws for placeholder kind qsoa (intake story not yet shipped)', () => {
     expect(() => validateAgreementTerms('qsoa', { kind: 'qsoa' })).toThrow(
       "agreement kind 'qsoa' not yet supported",
-    );
-  });
-
-  it('throws for placeholder kind dsa (intake story not yet shipped)', () => {
-    expect(() => validateAgreementTerms('dsa', { kind: 'dsa' })).toThrow(
-      "agreement kind 'dsa' not yet supported",
     );
   });
 

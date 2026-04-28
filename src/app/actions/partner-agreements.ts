@@ -4,8 +4,8 @@ import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
 import { recordAgreement } from '@/db/queries/partner-agreements';
 import { requireRole } from '@/lib/auth';
-import type { FerpaTerms } from '@/lib/dtrs';
-import { parsePartnerAgreementForm } from './partner-agreements-parse';
+import type { DcbsDsaTerms, FerpaTerms } from '@/lib/dtrs';
+import { parseDcbsDsaAgreementForm, parsePartnerAgreementForm } from './partner-agreements-parse';
 
 /**
  * Known user-actionable error message prefixes from the domain / query layer.
@@ -15,8 +15,13 @@ import { parsePartnerAgreementForm } from './partner-agreements-parse';
 const KNOWN_DOMAIN_PREFIXES = [
   'FERPA terms',
   'MOU terms',
+  'DSA terms',
+  'DSA agency',
+  'DSA state_contact',
+  'DSA data_destruction_due',
   'partner_agreements insert',
   'Invalid FERPA scope',
+  'Invalid DCBS-DSA scope',
 ] as const;
 
 export type RecordFerpaAgreementResult =
@@ -66,6 +71,60 @@ export async function recordFerpaAgreementAction(
   } catch (err) {
     Sentry.captureException(err);
     console.error('[partner-agreements.recordFerpa] failed', err);
+    const raw = err instanceof Error ? err.message : '';
+    const isKnown = KNOWN_DOMAIN_PREFIXES.some((prefix) =>
+      raw.toLowerCase().startsWith(prefix.toLowerCase()),
+    );
+    const error = isKnown
+      ? raw
+      : 'Recording the agreement failed — please retry. The error has been logged.';
+    return { ok: false, error };
+  }
+}
+
+export type RecordDcbsDsaAgreementResult =
+  | { ok: true; agreementId: string }
+  | { ok: false; error: string };
+
+/**
+ * Admin-only server action: parse the DTRS-011 DCBS DSA intake FormData and
+ * persist via `recordAgreement` (terms validation + audit log happen inside
+ * that query function).
+ */
+export async function recordDcbsDsaAgreementAction(
+  formData: FormData,
+): Promise<RecordDcbsDsaAgreementResult> {
+  const user = await requireRole(['admin']);
+
+  const parsed = parseDcbsDsaAgreementForm(formData);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+
+  try {
+    const { effectiveDate, endDate, signedByPartner, notes, partnerOrgId, terms } = parsed.input;
+
+    const agreement = await recordAgreement({
+      partnerOrgId,
+      kind: 'dsa',
+      status: 'active',
+      effectiveDate: effectiveDate || null,
+      endDate: endDate || null,
+      signedByPartner: signedByPartner || null,
+      signedByCoalitionUserId: user.id,
+      templateVersion: 'dcbs-dsa-v1',
+      templateRendered: null,
+      // parseDcbsDsaAgreementForm validates scope values against the controlled vocab;
+      // the narrow cast to DcbsDsaTerms bridges string[] → DcbsDsaScopeValue[].
+      // recordAgreement re-validates via validateAgreementTerms before any insert.
+      terms: terms as DcbsDsaTerms,
+      notes: notes || null,
+      actorUserId: user.id,
+    });
+
+    revalidatePath('/app/admin/agreements/dcbs');
+    return { ok: true, agreementId: agreement.id };
+  } catch (err) {
+    Sentry.captureException(err);
+    console.error('[partner-agreements.recordDcbsDsa] failed', err);
     const raw = err instanceof Error ? err.message : '';
     const isKnown = KNOWN_DOMAIN_PREFIXES.some((prefix) =>
       raw.toLowerCase().startsWith(prefix.toLowerCase()),
