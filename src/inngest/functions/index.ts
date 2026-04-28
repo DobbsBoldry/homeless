@@ -1,3 +1,4 @@
+import { agreementExpirationWatcher } from './agreement-expiration-watcher';
 import { dailyAttorneyDigest } from './daily-attorney-digest';
 import { dailyCourtnetScrape } from './daily-courtnet-scrape';
 import { dailyHealthPing } from './daily-health-ping';
@@ -14,4 +15,5 @@ export const functions = [
   expireBedHolds,
   expireSmsConversations,
   fosterAgingOutScan,
+  agreementExpirationWatcher,
 ];

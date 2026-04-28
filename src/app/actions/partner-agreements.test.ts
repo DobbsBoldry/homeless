@@ -6,7 +6,11 @@
  * See STATE.md known quirk: Next.js 'use server' × vitest incompatibility.
  */
 import { describe, expect, it } from 'vitest';
-import { parseDcbsDsaAgreementForm, parsePartnerAgreementForm } from './partner-agreements-parse';
+import {
+  parseDcbsDsaAgreementForm,
+  parseMouAgreementForm,
+  parsePartnerAgreementForm,
+} from './partner-agreements-parse';
 
 function makeFormData(overrides: Record<string, string> = {}): FormData {
   const fd = new FormData();
@@ -362,5 +366,93 @@ describe('parseDcbsDsaAgreementForm', () => {
     const r = parseDcbsDsaAgreementForm(makeDcbsFormData({ notes: 'x'.repeat(2001) }));
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/2 000 characters/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseMouAgreementForm (OPRT-002)
+// ---------------------------------------------------------------------------
+
+function makeMouFormData(overrides: Record<string, string> = {}): FormData {
+  const fd = new FormData();
+  fd.set('partnerOrgId', 'partner-uuid-001');
+  fd.set('effectiveDate', '2026-09-01');
+  fd.set('phase', 'phase_0');
+  fd.set('withdrawal_notice_days', '30');
+  for (const [k, v] of Object.entries(overrides)) {
+    if (v === '__DELETE__') fd.delete(k);
+    else fd.set(k, v);
+  }
+  return fd;
+}
+
+describe('parseMouAgreementForm', () => {
+  it('returns ok:true for valid input', () => {
+    const r = parseMouAgreementForm(makeMouFormData());
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.kind).toBe('mou');
+    expect(r.input.terms.phase).toBe('phase_0');
+    expect(r.input.terms.withdrawal_notice_days).toBe(30);
+    expect(r.input.terms.monthly_meeting_hours).toBeNull();
+  });
+
+  it('parses optional monthly_meeting_hours when provided', () => {
+    const r = parseMouAgreementForm(makeMouFormData({ monthly_meeting_hours: '2.5' }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.monthly_meeting_hours).toBe(2.5);
+  });
+
+  it('rejects negative monthly_meeting_hours', () => {
+    const r = parseMouAgreementForm(makeMouFormData({ monthly_meeting_hours: '-1' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/non-negative number/i);
+  });
+
+  it('rejects missing partnerOrgId', () => {
+    const r = parseMouAgreementForm(makeMouFormData({ partnerOrgId: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/partner is required/i);
+  });
+
+  it('rejects invalid phase', () => {
+    const r = parseMouAgreementForm(makeMouFormData({ phase: 'phase_99' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/phase selection/i);
+  });
+
+  it('accepts standing phase', () => {
+    const r = parseMouAgreementForm(makeMouFormData({ phase: 'standing' }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.phase).toBe('standing');
+  });
+
+  it('rejects non-integer withdrawal_notice_days', () => {
+    const r = parseMouAgreementForm(makeMouFormData({ withdrawal_notice_days: '30.5' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/non-negative integer/i);
+  });
+
+  it('rejects empty withdrawal_notice_days', () => {
+    const r = parseMouAgreementForm(makeMouFormData({ withdrawal_notice_days: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/withdrawal notice/i);
+  });
+
+  it('rejects endDate before effectiveDate', () => {
+    const r = parseMouAgreementForm(
+      makeMouFormData({ effectiveDate: '2026-09-01', endDate: '2026-08-01' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/end date must be on or after/i);
+  });
+
+  it('accepts open-ended (no endDate)', () => {
+    const r = parseMouAgreementForm(makeMouFormData({ endDate: '' }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.endDate).toBeNull();
   });
 });
