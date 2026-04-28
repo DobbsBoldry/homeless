@@ -3,11 +3,8 @@
 import * as Sentry from '@sentry/nextjs';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import {
-  type PostMeetingNotesResult,
-  structurePostMeetingNotes,
-} from '@/lib/cwt/post-meeting-notes';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
+import { type PostMeetingNotesResult, structurePostMeetingNotes } from '@/lib/cwt';
+import { recordAiGeneration } from '@/lib/dtrs';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export type StructurePostMeetingNotesResult =

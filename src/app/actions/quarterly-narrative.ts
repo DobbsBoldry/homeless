@@ -9,8 +9,8 @@ import {
 } from '@/db/queries/public-outcomes';
 import { logAuditEvent } from '@/lib/audit';
 import { requireUser } from '@/lib/auth';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
-import { generateQuarterlyNarrative } from '@/lib/oprt/quarterly-narrative';
+import { recordAiGeneration } from '@/lib/dtrs';
+import { generateQuarterlyNarrative } from '@/lib/oprt';
 
 export type GenerateQuarterlyNarrativeResult =
   | { ok: true; text: string; modelId: string; promptVersion: string }

@@ -8,10 +8,7 @@
 import { count, desc, eq, gte, max, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { edEncounters } from '@/db/schema/ed-encounters';
-import {
-  HOUSING_INSTABILITY_FLAGS,
-  type SuperUtilizerRow,
-} from '@/lib/esuc/super-utilizer-ranking';
+import { HOUSING_INSTABILITY_FLAGS, type SuperUtilizerRow } from '@/lib/esuc';
 
 export interface ListSuperUtilizersOpts {
   /** Minimum number of ED visits in the window to qualify. Default 3. */

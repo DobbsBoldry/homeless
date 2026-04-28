@@ -4,11 +4,8 @@ import * as Sentry from '@sentry/nextjs';
 import { getCoalitionWeeklyDigest } from '@/db/queries/coalition-weekly-digest';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import {
-  answerCoordinationQuestion,
-  type CoordinationQATurn,
-} from '@/lib/coalition/coordination-qa';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
+import { answerCoordinationQuestion, type CoordinationQATurn } from '@/lib/coalition';
+import { recordAiGeneration } from '@/lib/dtrs';
 
 export type AskCoordinationQuestionResult =
   | { ok: true; answer: string; promptVersion: string }

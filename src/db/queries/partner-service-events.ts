@@ -3,7 +3,7 @@ import { db } from '@/db/client';
 import type { UserRole } from '@/db/schema/enums';
 import { partnerOrgs } from '@/db/schema/partner-orgs';
 import { partnerServiceEvents } from '@/db/schema/partner-service-events';
-import { dvFlaggedSubset, viewerCanSeeDvAddresses } from '@/lib/dtrs/dv-blind';
+import { dvFlaggedSubset, viewerCanSeeDvAddresses } from '@/lib/dtrs';
 
 export interface PersonAggregate {
   syntheticPersonRef: string;

@@ -4,8 +4,8 @@ import * as Sentry from '@sentry/nextjs';
 import { getPersonProfile } from '@/db/queries/person-profile';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { answerPersonQuestion, type PersonQATurn } from '@/lib/cwt/person-qa';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
+import { answerPersonQuestion, type PersonQATurn } from '@/lib/cwt';
+import { recordAiGeneration } from '@/lib/dtrs';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export type AskPersonQuestionResult =

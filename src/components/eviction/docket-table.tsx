@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { EvictionFiling } from '@/db/schema/eviction-filings';
-import type { RankedDocketRow } from '@/lib/eviction/docket-ranking';
-import { riskBandClass } from '@/lib/eviction/risk-band';
+import type { RankedDocketRow } from '@/lib/eviction';
+import { riskBandClass } from '@/lib/eviction';
 
 const fmtDate = (d: Date) =>
   new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(d));

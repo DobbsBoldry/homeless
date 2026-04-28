@@ -3,7 +3,7 @@
 import { db } from '@/db/client';
 import { smsMessages } from '@/db/schema/sms-messages';
 import { requireRole } from '@/lib/auth';
-import { handleInboundSms } from '@/lib/indc/sms-pipeline';
+import { handleInboundSms } from '@/lib/indc';
 
 export type SimulateSmsResult = {
   ok: true;

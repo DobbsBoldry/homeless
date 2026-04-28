@@ -4,7 +4,7 @@ import { useId, useRef, useState, useTransition } from 'react';
 import { askPatientQuestionAction } from '@/app/actions/patient-qa';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { PatientQATurn } from '@/lib/esuc/patient-qa';
+import type { PatientQATurn } from '@/lib/esuc';
 
 type LocalTurn = PatientQATurn & { id: string };
 

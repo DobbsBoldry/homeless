@@ -10,7 +10,7 @@ import {
 } from '@/app/actions/eviction';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { riskBandClass } from '@/lib/eviction/risk-band';
+import { riskBandClass } from '@/lib/eviction';
 
 const fmtMoney = (cents: number | null) => {
   if (cents == null) return '—';

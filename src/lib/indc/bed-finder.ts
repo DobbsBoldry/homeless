@@ -1,9 +1,5 @@
 import type { ShelterWithOrg } from '@/db/queries/shelters';
-import {
-  type BedFilter,
-  effectiveFreeBeds,
-  matchesFilter,
-} from '@/lib/coordination/bed-availability';
+import { type BedFilter, effectiveFreeBeds, matchesFilter } from '@/lib/coordination';
 
 export type BedFinderResult = {
   shelter: ShelterWithOrg;

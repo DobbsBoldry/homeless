@@ -7,9 +7,12 @@ import { consents } from '@/db/schema/consents';
 import { type ConsentChannel, type ConsentType, consentChannelEnum } from '@/db/schema/enums';
 import { personPartnerConsents } from '@/db/schema/person-partner-consents';
 import { logAuditEvent } from '@/lib/audit';
-import { CURRENT_CONSENT_VERSION, DATA_CLASSES } from '@/lib/dtrs/consent-text';
-import { redeemConsentAccessToken } from '@/lib/dtrs/consent-token';
-import { rateLimit } from '@/lib/dtrs/rate-limit';
+import {
+  CURRENT_CONSENT_VERSION,
+  DATA_CLASSES,
+  rateLimit,
+  redeemConsentAccessToken,
+} from '@/lib/dtrs';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 const CONSENT_RATE_WINDOW_MS = 60_000;

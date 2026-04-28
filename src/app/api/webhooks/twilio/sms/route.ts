@@ -1,13 +1,13 @@
 import { headers } from 'next/headers';
 import { db } from '@/db/client';
 import { smsMessages } from '@/db/schema/sms-messages';
-import { handleInboundSmsForNumber } from '@/lib/indc/sms-pipeline';
 import {
+  handleInboundSmsForNumber,
   identifierForPhone,
   twimlEmpty,
   twimlMessage,
   verifyTwilioSignature,
-} from '@/lib/indc/twilio-signature';
+} from '@/lib/indc';
 
 export const dynamic = 'force-dynamic';
 

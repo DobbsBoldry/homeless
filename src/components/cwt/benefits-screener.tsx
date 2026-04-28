@@ -10,7 +10,7 @@ import {
   type Household,
   screenHousehold,
   totalLikelyMonthlyCents,
-} from '@/lib/cwt/benefits';
+} from '@/lib/cwt';
 
 const fmtMoney = (cents: number) =>
   new Intl.NumberFormat('en-US', {

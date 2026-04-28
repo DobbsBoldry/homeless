@@ -14,7 +14,7 @@ import {
   hasActiveFilter,
   matchesFilter,
   parseBedFilterParams,
-} from '@/lib/coordination/bed-availability';
+} from '@/lib/coordination';
 
 export const dynamic = 'force-dynamic';
 

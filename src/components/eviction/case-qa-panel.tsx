@@ -4,7 +4,7 @@ import { useId, useRef, useState, useTransition } from 'react';
 import { askCaseQuestionAction } from '@/app/actions/eviction';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { CaseQATurn } from '@/lib/eviction/case-qa';
+import type { CaseQATurn } from '@/lib/eviction';
 
 type LocalTurn = CaseQATurn & { id: string };
 

@@ -11,9 +11,13 @@ import { type EsucCarePlanStatus, esucCarePlanStatusEnum } from '@/db/schema/enu
 import { esucCarePlans } from '@/db/schema/esuc-care-plans';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
-import { generateCarePlan, validateCarePlanDisclaimer } from '@/lib/esuc/care-plan';
-import { type EdTriageResult, generateEdTriage } from '@/lib/esuc/ed-triage';
+import { recordAiGeneration } from '@/lib/dtrs';
+import {
+  type EdTriageResult,
+  generateCarePlan,
+  generateEdTriage,
+  validateCarePlanDisclaimer,
+} from '@/lib/esuc';
 
 export type GenerateCarePlanResult = { ok: true } | { ok: false; error: string };
 

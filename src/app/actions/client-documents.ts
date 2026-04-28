@@ -8,8 +8,8 @@ import { clientDocuments } from '@/db/schema/client-documents';
 import { type ClientDocumentKind, clientDocumentKindEnum } from '@/db/schema/enums';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { extractDocument } from '@/lib/cwt/document-extraction';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
+import { extractDocument } from '@/lib/cwt';
+import { recordAiGeneration } from '@/lib/dtrs';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export type SaveDocumentInput = {

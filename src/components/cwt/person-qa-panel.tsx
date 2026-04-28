@@ -3,7 +3,7 @@
 import { useId, useRef, useState, useTransition } from 'react';
 import { askPersonQuestionAction } from '@/app/actions/person-qa';
 import { Button } from '@/components/ui/button';
-import type { PersonQATurn } from '@/lib/cwt/person-qa';
+import type { PersonQATurn } from '@/lib/cwt';
 
 type LocalTurn = PersonQATurn & { id: string };
 

@@ -4,8 +4,8 @@ import * as Sentry from '@sentry/nextjs';
 import { getPersonProfileDelta } from '@/db/queries/person-profile';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { generateFollowupSms } from '@/lib/cwt/followup-sms';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
+import { generateFollowupSms } from '@/lib/cwt';
+import { recordAiGeneration } from '@/lib/dtrs';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export type FollowupSmsResult =

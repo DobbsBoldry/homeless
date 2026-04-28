@@ -4,8 +4,8 @@ import * as Sentry from '@sentry/nextjs';
 import { getPersonProfileDelta } from '@/db/queries/person-profile';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { generatePreMeetingSummary } from '@/lib/cwt/pre-meeting-summary';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
+import { generatePreMeetingSummary } from '@/lib/cwt';
+import { recordAiGeneration } from '@/lib/dtrs';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export type PreMeetingSummaryResult =

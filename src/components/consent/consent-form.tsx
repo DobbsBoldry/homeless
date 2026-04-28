@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ConsentType } from '@/db/schema/enums';
-import { type ConsentCopy, DATA_CLASSES } from '@/lib/dtrs/consent-text';
+import { type ConsentCopy, DATA_CLASSES } from '@/lib/dtrs';
 
 /**
  * Plain-language consent form (DTRS-002). Reading-level target: grade 6.

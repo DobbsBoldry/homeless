@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { ConsentRow } from '@/components/consent/consent-row';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listPersonPartnerSummary } from '@/db/queries/person-consents';
-import { lookupConsentAccessToken } from '@/lib/dtrs/consent-token';
+import { lookupConsentAccessToken } from '@/lib/dtrs';
 import { isValidSyntheticPersonRef } from '@/lib/synthetic-person';
 
 export const metadata = {

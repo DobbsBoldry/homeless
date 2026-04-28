@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { PacketReviewPanel } from '@/components/eviction/packet-review-panel';
 import { getFilingById } from '@/db/queries/eviction-filings';
 import { requireKlaAttorney } from '@/lib/auth';
-import { getResponsePacket } from '@/lib/eviction/response-packet';
+import { getResponsePacket } from '@/lib/eviction';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

@@ -5,7 +5,7 @@ import { recordTriageOverrideAction } from '@/app/actions/triage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { recommendTriageTier, type TriageInputs, type TriageTier } from '@/lib/cwt/triage';
+import { recommendTriageTier, type TriageInputs, type TriageTier } from '@/lib/cwt';
 
 const TIER_BADGE: Record<TriageTier, string> = {
   high: 'bg-emerald-600/15 text-emerald-700 dark:text-emerald-400',

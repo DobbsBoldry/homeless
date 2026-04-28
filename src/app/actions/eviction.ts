@@ -23,15 +23,21 @@ import { evictionCaseOutcomes } from '@/db/schema/eviction-case-outcomes';
 import { evictionResponsePackets } from '@/db/schema/eviction-response-packets';
 import { logAuditEvent } from '@/lib/audit';
 import { requireKlaAttorney, requireRole } from '@/lib/auth';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
-import { type AttorneyTriageResult, generateAttorneyTriage } from '@/lib/eviction/attorney-triage';
-import { answerCaseQuestion, type CaseQATurn } from '@/lib/eviction/case-qa';
-import { renderOutreachLetterPdf } from '@/lib/eviction/outreach-letter-pdf';
-import { renderPacketPdf } from '@/lib/eviction/packet-pdf';
-import { commentOnPlaintiffPatterns } from '@/lib/eviction/plaintiff-patterns';
-import { generateResponsePacket, validateDisclaimer } from '@/lib/eviction/response-packet';
-import { getLatestScore, scoreFiling } from '@/lib/eviction/risk-score';
-import { generateOutreachLetter } from '@/lib/eviction/tenant-outreach';
+import { recordAiGeneration } from '@/lib/dtrs';
+import {
+  type AttorneyTriageResult,
+  answerCaseQuestion,
+  type CaseQATurn,
+  commentOnPlaintiffPatterns,
+  generateAttorneyTriage,
+  generateOutreachLetter,
+  generateResponsePacket,
+  getLatestScore,
+  renderOutreachLetterPdf,
+  renderPacketPdf,
+  scoreFiling,
+  validateDisclaimer,
+} from '@/lib/eviction';
 
 export type ScoreFilingResult = { ok: true } | { ok: false; error: string };
 

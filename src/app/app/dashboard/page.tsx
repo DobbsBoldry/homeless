@@ -4,7 +4,7 @@ import { getMetricsKpis } from '@/db/queries/metrics';
 import { activeBedHoldCounts, listActiveShelters } from '@/db/queries/shelters';
 import type { UserRole } from '@/db/schema/enums';
 import { requireUser } from '@/lib/auth';
-import { effectiveFreeBeds } from '@/lib/coordination/bed-availability';
+import { effectiveFreeBeds } from '@/lib/coordination';
 
 export const dynamic = 'force-dynamic';
 

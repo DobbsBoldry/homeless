@@ -4,9 +4,8 @@ import * as Sentry from '@sentry/nextjs';
 import { listEncountersForPatient } from '@/db/queries/ed-encounters';
 import { logAuditEvent } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { recordAiGeneration } from '@/lib/dtrs/data-access';
-import { getCarePlanByPatient } from '@/lib/esuc/care-plan';
-import { answerPatientQuestion, type PatientQATurn } from '@/lib/esuc/patient-qa';
+import { recordAiGeneration } from '@/lib/dtrs';
+import { answerPatientQuestion, getCarePlanByPatient, type PatientQATurn } from '@/lib/esuc';
 
 export type AskPatientQuestionResult =
   | { ok: true; answer: string; promptVersion: string }

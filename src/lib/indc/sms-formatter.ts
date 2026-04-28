@@ -1,4 +1,4 @@
-import type { BedFilter } from '@/lib/coordination/bed-availability';
+import type { BedFilter } from '@/lib/coordination';
 import type { BedFinderResult } from './bed-finder';
 import type { BedSummary } from './bed-summary';
 

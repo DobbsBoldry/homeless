@@ -5,7 +5,7 @@ import {
   listQuarterlyEvictionAggregates,
   type Quarter,
 } from '@/db/queries/public-outcomes';
-import { renderTransparencyReport } from '@/lib/dtrs/transparency-report';
+import { renderTransparencyReport } from '@/lib/dtrs';
 
 export const dynamic = 'force-dynamic';
 

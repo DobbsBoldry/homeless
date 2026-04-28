@@ -13,9 +13,8 @@ import { listCaseOutcomes } from '@/db/queries/eviction-case-outcomes';
 import { getFilingByIdForViewer } from '@/db/queries/eviction-filings';
 import { matchAssistancePrograms } from '@/db/queries/rental-assistance';
 import { requireRole, userIsKlaAttorney } from '@/lib/auth';
-import { recordDataAccess } from '@/lib/dtrs/data-access';
-import { viewerCanSeeDvAddresses } from '@/lib/dtrs/dv-blind';
-import { getLatestScore } from '@/lib/eviction/risk-score';
+import { recordDataAccess, viewerCanSeeDvAddresses } from '@/lib/dtrs';
+import { getLatestScore } from '@/lib/eviction';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

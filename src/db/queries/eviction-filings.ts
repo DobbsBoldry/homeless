@@ -9,8 +9,8 @@ import type {
 } from '@/db/schema/enums';
 import { evictionFilingRiskScores } from '@/db/schema/eviction-filing-risk-scores';
 import { type EvictionFiling, evictionFilings } from '@/db/schema/eviction-filings';
-import { redactAddress, viewerCanSeeDvAddresses } from '@/lib/dtrs/dv-blind';
-import type { RankedDocketRow } from '@/lib/eviction/docket-ranking';
+import { redactAddress, viewerCanSeeDvAddresses } from '@/lib/dtrs';
+import type { RankedDocketRow } from '@/lib/eviction';
 
 /**
  * Fetch the most recent N filings, ordered by filed_at desc.
