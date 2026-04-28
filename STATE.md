@@ -1,6 +1,6 @@
 # STATE.md — what's now
 
-**Last updated:** 2026-04-27 — FND-040 epic closed (refreshed at end of session — keep it that way)
+**Last updated:** 2026-04-27 — Sprint 8 closed (faith-based opt-in foundation shipped)
 
 This file is the cheap context file. Open it at the start of a session and you skip 5–10 minutes of "what was I doing." Two paragraphs, bullets, no essays. If a section gets long, summarize and link out.
 
@@ -8,12 +8,21 @@ This file is the cheap context file. Open it at the start of a session and you s
 
 ## Current focus
 
-**FND-040 epic closed** ([#338](https://github.com/DobbsBoldry/homeless/issues/338)). All five sub-stories shipped — codebase substrate is now ready for Phase 2 / ESUC-002 PHI work. Per-domain barrels (#352) plus the migration rename pass (#351) landed in this session; e2e exposed and we fixed a real architectural pitfall along the way (`export *` barrels are incompatible with `'use client'` components — the lint now exempts them).
+**Sprint 8 closed — faith-based opt-in foundation.** All three DTRS stories shipped: schema + privacy contract (#354 / [ADR 0003](docs/adr/0003-faith-aggregate-privacy-contract.md)), Catholic Charities admin intake form (#355), per-ministry coordination signals read view + queries (#356). The platform can now receive aggregate-only data from faith partners without ever modeling individual records — privacy by structural impossibility, not just policy. Phase 3 reverse-channel (signals back to ministries) explicitly deferred per the strategy doc.
 
-**Open work:** [#12 OPRT-002 MOU registry](https://github.com/DobbsBoldry/homeless/issues/12) (net-new, unsized — schema + admin-only CRUD when partnerships need it). Otherwise the queue is Phase-2 stories on the project board.
+This was the first sprint built using the [`superpowers:subagent-driven-development`](https://github.com/jasonkneen/superpowers) skill — implementer subagent + spec-compliance reviewer + code-quality reviewer per ticket. Spec reviewer caught a hardcoded `suppressedCount=0` on DTRS-008; quality reviewer caught a typo + error-leak + a11y miss on DTRS-008, and partial-coverage signaling + window-boundary exclusion on DTRS-009. All resolved before merge.
+
+**Sprint 9 candidate** (per `product-vision/roadmap.html` "What ships in Phase 2"): schools integration. [#125 PRVN-003](https://github.com/DobbsBoldry/homeless/issues/125) (McKinney-Vento liaison referral receiver, 5pt) + [#126 PRVN-004](https://github.com/DobbsBoldry/homeless/issues/126) (closed-loop reporting school↔coalition, 5pt) + [#140 DTRS-010](https://github.com/DobbsBoldry/homeless/issues/140) (FERPA-compliant school data agreement template, 5pt). 15pt total. Faith partnerships now have receiving infrastructure; schools are the next entry per the strategy doc's sequence.
+
+**Other open work:** [#12 OPRT-002 MOU registry](https://github.com/DobbsBoldry/homeless/issues/12) (net-new, unsized) — every faith ministry will eventually need an MOU; ship this when partnerships need it.
+
+**Sync items to address:** ESUC-001/002 closed as `NOT_PLANNED` on 2026-04-27 (project-board cleanup) — but the PHI fence is still real. Either reopen them or update CLAUDE.md/ADR-0002 to reflect that the BAA actually closed. Bo's call — flagged but not yet acted on.
 
 ## Just shipped (most recent first)
 
+- **#356** — DTRS-009 per-ministry coordination signals (admin read view + queries). Seven privacy-respecting reads + two pure aggregator helpers. `compareMinistryWindows` carries a `partial` flag so all-suppressed windows don't get misread as "trending down." Overlap window semantics so monthly submissions aren't dropped by trailing 28-day filters.
+- **#355** — DTRS-008 Catholic Charities aggregate intake form. Admin-gated form with live cell-size suppression preview + audit-logged submit. Catholic Charities of the Diocese of Owensboro seeded as the first opted-in ministry.
+- **#354** — DTRS-007 faith-aggregate schema + cell-size suppression + [ADR 0003](docs/adr/0003-faith-aggregate-privacy-contract.md). Four tables, no individual-record column anywhere — privacy by structural impossibility.
 - **#352** — FND-040b per-domain `index.ts` barrels + barrel-only boundary lint. 60+ consumers migrated to `@/lib/{domain}` barrel imports. `'use client'` files exempt (deep imports OK there — barrels would drag postgres into the browser bundle). [ADR 0001](docs/adr/0001-modular-monolith.md) amended.
 - **#351** — FND-040e migration rename pass. 30 auto-named migrations → `NNNN_STORYID_descr.sql`. Also dropped a stale `0034_windy_sir_ram` journal orphan that would have failed `pnpm db:migrate` on any fresh environment.
 - **#349** — ESUC-247 real de-id pipeline + [ADR 0002](docs/adr/0002-deidentification-strategy.md). Belt + suspenders (ingest + prompt-build), 16 leak-vector eval, regex-now-AWS-later strategy.
@@ -33,8 +42,11 @@ This file is the cheap context file. Open it at the start of a session and you s
 
 | # | Pts | What | Notes |
 |---|---|---|---|
-| 12 | ? | OPRT-002 MOU registry | Net-new — schema + admin-only CRUD. Pull when partnerships need it. |
-| Phase 2 | many | Open Phase-2 stories per project board | FND-040 just closed; coordinate with strategy doc on which epic ships next. |
+| [#125](https://github.com/DobbsBoldry/homeless/issues/125) PRVN-003 | 5 | McKinney-Vento liaison referral receiver | Sprint 9 candidate (schools entry per roadmap.html). |
+| [#126](https://github.com/DobbsBoldry/homeless/issues/126) PRVN-004 | 5 | Closed-loop reporting school↔coalition | Sprint 9 candidate; pairs with PRVN-003. |
+| [#140](https://github.com/DobbsBoldry/homeless/issues/140) DTRS-010 | 5 | FERPA-compliant school data agreement template + intake | Sprint 9 candidate; receiving-infra equivalent of DTRS-008 for schools. |
+| [#12](https://github.com/DobbsBoldry/homeless/issues/12) OPRT-002 | ? | MOU registry | Net-new, unsized; ship when partnerships need MOU tracking. |
+| Sprint 10+ | many | DCBS / foster aging-out (SUBP-001/002/003 + DTRS-011) | Per roadmap.html sequence after schools. |
 
 ## Known quirks (check here first)
 
@@ -47,6 +59,8 @@ This file is the cheap context file. Open it at the start of a session and you s
 - **Date params in raw Drizzle `sql` templates** — pass `.toISOString()`, not the `Date` directly. `postgres-js` v3.4 throws `TypeError: ... Received an instance of Date` otherwise. The typed query builder (`gte(col, dateValue)`) handles coercion correctly; only raw `sql` is affected. See [#346](https://github.com/DobbsBoldry/homeless/pull/346) and the docstring atop `src/db/queries/public-outcomes.ts`.
 - **Rate-limit broken on Vercel** — in-memory token bucket is no-op on serverless. Module logs a warning at load time if `VERCEL=1`. Don't promote to Vercel without the Redis swap. Deployment matrix in `src/lib/dtrs/rate-limit.ts` docstring.
 - **Barrels (`export *`) are incompatible with `'use client'`** — `src/lib/{domain}/index.ts` aggregates server-only code (postgres, AI clients, audit glue) that Next.js can't tree-shake out of the browser bundle. Build fails with `Module not found: Can't resolve 'tls' / 'perf_hooks'`. Client components must use deep imports (e.g. `from '@/lib/cwt/triage'`, not `from '@/lib/cwt'`). The boundary lint exempts files starting with `'use client'`. Unit tests + typecheck + biome all pass with the broken setup — only e2e (`pnpm e2e`) catches it. See [#352](https://github.com/DobbsBoldry/homeless/pull/352#issuecomment-4331515841) and [ADR 0001](docs/adr/0001-modular-monolith.md) Amendment 2026-04-27.
+- **Next.js `'use server'` × vitest** — modules with `'use server'` get transformed at build time so all exports become server-action stubs that can't be called synchronously from a vitest test. To unit-test FormData parsing or other action helpers, extract pure logic to a sibling file (no `'use server'`) and have the action import + call it. See [`src/app/actions/faith-aggregate-parse.ts`](src/app/actions/faith-aggregate-parse.ts) for the pattern (DTRS-008).
+- **Faith-aggregate privacy contract** ([ADR 0003](docs/adr/0003-faith-aggregate-privacy-contract.md)) — never coerce a suppressed cell to zero in any read query, never reverse-engineer a suppressed value from sums-vs-breakouts. The DB CHECK constraint guarantees `(value NULL ↔ suppressed=true)` — read paths must propagate that, not collapse it. Use `partial: true` flags or `suppressedMinistries` counts to surface partial coverage instead.
 
 ## How to refresh this file
 
