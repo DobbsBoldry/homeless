@@ -1,6 +1,6 @@
 # STATE.md — what's now
 
-**Last updated:** 2026-04-27 — Sprint 7 closed (refreshed at end of session — keep it that way)
+**Last updated:** 2026-04-27 — FND-040 epic closed (refreshed at end of session — keep it that way)
 
 This file is the cheap context file. Open it at the start of a session and you skip 5–10 minutes of "what was I doing." Two paragraphs, bullets, no essays. If a section gets long, summarize and link out.
 
@@ -8,14 +8,14 @@ This file is the cheap context file. Open it at the start of a session and you s
 
 ## Current focus
 
-**Sprint 7 closed.** All eight Phase-1 hardening tickets (#192, #222, #227, #238, #247, #269, #270, #330) shipped. The de-id pipeline that was blocking #247 now has [ADR 0002](docs/adr/0002-deidentification-strategy.md) — regex now, AWS Comprehend Medical post-BAA. Codebase substrate is meaningfully tighter than 24 hours ago.
+**FND-040 epic closed** ([#338](https://github.com/DobbsBoldry/homeless/issues/338)). All five sub-stories shipped — codebase substrate is now ready for Phase 2 / ESUC-002 PHI work. Per-domain barrels (#352) plus the migration rename pass (#351) landed in this session; e2e exposed and we fixed a real architectural pitfall along the way (`export *` barrels are incompatible with `'use client'` components — the lint now exempts them).
 
-**Open epic:** [FND-040 — codebase-maintainability foundation](https://github.com/DobbsBoldry/homeless/issues/338). Two sub-tasks remain: **040b** (per-domain `index.ts` + tighter boundary lint, **medium risk** — deserves a focused session), **040e** (migration rename pass, low-risk script-driven cleanup).
-
-**Other remaining:** #12 OPRT-002 MOU registry (net-new, not previously sized) — schema + admin-only CRUD when partnerships need it.
+**Open work:** [#12 OPRT-002 MOU registry](https://github.com/DobbsBoldry/homeless/issues/12) (net-new, unsized — schema + admin-only CRUD when partnerships need it). Otherwise the queue is Phase-2 stories on the project board.
 
 ## Just shipped (most recent first)
 
+- **#352** — FND-040b per-domain `index.ts` barrels + barrel-only boundary lint. 60+ consumers migrated to `@/lib/{domain}` barrel imports. `'use client'` files exempt (deep imports OK there — barrels would drag postgres into the browser bundle). [ADR 0001](docs/adr/0001-modular-monolith.md) amended.
+- **#351** — FND-040e migration rename pass. 30 auto-named migrations → `NNNN_STORYID_descr.sql`. Also dropped a stale `0034_windy_sir_ram` journal orphan that would have failed `pnpm db:migrate` on any fresh environment.
 - **#349** — ESUC-247 real de-id pipeline + [ADR 0002](docs/adr/0002-deidentification-strategy.md). Belt + suspenders (ingest + prompt-build), 16 leak-vector eval, regex-now-AWS-later strategy.
 - **#348** — INDC-269 Twilio webhook hygiene (repeated form-keys, C0 strip in TwiML, `INDC_SMS_HASH_PHONES` feature flag).
 - **#347** — INDC-270 rate-limit deployment matrix + Vercel runtime warning.
@@ -33,10 +33,8 @@ This file is the cheap context file. Open it at the start of a session and you s
 
 | # | Pts | What | Notes |
 |---|---|---|---|
-| 040b | 3 | per-domain `index.ts` + tighter boundary lint | Medium risk; touches every cross-domain import. Worth a focused session. |
-| 040e | 1 | migration rename pass | Script-driven; rename auto-named migrations to `NNNN_STORYID_descr.sql`. |
-| 12 | ? | OPRT-002 MOU registry | Net-new (not zombie) — schema + admin-only CRUD. Pull when partnerships need it. |
-| Phase 2 | many | Open Phase-2 stories per project board | After FND-040 closes; coordinate with strategy doc on which epic ships next. |
+| 12 | ? | OPRT-002 MOU registry | Net-new — schema + admin-only CRUD. Pull when partnerships need it. |
+| Phase 2 | many | Open Phase-2 stories per project board | FND-040 just closed; coordinate with strategy doc on which epic ships next. |
 
 ## Known quirks (check here first)
 
@@ -48,6 +46,7 @@ This file is the cheap context file. Open it at the start of a session and you s
 - **PHI fence (CLAUDE.md)** — no real PHI in DB or AI prompts pre-BAA. Synthetic-only for `cwt`/`esuc`. ESUC-002 lifts the fence; the de-id pipeline ([ADR 0002](docs/adr/0002-deidentification-strategy.md)) shipped — engine swap to AWS Comprehend Medical is one-day work when BAA closes.
 - **Date params in raw Drizzle `sql` templates** — pass `.toISOString()`, not the `Date` directly. `postgres-js` v3.4 throws `TypeError: ... Received an instance of Date` otherwise. The typed query builder (`gte(col, dateValue)`) handles coercion correctly; only raw `sql` is affected. See [#346](https://github.com/DobbsBoldry/homeless/pull/346) and the docstring atop `src/db/queries/public-outcomes.ts`.
 - **Rate-limit broken on Vercel** — in-memory token bucket is no-op on serverless. Module logs a warning at load time if `VERCEL=1`. Don't promote to Vercel without the Redis swap. Deployment matrix in `src/lib/dtrs/rate-limit.ts` docstring.
+- **Barrels (`export *`) are incompatible with `'use client'`** — `src/lib/{domain}/index.ts` aggregates server-only code (postgres, AI clients, audit glue) that Next.js can't tree-shake out of the browser bundle. Build fails with `Module not found: Can't resolve 'tls' / 'perf_hooks'`. Client components must use deep imports (e.g. `from '@/lib/cwt/triage'`, not `from '@/lib/cwt'`). The boundary lint exempts files starting with `'use client'`. Unit tests + typecheck + biome all pass with the broken setup — only e2e (`pnpm e2e`) catches it. See [#352](https://github.com/DobbsBoldry/homeless/pull/352#issuecomment-4331515841) and [ADR 0001](docs/adr/0001-modular-monolith.md) Amendment 2026-04-27.
 
 ## How to refresh this file
 
