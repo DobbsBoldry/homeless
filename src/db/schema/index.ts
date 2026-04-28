@@ -5,6 +5,7 @@ export * from './comms-advisories';
 export * from './consent-access-tokens';
 export * from './consents';
 export * from './dv-flags';
+export * from './dv-survivors';
 export * from './ed-encounters';
 export * from './enums';
 export * from './esuc-care-plans';
