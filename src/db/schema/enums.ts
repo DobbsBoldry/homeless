@@ -275,3 +275,40 @@ export const schoolReferralUrgencyEnum = pgEnum('school_referral_urgency', [
 ]);
 
 export type SchoolReferralUrgency = (typeof schoolReferralUrgencyEnum.enumValues)[number];
+
+// SUBP-001 — foster aging-out countdown (ADR 0006)
+
+export const fosterPlacementTypeEnum = pgEnum('foster_placement_type', [
+  'family_foster',
+  'kinship',
+  'group_home',
+  'residential',
+  'independent_living',
+  'unknown',
+]);
+
+export type FosterPlacementType = (typeof fosterPlacementTypeEnum.enumValues)[number];
+
+export const fosterYouthStatusEnum = pgEnum('foster_youth_status', [
+  'active',
+  'aged_out',
+  'exited',
+]);
+
+export type FosterYouthStatus = (typeof fosterYouthStatusEnum.enumValues)[number];
+
+/**
+ * Aging-out alert milestones, in days-until-18 buckets. `aged_out` fires
+ * once on the 18th-birthday transition; `d90/d60/d30/d14/d7` fire when the
+ * youth crosses into that days-out band.
+ */
+export const fosterAgingOutMilestoneEnum = pgEnum('foster_aging_out_milestone', [
+  'd90',
+  'd60',
+  'd30',
+  'd14',
+  'd7',
+  'aged_out',
+]);
+
+export type FosterAgingOutMilestone = (typeof fosterAgingOutMilestoneEnum.enumValues)[number];

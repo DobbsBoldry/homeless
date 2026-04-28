@@ -1,6 +1,6 @@
 # ADR 0001 — Modular monolith over microservices
 
-**Status:** Accepted — 2026-04-26 (amended 2026-04-27 — barrel-only import constraint added by FND-040b)
+**Status:** Accepted — 2026-04-26 (amended 2026-04-27 — barrel-only import constraint added by FND-040b; amended 2026-04-28 — `subp` domain added by SUBP-001)
 **Driver:** Bo (solo dev). Question raised in Sprint 7 planning: "do we need microservices to make this maintainable as it grows?"
 
 ## Context
@@ -116,6 +116,12 @@ Treating this as a small story (call it `FND-020` if we file it) — should be ~
 - [x] CI step (`.github/workflows/ci.yml`) after Lint, before Typecheck.
 - [x] Allow-list snapshotted inline in the script with a pointer back here.
 - [x] Verified clean against `main` (only `indc → coordination`, whitelisted).
+
+### SUBP-001 amendment (2026-04-28) — `subp` domain added
+
+A new domain `subp` (Subpopulation Pathways) lands with SUBP-001. Allow-list: `['dtrs']` — the `subp` domain reads `partner_agreements` via the `dtrs` barrel to enforce the DCBS DSA gate ([ADR 0006](0006-dcbs-data-sharing-privacy-contract.md)). Future stories under this domain (DV survivors, reentry, veterans, older adults, LGBTQ+ youth, rural hidden) will widen the allow-list as they integrate further; for now `dtrs` alone is enough.
+
+`subp` is not yet imported by any other domain. When SUBP-002 (TEAMKY Medicaid extension) and downstream caseworker integration ship, `subp` will plausibly be imported by `cwt` (caseworker tools); that amendment will land with the relevant story.
 
 ### FND-040b additions (2026-04-27)
 
