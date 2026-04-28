@@ -3,4 +3,5 @@
 // not from '@/lib/oprt/<internal>'. Enforced by
 // scripts/check-domain-boundaries.mts (FND-040b, ADR 0001).
 
+export * from './outreach-priorities';
 export * from './quarterly-narrative';
