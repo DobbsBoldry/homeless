@@ -185,6 +185,22 @@ export const clientIntakeStatusEnum = pgEnum('client_intake_status', [
 
 export type ClientIntakeStatus = (typeof clientIntakeStatusEnum.enumValues)[number];
 
+export const faithMinistryStatusEnum = pgEnum('faith_ministry_status', [
+  'opted_in',
+  'paused',
+  'opted_out',
+]);
+
+export type FaithMinistryStatus = (typeof faithMinistryStatusEnum.enumValues)[number];
+
+export const faithAggregatePeriodKindEnum = pgEnum('faith_aggregate_period_kind', [
+  'week',
+  'month',
+  'quarter',
+]);
+
+export type FaithAggregatePeriodKind = (typeof faithAggregatePeriodKindEnum.enumValues)[number];
+
 export const partnerServiceEventTypeEnum = pgEnum('partner_service_event_type', [
   'food_pantry',
   'shelter_intake',
