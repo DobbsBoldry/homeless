@@ -12,6 +12,7 @@ import { eq } from 'drizzle-orm';
 import { db } from './client';
 import { auditLog } from './schema/audit-log';
 import type { UserRole } from './schema/enums';
+import { faithMinistries } from './schema/faith-ministries';
 import { orgMemberships } from './schema/org-memberships';
 import { type NewPartnerOrg, partnerOrgs } from './schema/partner-orgs';
 import { type NewPartnerServiceEvent, partnerServiceEvents } from './schema/partner-service-events';
@@ -840,6 +841,29 @@ async function main() {
     console.log('[seed]   + 3 audit entries');
   } else {
     console.log('[seed]   = audit entries (exist)');
+  }
+
+  // ---- DTRS-008: Catholic Charities faith ministry seed ----
+  // One opted-in ministry so the faith-aggregate intake form (DTRS-008)
+  // is usable immediately in dev/e2e without a manual DB insert.
+  // min_cell_size = 10 matches the OMU standard from strategy/data.html.
+  const CATHOLIC_CHARITIES_NAME = 'Catholic Charities of the Diocese of Owensboro';
+  const [existingMinistry] = await db
+    .select({ id: faithMinistries.id })
+    .from(faithMinistries)
+    .where(eq(faithMinistries.name, CATHOLIC_CHARITIES_NAME))
+    .limit(1);
+  if (!existingMinistry) {
+    await db.insert(faithMinistries).values({
+      name: CATHOLIC_CHARITIES_NAME,
+      status: 'opted_in',
+      minCellSize: 10,
+      notes:
+        'Phase-2 pilot faith-data partner. Coordinates parish-level social services across 32 western-KY counties.',
+    });
+    console.log('[seed]   + faith ministry: Catholic Charities of the Diocese of Owensboro');
+  } else {
+    console.log('[seed]   = faith ministry: Catholic Charities (exists)');
   }
 
   console.log('[seed] done.');
