@@ -48,6 +48,7 @@ const ALLOW: Record<string, readonly string[]> = {
   eviction: ['dtrs'],
   indc: ['coordination'],
   oprt: ['coalition', 'coordination', 'cwt', 'esuc', 'eviction', 'indc'],
+  subp: ['dtrs'],
 };
 
 const DOMAINS = new Set(Object.keys(ALLOW));
