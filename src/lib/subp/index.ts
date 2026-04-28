@@ -5,4 +5,5 @@
 
 export * from './aging-out-engine';
 export * from './dcbs-gate';
+export * from './medicaid-extension';
 export * from './supports-in-place';

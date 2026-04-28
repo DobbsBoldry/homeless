@@ -312,3 +312,15 @@ export const fosterAgingOutMilestoneEnum = pgEnum('foster_aging_out_milestone', 
 ]);
 
 export type FosterAgingOutMilestone = (typeof fosterAgingOutMilestoneEnum.enumValues)[number];
+
+// SUBP-002 — TEAMKY Former Foster Youth Medicaid extension (42 U.S.C. § 1396a(a)(10)(A)(i)(IX))
+
+export const medicaidExtensionStatusEnum = pgEnum('medicaid_extension_status', [
+  'drafted',
+  'submitted',
+  'approved',
+  'denied',
+  'withdrawn',
+]);
+
+export type MedicaidExtensionStatus = (typeof medicaidExtensionStatusEnum.enumValues)[number];

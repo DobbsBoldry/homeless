@@ -18,6 +18,7 @@ export * from './faith-ministries';
 export * from './foster-aging-out-alerts';
 export * from './foster-youth';
 export * from './health-check';
+export * from './medicaid-extension-applications';
 export * from './org-memberships';
 export * from './outbound-messages-test';
 export * from './partner-agreements';
