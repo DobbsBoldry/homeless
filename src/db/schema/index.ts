@@ -13,6 +13,8 @@ export * from './eviction-filing-risk-scores';
 export * from './eviction-filings';
 export * from './eviction-response-packets';
 export * from './fag-members';
+export * from './faith-aggregate-submissions';
+export * from './faith-ministries';
 export * from './health-check';
 export * from './org-memberships';
 export * from './outbound-messages-test';
