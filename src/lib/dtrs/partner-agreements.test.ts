@@ -2,11 +2,16 @@ import { describe, expect, it } from 'vitest';
 import {
   DCBS_DSA_SCOPE_OPTIONS,
   FERPA_SCOPE_OPTIONS,
+  KY_DOC_DSA_SCOPE_OPTIONS,
+  KY_DOC_PRE_RELEASE_WINDOW_DEFAULT_DAYS,
+  KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS,
+  KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS,
   OASIS_DEFAULT_REDACTION_POLICY,
   OASIS_DSA_SCOPE_OPTIONS,
   validateAgreementTerms,
   validateDcbsDsaTerms,
   validateFerpaTerms,
+  validateKyDocDsaTerms,
   validateMouTerms,
   validateOasisDsaTerms,
 } from './partner-agreements';
@@ -365,10 +370,10 @@ describe('validateAgreementTerms', () => {
     );
   });
 
-  it("rejects dsa with agency='ky_doc' (DTRS-012 not yet shipped)", () => {
+  it('rejects dsa with an unsupported agency (intake story not yet shipped)', () => {
     expect(() =>
-      validateAgreementTerms('dsa', { kind: 'dsa', agency: 'ky_doc', scope: [] }),
-    ).toThrow("DSA agency 'ky_doc' not yet supported");
+      validateAgreementTerms('dsa', { kind: 'dsa', agency: 'va_health', scope: [] }),
+    ).toThrow("DSA agency 'va_health' not yet supported");
   });
 
   it('rejects dsa with non-object input', () => {
@@ -549,5 +554,190 @@ describe('validateOasisDsaTerms', () => {
       survivor_home_address: '123 Real St',
     });
     expect(result).not.toHaveProperty('survivor_home_address');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateKyDocDsaTerms (DTRS-013)
+// ---------------------------------------------------------------------------
+
+const validKyDocDsa = {
+  kind: 'dsa',
+  agency: 'ky_doc',
+  scope: ['pre_release_roster', 'release_date_changes'],
+  agency_legal_name: 'Kentucky Department of Corrections',
+  state_contact: {
+    name: 'Reentry Coordinator',
+    title: 'Reentry Services Branch Manager',
+    email: 'reentry@ky.gov',
+    phone: '(502) 564-4726',
+  },
+  population_focus: 'pre_release',
+  pre_release_window_days: KY_DOC_PRE_RELEASE_WINDOW_DEFAULT_DAYS,
+  individual_records_authorized: true,
+  no_recidivism_prediction_attestation: true,
+  data_destruction_due: 'on_termination',
+};
+
+describe('validateKyDocDsaTerms', () => {
+  it('accepts a valid KY DOC DSA terms object', () => {
+    const result = validateKyDocDsaTerms(validKyDocDsa);
+    expect(result.kind).toBe('dsa');
+    expect(result.agency).toBe('ky_doc');
+    expect(result.scope).toEqual(['pre_release_roster', 'release_date_changes']);
+    expect(result.population_focus).toBe('pre_release');
+    expect(result.pre_release_window_days).toBe(KY_DOC_PRE_RELEASE_WINDOW_DEFAULT_DAYS);
+    expect(result.individual_records_authorized).toBe(true);
+    expect(result.no_recidivism_prediction_attestation).toBe(true);
+  });
+
+  it('accepts all valid scope values', () => {
+    const allScopes = KY_DOC_DSA_SCOPE_OPTIONS.map((o) => o.value);
+    const result = validateKyDocDsaTerms({ ...validKyDocDsa, scope: allScopes });
+    expect(result.scope).toEqual(allScopes);
+  });
+
+  it('accepts all valid data_destruction_due values', () => {
+    for (const val of ['on_termination', 'after_3_years', 'after_5_years'] as const) {
+      const result = validateKyDocDsaTerms({ ...validKyDocDsa, data_destruction_due: val });
+      expect(result.data_destruction_due).toBe(val);
+    }
+  });
+
+  it('accepts pre_release_window_days at the lower bound', () => {
+    const result = validateKyDocDsaTerms({
+      ...validKyDocDsa,
+      pre_release_window_days: KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS,
+    });
+    expect(result.pre_release_window_days).toBe(KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS);
+  });
+
+  it('accepts pre_release_window_days at the upper bound', () => {
+    const result = validateKyDocDsaTerms({
+      ...validKyDocDsa,
+      pre_release_window_days: KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS,
+    });
+    expect(result.pre_release_window_days).toBe(KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS);
+  });
+
+  it('accepts terms without optional phone', () => {
+    const noPhone = {
+      ...validKyDocDsa,
+      state_contact: { name: 'A', title: 'T', email: 'a@x.com' },
+    };
+    const result = validateKyDocDsaTerms(noPhone);
+    expect(result.state_contact.phone).toBeUndefined();
+  });
+
+  it('rejects non-object input', () => {
+    expect(() => validateKyDocDsaTerms(null)).toThrow('must be an object');
+    expect(() => validateKyDocDsaTerms('dsa')).toThrow('must be an object');
+  });
+
+  it('rejects wrong kind', () => {
+    expect(() => validateKyDocDsaTerms({ ...validKyDocDsa, kind: 'mou' })).toThrow('kind: "dsa"');
+  });
+
+  it('rejects wrong agency', () => {
+    expect(() => validateKyDocDsaTerms({ ...validKyDocDsa, agency: 'oasis' })).toThrow(
+      'agency must be "ky_doc"',
+    );
+  });
+
+  it('rejects empty scope array', () => {
+    expect(() => validateKyDocDsaTerms({ ...validKyDocDsa, scope: [] })).toThrow(
+      'at least one scope value',
+    );
+  });
+
+  it('rejects an invalid scope value', () => {
+    expect(() => validateKyDocDsaTerms({ ...validKyDocDsa, scope: ['recidivism_score'] })).toThrow(
+      'Invalid KY-DOC-DSA scope value: "recidivism_score"',
+    );
+  });
+
+  it('rejects empty agency_legal_name', () => {
+    expect(() => validateKyDocDsaTerms({ ...validKyDocDsa, agency_legal_name: '' })).toThrow(
+      'non-empty agency_legal_name',
+    );
+  });
+
+  it('rejects missing state_contact name', () => {
+    expect(() =>
+      validateKyDocDsaTerms({
+        ...validKyDocDsa,
+        state_contact: { name: '', title: 'T', email: 'a@x.com' },
+      }),
+    ).toThrow('non-empty name');
+  });
+
+  it('rejects wrong population_focus', () => {
+    expect(() =>
+      validateKyDocDsaTerms({ ...validKyDocDsa, population_focus: 'parole_supervision' }),
+    ).toThrow('population_focus must be "pre_release"');
+  });
+
+  it('rejects pre_release_window_days below the minimum', () => {
+    expect(() =>
+      validateKyDocDsaTerms({
+        ...validKyDocDsa,
+        pre_release_window_days: KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS - 1,
+      }),
+    ).toThrow('pre_release_window_days must be an integer in');
+  });
+
+  it('rejects pre_release_window_days above the maximum', () => {
+    expect(() =>
+      validateKyDocDsaTerms({
+        ...validKyDocDsa,
+        pre_release_window_days: KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS + 1,
+      }),
+    ).toThrow('pre_release_window_days must be an integer in');
+  });
+
+  it('rejects non-integer pre_release_window_days', () => {
+    expect(() =>
+      validateKyDocDsaTerms({ ...validKyDocDsa, pre_release_window_days: 60.5 }),
+    ).toThrow('pre_release_window_days must be an integer in');
+  });
+
+  it('rejects non-boolean individual_records_authorized', () => {
+    expect(() =>
+      validateKyDocDsaTerms({ ...validKyDocDsa, individual_records_authorized: 'yes' }),
+    ).toThrow('individual_records_authorized must be a boolean');
+  });
+
+  it('rejects no_recidivism_prediction_attestation = false (the cornerstone of the contract)', () => {
+    expect(() =>
+      validateKyDocDsaTerms({ ...validKyDocDsa, no_recidivism_prediction_attestation: false }),
+    ).toThrow('no_recidivism_prediction_attestation must be true');
+  });
+
+  it('rejects no_recidivism_prediction_attestation missing entirely', () => {
+    const { no_recidivism_prediction_attestation: _omit, ...withoutAttestation } = validKyDocDsa;
+    void _omit;
+    expect(() => validateKyDocDsaTerms(withoutAttestation)).toThrow(
+      'no_recidivism_prediction_attestation must be true',
+    );
+  });
+
+  it('rejects invalid data_destruction_due', () => {
+    expect(() =>
+      validateKyDocDsaTerms({ ...validKyDocDsa, data_destruction_due: 'never_required' }),
+    ).toThrow('data_destruction_due must be one of');
+  });
+
+  it('strips extra/unexpected keys (does not pass through to JSONB)', () => {
+    const result = validateKyDocDsaTerms({
+      ...validKyDocDsa,
+      recidivism_score: 0.42,
+    });
+    expect(result).not.toHaveProperty('recidivism_score');
+  });
+
+  it("dispatches dsa+agency='ky_doc' to validateKyDocDsaTerms", () => {
+    const result = validateAgreementTerms('dsa', validKyDocDsa);
+    expect(result.kind).toBe('dsa');
+    if (result.kind === 'dsa') expect(result.agency).toBe('ky_doc');
   });
 });

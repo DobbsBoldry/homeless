@@ -63,7 +63,7 @@ export async function getActiveAgreementByKind(
  * SUBP-004's abuser-blind middleware reads the active agreement before every
  * survivor-record write and exposes the redaction policy as the contract-of-
  * record. The JSONB filter `terms->>'agency' = 'oasis'` discriminates OASIS
- * agreements from DCBS / future KY DOC under the shared `dsa` kind (ADR 0004).
+ * agreements from DCBS / KY DOC under the shared `dsa` kind (ADR 0004).
  *
  * Returns `null` when no active OASIS DSA exists; SUBP-004 must fail closed
  * in that case (ADR 0007 § 3.1).
@@ -78,6 +78,34 @@ export async function getActiveOasisDsa(partnerOrgId: string): Promise<PartnerAg
         eq(partnerAgreements.kind, 'dsa'),
         eq(partnerAgreements.status, 'active'),
         sql`(${partnerAgreements.terms}->>'agency') = 'oasis'`,
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/**
+ * Return the active KY DOC Data-Sharing Agreement for a partner, or null.
+ *
+ * SUBP-005's pre-release ingest middleware reads the active agreement before
+ * every record write and exposes `terms.pre_release_window_days` and
+ * `terms.individual_records_authorized` as the contract-of-record. The JSONB
+ * filter `terms->>'agency' = 'ky_doc'` discriminates KY DOC agreements from
+ * DCBS / OASIS under the shared `dsa` kind (ADR 0004 / ADR 0009).
+ *
+ * Returns `null` when no active KY DOC DSA exists; SUBP-005 must fail closed
+ * in that case (ADR 0009 § Decision.1).
+ */
+export async function getActiveKyDocDsa(partnerOrgId: string): Promise<PartnerAgreement | null> {
+  const rows = await db
+    .select()
+    .from(partnerAgreements)
+    .where(
+      and(
+        eq(partnerAgreements.partnerOrgId, partnerOrgId),
+        eq(partnerAgreements.kind, 'dsa'),
+        eq(partnerAgreements.status, 'active'),
+        sql`(${partnerAgreements.terms}->>'agency') = 'ky_doc'`,
       ),
     )
     .limit(1);

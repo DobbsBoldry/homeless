@@ -4,9 +4,10 @@ import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
 import { recordAgreement, updateAgreementStatus } from '@/db/queries/partner-agreements';
 import { requireRole } from '@/lib/auth';
-import type { DcbsDsaTerms, FerpaTerms, MouTerms, OasisDsaTerms } from '@/lib/dtrs';
+import type { DcbsDsaTerms, FerpaTerms, KyDocDsaTerms, MouTerms, OasisDsaTerms } from '@/lib/dtrs';
 import {
   parseDcbsDsaAgreementForm,
+  parseKyDocDsaAgreementForm,
   parseMouAgreementForm,
   parseOasisDsaAgreementForm,
   parsePartnerAgreementForm,
@@ -30,6 +31,7 @@ const KNOWN_DOMAIN_PREFIXES = [
   'Invalid DCBS-DSA scope',
   'Invalid OASIS-DSA scope',
   'Invalid OASIS-DSA redaction_policy',
+  'Invalid KY-DOC-DSA scope',
 ] as const;
 
 export type RecordFerpaAgreementResult =
@@ -200,6 +202,62 @@ export async function recordOasisDsaAgreementAction(
   }
 }
 
+export type RecordKyDocDsaAgreementResult =
+  | { ok: true; agreementId: string }
+  | { ok: false; error: string };
+
+/**
+ * Admin-only server action: parse the DTRS-013 KY DOC DSA intake FormData and
+ * persist via `recordAgreement` (terms validation + audit log happen inside
+ * that query function). The validator strictly enforces
+ * `no_recidivism_prediction_attestation === true` (ADR 0009); the parser also
+ * fails closed if the attestation checkbox is missing from the form.
+ */
+export async function recordKyDocDsaAgreementAction(
+  formData: FormData,
+): Promise<RecordKyDocDsaAgreementResult> {
+  const user = await requireRole(['admin']);
+
+  const parsed = parseKyDocDsaAgreementForm(formData);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+
+  try {
+    const { effectiveDate, endDate, signedByPartner, notes, partnerOrgId, terms } = parsed.input;
+
+    const agreement = await recordAgreement({
+      partnerOrgId,
+      kind: 'dsa',
+      status: 'active',
+      effectiveDate: effectiveDate || null,
+      endDate: endDate || null,
+      signedByPartner: signedByPartner || null,
+      signedByCoalitionUserId: user.id,
+      templateVersion: 'kydoc-dsa-v1',
+      templateRendered: null,
+      // parseKyDocDsaAgreementForm validates scope + window + attestation;
+      // the narrow cast bridges the parser's structural type to the domain type.
+      // recordAgreement re-validates via validateAgreementTerms before any insert.
+      terms: terms as KyDocDsaTerms,
+      notes: notes || null,
+      actorUserId: user.id,
+    });
+
+    revalidatePath('/app/admin/agreements/kydoc');
+    return { ok: true, agreementId: agreement.id };
+  } catch (err) {
+    Sentry.captureException(err);
+    console.error('[partner-agreements.recordKyDocDsa] failed', err);
+    const raw = err instanceof Error ? err.message : '';
+    const isKnown = KNOWN_DOMAIN_PREFIXES.some((prefix) =>
+      raw.toLowerCase().startsWith(prefix.toLowerCase()),
+    );
+    const error = isKnown
+      ? raw
+      : 'Recording the agreement failed — please retry. The error has been logged.';
+    return { ok: false, error };
+  }
+}
+
 export type RecordMouAgreementResult =
   | { ok: true; agreementId: string }
   | { ok: false; error: string };
@@ -266,6 +324,7 @@ export async function updateAgreementStatusAction(
     revalidatePath('/app/admin/agreements/ferpa');
     revalidatePath('/app/admin/agreements/dcbs');
     revalidatePath('/app/admin/agreements/oasis');
+    revalidatePath('/app/admin/agreements/kydoc');
     return { ok: true };
   } catch (err) {
     Sentry.captureException(err);
