@@ -27,6 +27,7 @@ export * from './partner-agreements';
 export * from './partner-orgs';
 export * from './partner-service-events';
 export * from './person-partner-consents';
+export * from './pre-release-subjects';
 export * from './rental-assistance-programs';
 export * from './school-referral-consents';
 export * from './school-referral-disclosures';

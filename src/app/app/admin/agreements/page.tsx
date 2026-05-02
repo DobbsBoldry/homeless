@@ -17,6 +17,12 @@ const AGREEMENTS = [
       'Data-sharing agreement with the Cabinet for Health & Family Services for foster aging-out and TEAMKY referrals.',
   },
   {
+    label: 'KY DOC DSA',
+    href: '/app/admin/agreements/kydoc',
+    description:
+      'Data-sharing agreement with the Kentucky Department of Corrections for the reentry pathway (bounded pre-release window, no-recidivism-prediction commitment, ADR 0009).',
+  },
+  {
     label: 'School FERPA',
     href: '/app/admin/agreements/ferpa',
     description:

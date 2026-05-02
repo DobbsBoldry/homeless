@@ -86,6 +86,11 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['caseworker', 'admin'],
   },
   {
+    label: 'Reentry',
+    href: '/app/clients/reentry',
+    roles: ['caseworker', 'admin'],
+  },
+  {
     label: 'Outcomes',
     href: '/app/metrics',
     roles: ['attorney', 'admin'],
