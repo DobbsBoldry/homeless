@@ -26,6 +26,11 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['ed_coordinator', 'admin'],
   },
   {
+    label: 'First-time homeless',
+    href: '/app/care/first-time-homeless',
+    roles: ['ed_coordinator', 'admin'],
+  },
+  {
     label: 'Filings',
     href: '/app/cases/filings',
     roles: ['attorney', 'caseworker', 'admin'],
@@ -66,6 +71,21 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['caseworker', 'shelter_staff', 'admin'],
   },
   {
+    label: 'Families with children',
+    href: '/app/clients/families',
+    roles: ['caseworker', 'admin'],
+  },
+  {
+    label: 'Foster aging-out',
+    href: '/app/clients/foster-aging-out',
+    roles: ['caseworker', 'admin'],
+  },
+  {
+    label: 'DV survivors',
+    href: '/app/clients/dv-survivors',
+    roles: ['caseworker', 'admin'],
+  },
+  {
     label: 'Outcomes',
     href: '/app/metrics',
     roles: ['attorney', 'admin'],
@@ -90,6 +110,11 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Frontline Advisory Group',
     href: '/app/coalition/fag',
     roles: ['admin'],
+  },
+  {
+    label: 'Outreach priorities',
+    href: '/app/coalition/outreach-priorities',
+    roles: ['caseworker', 'admin'],
   },
   {
     label: 'Bed availability',
@@ -120,6 +145,13 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Admin · Users', href: '/app/admin/users', roles: ['admin'] },
   { label: 'Admin · Audit log', href: '/app/admin/audit', roles: ['admin'] },
   { label: 'Admin · Triage overrides', href: '/app/admin/triage-overrides', roles: ['admin'] },
+  { label: 'Admin · Agreements', href: '/app/admin/agreements', roles: ['admin'] },
+  { label: 'Admin · Faith aggregate', href: '/app/admin/faith-aggregate', roles: ['admin'] },
+  {
+    label: 'Admin · Faith insights',
+    href: '/app/admin/faith-aggregate/insights',
+    roles: ['admin'],
+  },
 ];
 
 export function navItemsForRole(role: UserRole): NavItem[] {
