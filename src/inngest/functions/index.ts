@@ -7,6 +7,7 @@ import { expireBedHolds } from './expire-bed-holds';
 import { expireSmsConversations } from './expire-sms-conversations';
 import { familyStabilityScan } from './family-stability-scan';
 import { fosterAgingOutScan } from './foster-aging-out-scan';
+import { handoffExpirySweep } from './handoff-expiry-sweep';
 import { preReleaseWindowSweep } from './pre-release-window-sweep';
 import { userSignedUp } from './user-signed-up';
 
@@ -22,4 +23,5 @@ export const functions = [
   dvSafetyPlanStaleScan,
   familyStabilityScan,
   preReleaseWindowSweep,
+  handoffExpirySweep,
 ];

@@ -437,3 +437,56 @@ export const preReleaseTypeEnum = pgEnum('pre_release_release_type', [
 ]);
 
 export type PreReleaseType = (typeof preReleaseTypeEnum.enumValues)[number];
+
+// COOR-012 — inter-agency handoff workflow
+
+/**
+ * Lifecycle of a `case_handoffs` row.
+ *
+ *   - `pending_consent`     — request initiated; the subject has not (yet)
+ *                             granted `person_partner_consents` for the
+ *                             receiving partner org. The receiver cannot
+ *                             see anything until consent lands.
+ *   - `pending_acceptance`  — consent on file; the receiving org's
+ *                             caseworker hasn't accepted yet.
+ *   - `accepted`            — receiver accepted; `loadHandoffContext` reads
+ *                             are permitted while the consent stays unrevoked.
+ *   - `declined`            — receiver explicitly declined.
+ *   - `revoked`             — initiator (or subject via consent revocation)
+ *                             pulled the handoff before completion.
+ *   - `expired`             — daily sweep aged out a handoff that sat in
+ *                             `pending_consent` / `pending_acceptance` past
+ *                             its `expires_at`.
+ *
+ * Terminal states: `accepted`, `declined`, `revoked`, `expired`. Audit log
+ * carries every transition.
+ */
+export const caseHandoffStatusEnum = pgEnum('case_handoff_status', [
+  'pending_consent',
+  'pending_acceptance',
+  'accepted',
+  'declined',
+  'revoked',
+  'expired',
+]);
+
+export type CaseHandoffStatus = (typeof caseHandoffStatusEnum.enumValues)[number];
+
+/**
+ * Kinds of records the initiator may request the receiver be allowed to
+ * read. Stored as a JSONB array on `case_handoffs.requested_scope` and
+ * enforced by the `loadHandoffContext` reader — anything not in scope is
+ * not returned.
+ *
+ * Keep this list tight. Adding a new kind is a privacy-policy change, not
+ * a refactor. New kinds need a corresponding fetcher in
+ * `src/lib/coor/handoff-context.ts`.
+ */
+export const caseHandoffScopeKindEnum = pgEnum('case_handoff_scope_kind', [
+  'intakes',
+  'case_notes',
+  'service_events',
+  'consents',
+]);
+
+export type CaseHandoffScopeKind = (typeof caseHandoffScopeKindEnum.enumValues)[number];
