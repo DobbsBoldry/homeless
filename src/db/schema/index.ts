@@ -1,4 +1,5 @@
 export * from './audit-log';
+export * from './case-handoffs';
 export * from './client-documents';
 export * from './client-intakes';
 export * from './comms-advisories';

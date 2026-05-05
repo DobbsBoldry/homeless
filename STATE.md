@@ -1,6 +1,6 @@
 # STATE.md — what's now
 
-**Last updated:** 2026-04-27 — Sprint 8 closed (faith-based opt-in foundation shipped)
+**Last updated:** 2026-05-04 — Sprint 12 closed (SUBP-005 #377 merged); Sprint 13 active (Veterans + handoff + funder visibility)
 
 This file is the cheap context file. Open it at the start of a session and you skip 5–10 minutes of "what was I doing." Two paragraphs, bullets, no essays. If a section gets long, summarize and link out.
 
@@ -8,18 +8,44 @@ This file is the cheap context file. Open it at the start of a session and you s
 
 ## Current focus
 
-**Sprint 8 closed — faith-based opt-in foundation.** All three DTRS stories shipped: schema + privacy contract (#354 / [ADR 0003](docs/adr/0003-faith-aggregate-privacy-contract.md)), Catholic Charities admin intake form (#355), per-ministry coordination signals read view + queries (#356). The platform can now receive aggregate-only data from faith partners without ever modeling individual records — privacy by structural impossibility, not just policy. Phase 3 reverse-channel (signals back to ministries) explicitly deferred per the strategy doc.
+**Sprint 12 closed (~23 pts shipped).** DTRS-013 KY DOC ([#376](https://github.com/DobbsBoldry/homeless/pull/376) / [ADR 0009](docs/adr/0009-ky-doc-data-sharing.md)), SUBP-005 reentry pathway ([#377](https://github.com/DobbsBoldry/homeless/pull/377)), plus PRVN-001 ED first-time-homeless flag ([#373](https://github.com/DobbsBoldry/homeless/pull/373)) and PRVN-006 outreach pre-positioning ([#374](https://github.com/DobbsBoldry/homeless/pull/374)) pulled forward from S13 candidates. SUBP epic now 5 of 7 pathways shipped. **COOR-012 (5pt) and INDC-019 (2pt) deferred** to S13.
 
-This was the first sprint built using the [`superpowers:subagent-driven-development`](https://github.com/jasonkneen/superpowers) skill — implementer subagent + spec-compliance reviewer + code-quality reviewer per ticket. Spec reviewer caught a hardcoded `suppressedCount=0` on DTRS-008; quality reviewer caught a typo + error-leak + a11y miss on DTRS-008, and partial-coverage signaling + window-boundary exclusion on DTRS-009. All resolved before merge.
+**Sprint 13 — "Veterans + handoff + funder visibility."** Rounds out the SUBP epic with HUD-VASH, closes the carryover handoff loop, and gives funders/coalition leadership their first demand-side visibility.
 
-**Sprint 9 candidate** (per `product-vision/roadmap.html` "What ships in Phase 2"): schools integration. [#125 PRVN-003](https://github.com/DobbsBoldry/homeless/issues/125) (McKinney-Vento liaison referral receiver, 5pt) + [#126 PRVN-004](https://github.com/DobbsBoldry/homeless/issues/126) (closed-loop reporting school↔coalition, 5pt) + [#140 DTRS-010](https://github.com/DobbsBoldry/homeless/issues/140) (FERPA-compliant school data agreement template, 5pt). 15pt total. Faith partnerships now have receiving infrastructure; schools are the next entry per the strategy doc's sequence.
+| # | Pts | Story |
+|---|---|---|
+| [#120](https://github.com/DobbsBoldry/homeless/issues/120) COOR-012 | 5 | Inter-agency handoff workflow — **carryover from S12; do first** |
+| [#135](https://github.com/DobbsBoldry/homeless/issues/135) SUBP-006 | 8 | Veteran pathway (HUD-VASH; VFW Owensboro) — reuses agreement→pathway pattern |
+| [#147](https://github.com/DobbsBoldry/homeless/issues/147) OPRT-007 | 5 | Funder-portal generator (per-funder views into outcomes) |
+| [#121](https://github.com/DobbsBoldry/homeless/issues/121) COOR-013 | 5 | 7-14 day demand forecasting per shelter |
+| **stretch** [#252](https://github.com/DobbsBoldry/homeless/issues/252) INDC-019 | 2 | Preserve grant history on consent re-grant (carryover) |
 
-**Other open work:** [#12 OPRT-002 MOU registry](https://github.com/DobbsBoldry/homeless/issues/12) (net-new, unsized) — every faith ministry will eventually need an MOU; ship this when partnerships need it.
+**Sprint goal:** Veterans pathway ships using the validated agreement template; coalition leadership and funders get their first dedicated views.
 
-**Sync items to address:** ESUC-001/002 closed as `NOT_PLANNED` on 2026-04-27 (project-board cleanup) — but the PHI fence is still real. Either reopen them or update CLAUDE.md/ADR-0002 to reflect that the BAA actually closed. Bo's call — flagged but not yet acted on.
+**Sequencing:** COOR-012 first (clears S12 slip). SUBP-006 starts in parallel — spike VA/HUD-VASH agreement template fit before committing the full 8 (split out as DTRS-015 if it diverges from KY DOC/OASIS shape). OPRT-007 + COOR-013 independent; either order. INDC-019 only if rest finishes early.
+
+**Sprint 13 dates:** 2026-05-05 → 2026-05-18. Mid-sprint check 2026-05-11.
 
 ## Just shipped (most recent first)
 
+- **#377** — SUBP-005 reentry pathway: 60-day pre-release window automation, KY DOC gate, window sweep. Validates agreement→pathway pattern (template for SUBP-006 Veterans).
+- **#376** — DTRS-013 KY DOC reentry data-sharing workflow + [ADR 0009](docs/adr/0009-ky-doc-data-sharing.md). Third instance of the per-partner agreement pattern (after DCBS, OASIS).
+- **#375** — Nav: expose 8 orphaned routes + agreements hub.
+- **#374** — PRVN-006 outreach pre-positioning priorities (ZIP-aggregate). Pulled forward from S13 candidate slate.
+- **#373** — PRVN-001 ED first-time-homeless flag + alert view. Pulled forward from S13 candidate slate.
+- **#372** — SUBP-007 families w/ children pathway + school-stability engine.
+- **#371** — SUBP-004 DV survivor pathway + abuser-blind middleware ([ADR 0008](docs/adr/0008-abuser-blind-middleware.md)). Structural separation of survivor records from abuser-accessible queries.
+- **#370** — DTRS-012 OASIS data-sharing agreement workflow + [ADR 0007](docs/adr/0007-oasis-data-sharing.md). Generic per-partner agreement template; KY DOC will reuse this as DTRS-013 in Sprint 12.
+- **#368** — OPRT-002 MOU admin UI + generic agreement expiration watcher (Inngest). One watcher serves DCBS, OASIS, KY DOC, faith MOUs alike.
+- **#367** — SUBP-002 TEAMKY Former Foster Youth Medicaid extension automation.
+- **#366** — SUBP-001 foster aging-out countdown engine + caseworker surface.
+- **#365** — pin pnpm to 9.15.9 via railpack.json (Railway deploy fix).
+- **#364** — DTRS-011 DCBS data-sharing agreement workflow + [ADR 0006](docs/adr/0006-dcbs-data-sharing.md). The pattern that DTRS-012/013 inherit from.
+- **#363** — PRVN-004 school liaison aggregate insights (connection rate, status distribution, time-to-connect).
+- **#362** — COOR-014 closed-loop referral confirmation (liaison sees what happened to the referral).
+- **#361** — PRVN-003 McKinney-Vento school referral receiver (FERPA fork).
+- **#359** — DTRS-010 FERPA-compliant partner-agreements registry + intake.
+- **#358** — ADR 0004 + ADR 0005 schools-entry architectural spike.
 - **#356** — DTRS-009 per-ministry coordination signals (admin read view + queries). Seven privacy-respecting reads + two pure aggregator helpers. `compareMinistryWindows` carries a `partial` flag so all-suppressed windows don't get misread as "trending down." Overlap window semantics so monthly submissions aren't dropped by trailing 28-day filters.
 - **#355** — DTRS-008 Catholic Charities aggregate intake form. Admin-gated form with live cell-size suppression preview + audit-logged submit. Catholic Charities of the Diocese of Owensboro seeded as the first opted-in ministry.
 - **#354** — DTRS-007 faith-aggregate schema + cell-size suppression + [ADR 0003](docs/adr/0003-faith-aggregate-privacy-contract.md). Four tables, no individual-record column anywhere — privacy by structural impossibility.
@@ -38,15 +64,20 @@ This was the first sprint built using the [`superpowers:subagent-driven-developm
 - **#334** — EVDT-227 trigger to auto-bump `eviction_response_packets.updated_at`.
 - **#333** — FND-020 domain-boundary lint + [ADR 0001](docs/adr/0001-modular-monolith.md).
 
-## Next pickup
+## Next pickup (Sprint 13 — "Veterans + handoff + funder visibility")
 
 | # | Pts | What | Notes |
 |---|---|---|---|
-| [#125](https://github.com/DobbsBoldry/homeless/issues/125) PRVN-003 | 5 | McKinney-Vento liaison referral receiver | Sprint 9 candidate (schools entry per roadmap.html). |
-| [#126](https://github.com/DobbsBoldry/homeless/issues/126) PRVN-004 | 5 | Closed-loop reporting school↔coalition | Sprint 9 candidate; pairs with PRVN-003. |
-| [#140](https://github.com/DobbsBoldry/homeless/issues/140) DTRS-010 | 5 | FERPA-compliant school data agreement template + intake | Sprint 9 candidate; receiving-infra equivalent of DTRS-008 for schools. |
-| [#12](https://github.com/DobbsBoldry/homeless/issues/12) OPRT-002 | ? | MOU registry | Net-new, unsized; ship when partnerships need MOU tracking. |
-| Sprint 10+ | many | DCBS / foster aging-out (SUBP-001/002/003 + DTRS-011) | Per roadmap.html sequence after schools. |
+| [#120](https://github.com/DobbsBoldry/homeless/issues/120) COOR-012 | 5 | Inter-agency handoff workflow | Carryover from S12. Consent-gated context transfer. **Do FIRST** — clears the slip. |
+| [#135](https://github.com/DobbsBoldry/homeless/issues/135) SUBP-006 | 8 | Veteran pathway (HUD-VASH; VFW Owensboro) | Reuses agreement→pathway pattern. Spike VA agreement template fit before committing — split as DTRS-015 if it diverges. |
+| [#147](https://github.com/DobbsBoldry/homeless/issues/147) OPRT-007 | 5 | Funder-portal generator | Per-funder views into outcomes. Scope tightly: one funder, one report template, no auth-tenancy redesign. |
+| [#121](https://github.com/DobbsBoldry/homeless/issues/121) COOR-013 | 5 | 7-14 day demand forecasting per shelter | Coalition leadership visibility; pairs with OPRT-007. |
+| **stretch** [#252](https://github.com/DobbsBoldry/homeless/issues/252) INDC-019 | 2 | Preserve grant history on consent re-grant | Only if rest finishes early. |
+
+**Sprint 14+ candidate threads** (not yet committed):
+- "Prevention edge wrap-up": PRVN-005 (utility shutoff heat-map, 8) + PRVN-007 (macro demand forecasting, 8) + PRVN-002 (school attendance signal, 13)
+- "Coalition operational depth": COOR-009 (all 6 shelters integrated, 5) + COOR-010 (donation matching, 5) + COOR-011 (volunteer skill matching, 8)
+- "INDC client-facing": INDC-020 (companion home screen, 5) + INDC-013 (benefits screening, 5) + INDC-015 (mood check-in, 5)
 
 ## Known quirks (check here first)
 
