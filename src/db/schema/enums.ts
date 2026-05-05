@@ -401,3 +401,39 @@ export const familyChildGradeBandEnum = pgEnum('family_child_grade_band', [
 ]);
 
 export type FamilyChildGradeBand = (typeof familyChildGradeBandEnum.enumValues)[number];
+
+// SUBP-005 — Reentry pathway (ADR 0009)
+
+/**
+ * Pre-release subject lifecycle. `active` is the default — subject is in
+ * the pre-release window awaiting warm-handoff coordination. `handed_off`
+ * is set when the caseworker confirms the subject was successfully handed
+ * off to housing / Medicaid / employment supports on or near release day.
+ *
+ * Subjects that age out of the pre-release window without a handoff are
+ * deleted by the daily Inngest sweep (per ADR 0009 § 5.1) — they are not
+ * marked with a status. That is structural enforcement of the bounded data
+ * flow; a "deleted" status would defeat the contract.
+ */
+export const preReleaseSubjectStatusEnum = pgEnum('pre_release_subject_status', [
+  'active',
+  'handed_off',
+]);
+
+export type PreReleaseSubjectStatus = (typeof preReleaseSubjectStatusEnum.enumValues)[number];
+
+/**
+ * Reason for the projected release. `sentence_expiration` is the standard
+ * end-of-sentence release; `parole` is supervised release under KRS Ch. 439;
+ * `transfer` is a transfer to another correctional / supervision authority
+ * (the Coalition stops tracking once transferred); `other` covers commutation,
+ * habeas, and other non-standard releases.
+ */
+export const preReleaseTypeEnum = pgEnum('pre_release_release_type', [
+  'sentence_expiration',
+  'parole',
+  'transfer',
+  'other',
+]);
+
+export type PreReleaseType = (typeof preReleaseTypeEnum.enumValues)[number];
