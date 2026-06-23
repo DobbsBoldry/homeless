@@ -7,6 +7,10 @@ export const userRoleEnum = pgEnum('user_role', [
   'ed_coordinator',
   'shelter_staff',
   'admin',
+  // DTRS-014a-1: external read-only role, scoped to aggregate surfaces only.
+  // Granted exclusively by redeeming a partner invitation; in NO individual-
+  // record route's requireRole allow-list, so those routes 404 it by default.
+  'academic_partner',
 ]);
 
 export type UserRole = (typeof userRoleEnum.enumValues)[number];

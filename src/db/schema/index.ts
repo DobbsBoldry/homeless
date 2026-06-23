@@ -26,6 +26,7 @@ export * from './medicaid-extension-applications';
 export * from './org-memberships';
 export * from './outbound-messages-test';
 export * from './partner-agreements';
+export * from './partner-invitations';
 export * from './partner-orgs';
 export * from './partner-service-events';
 export * from './person-partner-consent-events';
