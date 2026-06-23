@@ -1,10 +1,25 @@
 import Link from 'next/link';
 import { VeteranVerifyControl } from '@/components/subp/veteran-verify-control';
+import { listAllVoucherApplications } from '@/db/queries/hud-vash-vouchers';
 import { listVeterans } from '@/db/queries/veterans';
 import { requireRole } from '@/lib/auth';
-import { describeVeteranEligibility, isVeteranEligible } from '@/lib/subp';
+import {
+  deriveVeteranVoucherStage,
+  describeVeteranEligibility,
+  isVeteranEligible,
+  VETERAN_VOUCHER_STAGE_LABELS,
+  type VeteranVoucherStage,
+} from '@/lib/subp';
 
 export const dynamic = 'force-dynamic';
+
+const STAGE_BADGE: Record<VeteranVoucherStage, string> = {
+  not_applied: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
+  applied: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400',
+  pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
+  approved: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400',
+  housed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400',
+};
 
 export default async function VeteransListPage({
   searchParams,
@@ -16,7 +31,20 @@ export default async function VeteransListPage({
   const sp = await searchParams;
   const eligibleOnly = (Array.isArray(sp.filter) ? sp.filter[0] : sp.filter) === 'eligible';
 
-  const subjects = await listVeterans({ status: 'any', eligibleOnly });
+  const [subjects, allApplications] = await Promise.all([
+    listVeterans({ status: 'any', eligibleOnly }),
+    listAllVoucherApplications(),
+  ]);
+
+  // SUBP-006c: roll each subject's applications up to a single pipeline stage.
+  const appsByVeteran = new Map<string, { status: string }[]>();
+  for (const a of allApplications) {
+    const list = appsByVeteran.get(a.veteranId) ?? [];
+    list.push(a);
+    appsByVeteran.set(a.veteranId, list);
+  }
+  const stageFor = (veteranId: string): VeteranVoucherStage =>
+    deriveVeteranVoucherStage(appsByVeteran.get(veteranId) ?? []);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
@@ -71,6 +99,7 @@ export default async function VeteransListPage({
                 <th className="px-3 py-2 font-medium">Name</th>
                 <th className="px-3 py-2 font-medium">Branch</th>
                 <th className="px-3 py-2 font-medium">Eligibility</th>
+                <th className="px-3 py-2 font-medium">Voucher stage</th>
                 <th className="px-3 py-2 font-medium">Status</th>
                 <th className="px-3 py-2 font-medium">Action</th>
               </tr>
@@ -107,6 +136,18 @@ export default async function VeteransListPage({
                       <div className="mt-0.5 text-[10px] text-muted-foreground">
                         {describeVeteranEligibility(v)}
                       </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      {(() => {
+                        const stage = stageFor(v.id);
+                        return (
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${STAGE_BADGE[stage]}`}
+                          >
+                            {VETERAN_VOUCHER_STAGE_LABELS[stage]}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-3 py-2 capitalize text-muted-foreground">{v.status}</td>
                     <td className="px-3 py-2">

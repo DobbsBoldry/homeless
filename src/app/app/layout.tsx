@@ -19,13 +19,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       >
         Skip to main content
       </a>
-      <aside className="hidden md:block">
+      <aside className="hidden md:block print:hidden">
         <Sidebar items={items} brand={brand} />
       </aside>
       <div className="flex min-h-screen flex-col">
-        <Topbar menuButton={<MobileNav items={items} brand={brand} />} />
-        <CommsAdvisoryBanner />
-        {user.role === 'pending' ? <PendingBanner /> : null}
+        <div className="print:hidden">
+          <Topbar menuButton={<MobileNav items={items} brand={brand} />} />
+          <CommsAdvisoryBanner />
+          {user.role === 'pending' ? <PendingBanner /> : null}
+        </div>
         <main id="main-content" tabIndex={-1} className="flex-1 bg-background">
           {children}
         </main>
