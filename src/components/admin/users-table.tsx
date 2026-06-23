@@ -15,6 +15,7 @@ const roleBadge: Record<string, string> = {
   ed_coordinator: 'bg-secondary text-secondary-foreground',
   shelter_staff: 'bg-secondary text-secondary-foreground',
   admin: 'bg-emerald-600/15 text-emerald-700 dark:text-emerald-400',
+  academic_partner: 'bg-indigo-600/15 text-indigo-700 dark:text-indigo-400',
 };
 
 export function UsersTable({

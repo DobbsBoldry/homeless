@@ -85,6 +85,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   ed_coordinator: 'ED coordinator',
   shelter_staff: 'Shelter staff',
   admin: 'Admin',
+  academic_partner: 'Academic partner',
 };
 
 export default async function DashboardPage() {

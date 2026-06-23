@@ -16,6 +16,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   ed_coordinator: 'ED coordinator',
   shelter_staff: 'Shelter staff',
   admin: 'Admin',
+  academic_partner: 'Academic partner',
 };
 
 const ROLE_DESCRIPTION: Record<UserRole, string> = {
@@ -27,6 +28,8 @@ const ROLE_DESCRIPTION: Record<UserRole, string> = {
   ed_coordinator: 'ED super-utilizer queue, AI care plans, care-coordinator workflow.',
   shelter_staff: 'Bed-count updates, bed availability board, SMS bed-finder playground.',
   admin: 'Everything plus user management, audit log, SMS metrics.',
+  academic_partner:
+    'Read-only access to aggregate, de-identified coalition outcomes — no individual records.',
 };
 
 export default async function SettingsPage() {

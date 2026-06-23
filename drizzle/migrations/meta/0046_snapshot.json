@@ -1,5 +1,5 @@
 {
-  "id": "9afd9685-2a8c-4116-a48b-53dd36409846",
+  "id": "e9bb47cb-896d-4129-aaa7-f892ad4c2a40",
   "prevId": "a0965f96-59ee-420b-b3d4-9447b6ec8cdf",
   "version": "7",
   "dialect": "postgresql",
@@ -4024,244 +4024,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.hud_vash_vouchers": {
-      "name": "hud_vash_vouchers",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "voucher_code": {
-          "name": "voucher_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "unit_type": {
-          "name": "unit_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bedrooms": {
-          "name": "bedrooms",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "location": {
-          "name": "location",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "zip": {
-          "name": "zip",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "accessible": {
-          "name": "accessible",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "availability_status": {
-          "name": "availability_status",
-          "type": "hud_vash_voucher_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'available'"
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "hud_vash_vouchers_status_idx": {
-          "name": "hud_vash_vouchers_status_idx",
-          "columns": [
-            {
-              "expression": "availability_status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.veteran_voucher_applications": {
-      "name": "veteran_voucher_applications",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "veteran_id": {
-          "name": "veteran_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "voucher_id": {
-          "name": "voucher_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "veteran_voucher_application_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'applied'"
-        },
-        "applied_by_user_id": {
-          "name": "applied_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "veteran_voucher_applications_unique_idx": {
-          "name": "veteran_voucher_applications_unique_idx",
-          "columns": [
-            {
-              "expression": "veteran_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "voucher_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "veteran_voucher_applications_veteran_idx": {
-          "name": "veteran_voucher_applications_veteran_idx",
-          "columns": [
-            {
-              "expression": "veteran_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "veteran_voucher_applications_veteran_id_veterans_id_fk": {
-          "name": "veteran_voucher_applications_veteran_id_veterans_id_fk",
-          "tableFrom": "veteran_voucher_applications",
-          "tableTo": "veterans",
-          "columnsFrom": [
-            "veteran_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "veteran_voucher_applications_voucher_id_hud_vash_vouchers_id_fk": {
-          "name": "veteran_voucher_applications_voucher_id_hud_vash_vouchers_id_fk",
-          "tableFrom": "veteran_voucher_applications",
-          "tableTo": "hud_vash_vouchers",
-          "columnsFrom": [
-            "voucher_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "veteran_voucher_applications_applied_by_user_id_users_id_fk": {
-          "name": "veteran_voucher_applications_applied_by_user_id_users_id_fk",
-          "tableFrom": "veteran_voucher_applications",
-          "tableTo": "users",
-          "columnsFrom": [
-            "applied_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.medicaid_extension_applications": {
       "name": "medicaid_extension_applications",
       "schema": "",
@@ -4795,6 +4557,133 @@
           "value": "effective_date IS NULL OR end_date IS NULL OR effective_date <= end_date"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.partner_invitations": {
+      "name": "partner_invitations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invited_email": {
+          "name": "invited_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invited_by_user_id": {
+          "name": "invited_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "redeemed_at": {
+          "name": "redeemed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "redeemed_by_user_id": {
+          "name": "redeemed_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "partner_invitations_token_hash_idx": {
+          "name": "partner_invitations_token_hash_idx",
+          "columns": [
+            {
+              "expression": "token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "partner_invitations_email_idx": {
+          "name": "partner_invitations_email_idx",
+          "columns": [
+            {
+              "expression": "invited_email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "partner_invitations_invited_by_user_id_users_id_fk": {
+          "name": "partner_invitations_invited_by_user_id_users_id_fk",
+          "tableFrom": "partner_invitations",
+          "tableTo": "users",
+          "columnsFrom": [
+            "invited_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "partner_invitations_redeemed_by_user_id_users_id_fk": {
+          "name": "partner_invitations_redeemed_by_user_id_users_id_fk",
+          "tableFrom": "partner_invitations",
+          "tableTo": "users",
+          "columnsFrom": [
+            "redeemed_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.partner_orgs": {
@@ -7177,25 +7066,6 @@
           "notNull": true,
           "default": "'active'"
         },
-        "bedroom_need": {
-          "name": "bedroom_need",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "accessibility_need": {
-          "name": "accessibility_need",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "target_zip": {
-          "name": "target_zip",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "notes": {
           "name": "notes",
           "type": "text",
@@ -7760,7 +7630,8 @@
         "caseworker",
         "ed_coordinator",
         "shelter_staff",
-        "admin"
+        "admin",
+        "academic_partner"
       ]
     },
     "public.veteran_eligibility_source": {
@@ -7777,23 +7648,6 @@
       "values": [
         "active",
         "exited"
-      ]
-    },
-    "public.hud_vash_voucher_status": {
-      "name": "hud_vash_voucher_status",
-      "schema": "public",
-      "values": [
-        "available",
-        "pending",
-        "leased"
-      ]
-    },
-    "public.veteran_voucher_application_status": {
-      "name": "veteran_voucher_application_status",
-      "schema": "public",
-      "values": [
-        "applied",
-        "withdrawn"
       ]
     },
     "public.person_partner_consent_event_type": {
