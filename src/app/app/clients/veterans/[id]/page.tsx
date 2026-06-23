@@ -1,10 +1,19 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ApplicationStageControl } from '@/components/subp/application-stage-control';
+import { VfwReferralControl } from '@/components/subp/vfw-referral-control';
 import { VoucherApplyButton } from '@/components/subp/voucher-apply-button';
 import { listApplicationsForVeteran, listVouchers } from '@/db/queries/hud-vash-vouchers';
 import { getVeteran } from '@/db/queries/veterans';
+import { getLatestVfwReferral } from '@/db/queries/vfw-referrals';
 import { requireRole } from '@/lib/auth';
-import { describeVeteranEligibility, isVeteranEligible, scoreVoucherMatch } from '@/lib/subp';
+import {
+  deriveVeteranVoucherStage,
+  describeVeteranEligibility,
+  isVeteranEligible,
+  scoreVoucherMatch,
+  VETERAN_VOUCHER_STAGE_LABELS,
+} from '@/lib/subp';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,13 +31,18 @@ export default async function VeteranDetailPage({ params }: Props) {
   const eligible = isVeteranEligible(veteran);
 
   // Voucher panel only when the veteran flag is set (SUBP-006b AC).
-  const [vouchers, applications] = eligible
-    ? await Promise.all([listVouchers({ availableOnly: true }), listApplicationsForVeteran(id)])
-    : [[], []];
+  const [vouchers, applications, latestReferral] = eligible
+    ? await Promise.all([
+        listVouchers({ availableOnly: true }),
+        listApplicationsForVeteran(id),
+        getLatestVfwReferral(id),
+      ])
+    : [[], [], null];
 
-  const appliedVoucherIds = new Set(
-    applications.filter((a) => a.status === 'applied').map((a) => a.voucherId),
-  );
+  // SUBP-006c: map each voucher to its application (id + status) for the
+  // inline stage control, and roll the subject up to a single pipeline stage.
+  const appByVoucher = new Map(applications.map((a) => [a.voucherId, a]));
+  const subjectStage = deriveVeteranVoucherStage(applications);
 
   const scored = vouchers
     .map((v) => ({
@@ -41,7 +55,7 @@ export default async function VeteranDetailPage({ params }: Props) {
         },
         { bedrooms: v.bedrooms, accessible: v.accessible, zip: v.zip },
       ),
-      applied: appliedVoucherIds.has(v.id),
+      application: appByVoucher.get(v.id) ?? null,
     }))
     .sort((a, b) => b.match.score - a.match.score);
 
@@ -105,7 +119,7 @@ export default async function VeteranDetailPage({ params }: Props) {
           </div>
         ) : (
           <ul className="space-y-2">
-            {scored.map(({ voucher: v, match, applied }) => (
+            {scored.map(({ voucher: v, match, application }) => (
               <li key={v.id} className="rounded-md border border-border bg-card p-3 text-sm">
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -137,9 +151,13 @@ export default async function VeteranDetailPage({ params }: Props) {
                   {match.factors.map((f) => `${f.label}: ${f.detail}`).join(' · ')}
                 </p>
                 <div className="mt-2">
-                  {applied ? (
-                    <span className="rounded bg-emerald-600/15 px-2 py-0.5 text-xs text-emerald-700 dark:text-emerald-400">
-                      Applied
+                  {application ? (
+                    <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                      Stage:{' '}
+                      <ApplicationStageControl
+                        applicationId={application.id}
+                        status={application.status}
+                      />
                     </span>
                   ) : (
                     <VoucherApplyButton veteranId={veteran.id} voucherId={v.id} />
@@ -150,6 +168,31 @@ export default async function VeteranDetailPage({ params }: Props) {
           </ul>
         )}
       </section>
+
+      {eligible ? (
+        <section className="space-y-3 rounded-md border border-border p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">VFW Owensboro referral</h2>
+            <span className="rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+              Pipeline stage: {VETERAN_VOUCHER_STAGE_LABELS[subjectStage]}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Generates a referral packet (subject, contact, eligibility, matched vouchers) for VFW
+            staff and logs the event. Open the printable packet to export as PDF.
+          </p>
+          <VfwReferralControl veteranId={veteran.id} hasReferral={latestReferral !== null} />
+          {latestReferral ? (
+            <p className="text-[10px] text-muted-foreground">
+              Last referred{' '}
+              {new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(
+                new Date(latestReferral.createdAt),
+              )}
+              .
+            </p>
+          ) : null}
+        </section>
+      ) : null}
     </div>
   );
 }

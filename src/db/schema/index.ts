@@ -43,3 +43,4 @@ export * from './steering-meetings';
 export * from './triage-overrides';
 export * from './users';
 export * from './veterans';
+export * from './vfw-referrals';

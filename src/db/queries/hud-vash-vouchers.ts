@@ -12,6 +12,7 @@ import {
   hudVashVouchers,
   type NewHudVashVoucher,
   type VeteranVoucherApplication,
+  type VeteranVoucherApplicationStatus,
   veteranVoucherApplications,
 } from '@/db/schema/hud-vash-vouchers';
 import { logAuditEvent } from '@/lib/audit';
@@ -153,4 +154,38 @@ export async function applyToVoucher(
     });
     return row;
   });
+}
+
+/**
+ * SUBP-006c — set a (veteran, voucher) application's status along the
+ * pipeline (applied → pending → approved → housed, or withdrawn). Audit-logged
+ * in the same transaction. Returns the updated row, or null if not found.
+ */
+export async function setApplicationStatus(
+  applicationId: string,
+  status: VeteranVoucherApplicationStatus,
+  actorUserId: string,
+): Promise<VeteranVoucherApplication | null> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(veteranVoucherApplications)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(veteranVoucherApplications.id, applicationId))
+      .returning();
+    if (!row) return null;
+    await logAuditEvent({
+      actorUserId,
+      action: 'veteran_voucher.status_changed',
+      targetTable: 'veteran_voucher_applications',
+      targetId: row.id,
+      metadata: { veteranId: row.veteranId, voucherId: row.voucherId, status },
+      tx,
+    });
+    return row;
+  });
+}
+
+/** All voucher applications across subjects — used to derive list-view stages. */
+export async function listAllVoucherApplications(): Promise<VeteranVoucherApplication[]> {
+  return db.select().from(veteranVoucherApplications);
 }

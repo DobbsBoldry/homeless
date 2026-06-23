@@ -59,9 +59,16 @@ export const hudVashVouchers = pgTable(
 export type HudVashVoucher = typeof hudVashVouchers.$inferSelect;
 export type NewHudVashVoucher = typeof hudVashVouchers.$inferInsert;
 
-/** Application status of a (veteran, voucher) pair. */
+/**
+ * Application status of a (veteran, voucher) pair. SUBP-006c extends the
+ * lifecycle past applied/withdrawn so the caseworker pipeline view can show a
+ * subject's stage (see `deriveVeteranVoucherStage`).
+ */
 export const veteranVoucherApplicationStatusEnum = pgEnum('veteran_voucher_application_status', [
   'applied',
+  'pending',
+  'approved',
+  'housed',
   'withdrawn',
 ]);
 
