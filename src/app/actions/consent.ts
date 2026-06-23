@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/db/client';
 import { consents } from '@/db/schema/consents';
 import { type ConsentChannel, type ConsentType, consentChannelEnum } from '@/db/schema/enums';
+import { personPartnerConsentEvents } from '@/db/schema/person-partner-consent-events';
 import { personPartnerConsents } from '@/db/schema/person-partner-consents';
 import { logAuditEvent } from '@/lib/audit';
 import {
@@ -68,11 +69,22 @@ export async function revokeConsentAction(
     return { ok: false, error: 'Too many attempts. Please wait a minute and try again.' };
   }
 
-  const [updated] = await db
-    .update(personPartnerConsents)
-    .set({ revokedAt: new Date(), updatedAt: new Date() })
-    .where(eq(personPartnerConsents.id, consentId))
-    .returning({ id: personPartnerConsents.id, partnerOrgId: personPartnerConsents.partnerOrgId });
+  // Append-only history + current-state parent, atomically (INDC-019).
+  const updated = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(personPartnerConsents)
+      .set({ revokedAt: new Date(), updatedAt: new Date() })
+      .where(eq(personPartnerConsents.id, consentId))
+      .returning({
+        id: personPartnerConsents.id,
+        partnerOrgId: personPartnerConsents.partnerOrgId,
+      });
+    if (!row) return null;
+    await tx
+      .insert(personPartnerConsentEvents)
+      .values({ consentId: row.id, eventType: 'revoked', actorUserId: null });
+    return row;
+  });
   if (!updated) return { ok: false, error: 'Consent not found.' };
 
   await logAuditEvent({
@@ -245,11 +257,24 @@ export async function regrantConsentAction(
     return { ok: false, error: 'Too many attempts. Please wait a minute and try again.' };
   }
 
-  const [updated] = await db
-    .update(personPartnerConsents)
-    .set({ revokedAt: null, grantedAt: new Date(), updatedAt: new Date() })
-    .where(eq(personPartnerConsents.id, consentId))
-    .returning({ id: personPartnerConsents.id, partnerOrgId: personPartnerConsents.partnerOrgId });
+  // Append-only history + current-state parent, atomically (INDC-019).
+  // The parent's `granted_at` is bumped to "now" for current-state display;
+  // the original grant date is preserved in the event log.
+  const updated = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(personPartnerConsents)
+      .set({ revokedAt: null, grantedAt: new Date(), updatedAt: new Date() })
+      .where(eq(personPartnerConsents.id, consentId))
+      .returning({
+        id: personPartnerConsents.id,
+        partnerOrgId: personPartnerConsents.partnerOrgId,
+      });
+    if (!row) return null;
+    await tx
+      .insert(personPartnerConsentEvents)
+      .values({ consentId: row.id, eventType: 'granted', actorUserId: null });
+    return row;
+  });
   if (!updated) return { ok: false, error: 'Consent not found.' };
 
   await logAuditEvent({

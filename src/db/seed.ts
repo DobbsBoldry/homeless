@@ -16,6 +16,7 @@ import { faithMinistries } from './schema/faith-ministries';
 import { orgMemberships } from './schema/org-memberships';
 import { type NewPartnerOrg, partnerOrgs } from './schema/partner-orgs';
 import { type NewPartnerServiceEvent, partnerServiceEvents } from './schema/partner-service-events';
+import { personPartnerConsentEvents } from './schema/person-partner-consent-events';
 import {
   type NewPersonPartnerConsent,
   personPartnerConsents,
@@ -803,8 +804,23 @@ async function main() {
       });
     }
     if (consentRows.length > 0) {
-      await db.insert(personPartnerConsents).values(consentRows);
-      console.log(`[seed]   + ${consentRows.length} person-partner consent grants`);
+      const inserted = await db
+        .insert(personPartnerConsents)
+        .values(consentRows)
+        .returning({ id: personPartnerConsents.id, grantedAt: personPartnerConsents.grantedAt });
+      // INDC-019: seed an initial 'granted' event per row so the consent
+      // history surface has realistic state to show.
+      await db.insert(personPartnerConsentEvents).values(
+        inserted.map((c) => ({
+          consentId: c.id,
+          eventType: 'granted' as const,
+          eventAt: c.grantedAt,
+          notes: 'Initial grant (Phase-1 stub seed).',
+        })),
+      );
+      console.log(
+        `[seed]   + ${consentRows.length} person-partner consent grants (+ initial events)`,
+      );
     }
   } else {
     console.log('[seed]   = person-partner consents (exist)');
