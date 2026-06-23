@@ -20,14 +20,24 @@ export default async function CoalitionPage() {
             {orgs.length - aggregateCount} not yet on the data trust.
           </p>
         </div>
-        {canSeeInsights ? (
-          <Link
-            href="/app/coalition/insights"
-            className="shrink-0 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Weekly insights →
-          </Link>
-        ) : null}
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {me.role === 'admin' ? (
+            <Link
+              href="/app/coalition/caseworker-metrics"
+              className="rounded-md border border-primary/40 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10"
+            >
+              Caseworker time-saved →
+            </Link>
+          ) : null}
+          {canSeeInsights ? (
+            <Link
+              href="/app/coalition/insights"
+              className="rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Weekly insights →
+            </Link>
+          ) : null}
+        </div>
       </header>
       <PartnerDirectory orgs={orgs} />
     </div>
