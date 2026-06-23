@@ -156,6 +156,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Admin · Audit log', href: '/app/admin/audit', roles: ['admin'] },
   { label: 'Admin · Triage overrides', href: '/app/admin/triage-overrides', roles: ['admin'] },
   { label: 'Admin · Agreements', href: '/app/admin/agreements', roles: ['admin'] },
+  { label: 'Admin · HUD-VASH vouchers', href: '/app/admin/vouchers', roles: ['admin'] },
   { label: 'Admin · Faith aggregate', href: '/app/admin/faith-aggregate', roles: ['admin'] },
   {
     label: 'Admin · Faith insights',

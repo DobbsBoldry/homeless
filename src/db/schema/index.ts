@@ -21,6 +21,7 @@ export * from './family-units';
 export * from './foster-aging-out-alerts';
 export * from './foster-youth';
 export * from './health-check';
+export * from './hud-vash-vouchers';
 export * from './medicaid-extension-applications';
 export * from './org-memberships';
 export * from './outbound-messages-test';
