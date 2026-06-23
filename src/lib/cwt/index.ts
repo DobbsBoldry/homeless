@@ -13,4 +13,5 @@ export * from './intake-to-screener';
 export * from './person-qa';
 export * from './post-meeting-notes';
 export * from './pre-meeting-summary';
+export * from './time-saved-metric';
 export * from './triage';
