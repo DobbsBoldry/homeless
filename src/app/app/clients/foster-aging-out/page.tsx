@@ -77,64 +77,113 @@ export default async function FosterAgingOutPage() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/30 text-left">
-                <th className="px-3 py-2 font-medium">Name</th>
-                <th className="px-3 py-2 font-medium">Days to 18</th>
-                <th className="px-3 py-2 font-medium">Tier</th>
-                <th className="px-3 py-2 font-medium">Placement</th>
-                <th className="px-3 py-2 font-medium">Supports</th>
-                <th className="px-3 py-2 font-medium">Alerts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ranked.map(({ youth: y, days, tier }) => {
-                const supports = countSupportsInPlace(y.supportsInPlace);
-                const unackCount = unackByYouth[y.id] ?? 0;
-                return (
-                  <tr key={y.id} className="border-b last:border-0 hover:bg-muted/10">
-                    <td className="px-3 py-2">
-                      <Link
-                        href={`/app/clients/foster-aging-out/${y.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {y.legalFirstName} {y.legalLastName}
-                      </Link>
-                      <div className="text-[10px] font-mono text-muted-foreground">
-                        case {y.dcbsCaseId}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 tabular-nums">
-                      {days < 0 ? `+${Math.abs(days)}d past` : `${days}d`}
-                    </td>
-                    <td className="px-3 py-2">
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${TIER_BADGE[tier] ?? ''}`}
-                      >
-                        {tier}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 capitalize">{y.placementType.replace(/_/g, ' ')}</td>
-                    <td className="px-3 py-2">
-                      <span className="text-muted-foreground">{supports}/4</span>
-                    </td>
-                    <td className="px-3 py-2">
-                      {unackCount > 0 ? (
-                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
-                          {unackCount} unack
+        <>
+          {/* Desktop: table. Mobile: card stack (no horizontal scroll). */}
+          <div className="hidden overflow-x-auto rounded-md border border-border md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/30 text-left">
+                  <th className="px-3 py-2 font-medium">Name</th>
+                  <th className="px-3 py-2 font-medium">Days to 18</th>
+                  <th className="px-3 py-2 font-medium">Tier</th>
+                  <th className="px-3 py-2 font-medium">Placement</th>
+                  <th className="px-3 py-2 font-medium">Supports</th>
+                  <th className="px-3 py-2 font-medium">Alerts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ranked.map(({ youth: y, days, tier }) => {
+                  const supports = countSupportsInPlace(y.supportsInPlace);
+                  const unackCount = unackByYouth[y.id] ?? 0;
+                  return (
+                    <tr key={y.id} className="border-b last:border-0 hover:bg-muted/10">
+                      <td className="px-3 py-2">
+                        <Link
+                          href={`/app/clients/foster-aging-out/${y.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {y.legalFirstName} {y.legalLastName}
+                        </Link>
+                        <div className="text-[10px] font-mono text-muted-foreground">
+                          case {y.dcbsCaseId}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 tabular-nums">
+                        {days < 0 ? `+${Math.abs(days)}d past` : `${days}d`}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${TIER_BADGE[tier] ?? ''}`}
+                        >
+                          {tier}
                         </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className="px-3 py-2 capitalize">{y.placementType.replace(/_/g, ' ')}</td>
+                      <td className="px-3 py-2">
+                        <span className="text-muted-foreground">{supports}/4</span>
+                      </td>
+                      <td className="px-3 py-2">
+                        {unackCount > 0 ? (
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                            {unackCount} unack
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <ul className="space-y-2 md:hidden">
+            {ranked.map(({ youth: y, days, tier }) => {
+              const supports = countSupportsInPlace(y.supportsInPlace);
+              const unackCount = unackByYouth[y.id] ?? 0;
+              return (
+                <li key={y.id} className="rounded-md border border-border bg-card p-3 text-sm">
+                  <div className="flex items-start justify-between gap-2">
+                    <Link
+                      href={`/app/clients/foster-aging-out/${y.id}`}
+                      className="font-medium hover:underline"
+                    >
+                      {y.legalFirstName} {y.legalLastName}
+                    </Link>
+                    <span
+                      className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${TIER_BADGE[tier] ?? ''}`}
+                    >
+                      {tier}
+                    </span>
+                  </div>
+                  <div className="font-mono text-[10px] text-muted-foreground">
+                    case {y.dcbsCaseId}
+                  </div>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <div>
+                      <dt className="inline font-medium">To 18: </dt>
+                      <dd className="inline tabular-nums">
+                        {days < 0 ? `+${Math.abs(days)}d past` : `${days}d`}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="inline font-medium">Supports: </dt>
+                      <dd className="inline">{supports}/4</dd>
+                    </div>
+                    <div className="capitalize">
+                      <dt className="inline font-medium">Placement: </dt>
+                      <dd className="inline">{y.placementType.replace(/_/g, ' ')}</dd>
+                    </div>
+                    <div>
+                      <dt className="inline font-medium">Alerts: </dt>
+                      <dd className="inline">{unackCount > 0 ? `${unackCount} unack` : '—'}</dd>
+                    </div>
+                  </dl>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </div>
   );

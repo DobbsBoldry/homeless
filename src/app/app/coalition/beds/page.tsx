@@ -75,7 +75,7 @@ export default async function BedAvailabilityBoardPage({
       <BedBoardFilters />
 
       <Card>
-        <CardContent className="grid grid-cols-4 gap-3 text-center">
+        <CardContent className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
               Free {filterActive ? '(filtered)' : ''}
