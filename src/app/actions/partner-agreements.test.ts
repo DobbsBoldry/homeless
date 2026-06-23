@@ -12,6 +12,7 @@ import {
   parseMouAgreementForm,
   parseOasisDsaAgreementForm,
   parsePartnerAgreementForm,
+  parseVaHudVashDsaAgreementForm,
 } from './partner-agreements-parse';
 
 function makeFormData(overrides: Record<string, string> = {}): FormData {
@@ -802,6 +803,240 @@ describe('parseKyDocDsaAgreementForm', () => {
 
   it('rejects notes longer than 2000 chars', () => {
     const r = parseKyDocDsaAgreementForm(makeKyDocFormData({ notes: 'x'.repeat(2001) }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/2 000 characters/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseVaHudVashDsaAgreementForm (DTRS-015)
+// ---------------------------------------------------------------------------
+
+function makeVaHudVashFormData(overrides: Record<string, string> = {}): FormData {
+  const fd = new FormData();
+  fd.set('partnerOrgId', 'vahudvash-uuid-001');
+  fd.set('effectiveDate', '2026-12-01');
+  fd.set('vamc_legal_name', 'Robley Rex VA Medical Center HUD-VASH Program');
+  fd.set('vamc_contact_name', 'VASH Coordinator');
+  fd.set('vamc_contact_title', 'HUD-VASH Program Coordinator');
+  fd.set('vamc_contact_email', 'vash.coordinator@va.gov');
+  fd.set('pha_legal_name', 'Housing Authority of Owensboro');
+  fd.set('pha_contact_name', 'Voucher Administrator');
+  fd.set('pha_contact_title', 'HCV Program Manager');
+  fd.set('pha_contact_email', 'hcv@owensborohousing.org');
+  fd.set('scope_voucher_status_roster', 'on');
+  fd.set('individual_records_authorized', 'true');
+  fd.set('no_service_denial_prediction_attestation', 'true');
+  fd.set('data_destruction_due', 'on_termination');
+  // voucher_search_window_days omitted = parser falls back to default (120).
+  for (const [k, v] of Object.entries(overrides)) {
+    if (v === '__DELETE__') {
+      fd.delete(k);
+    } else {
+      fd.set(k, v);
+    }
+  }
+  return fd;
+}
+
+describe('parseVaHudVashDsaAgreementForm', () => {
+  it('returns ok:true for a valid form (defaults to 120-day voucher-search window)', () => {
+    const r = parseVaHudVashDsaAgreementForm(makeVaHudVashFormData());
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.partnerOrgId).toBe('vahudvash-uuid-001');
+    expect(r.input.terms.kind).toBe('dsa');
+    expect(r.input.terms.agency).toBe('va_hudvash');
+    expect(r.input.terms.scope).toContain('voucher_status_roster');
+    expect(r.input.terms.population_focus).toBe('hud_vash');
+    expect(r.input.terms.voucher_search_window_days).toBe(120);
+    expect(r.input.terms.individual_records_authorized).toBe(true);
+    expect(r.input.terms.no_service_denial_prediction_attestation).toBe(true);
+    expect(r.input.terms.treatment_scope).toBe('status_only');
+  });
+
+  it('rejects missing partnerOrgId', () => {
+    const r = parseVaHudVashDsaAgreementForm(makeVaHudVashFormData({ partnerOrgId: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/va hud-vash partner/i);
+  });
+
+  it('rejects missing vamc_legal_name', () => {
+    const r = parseVaHudVashDsaAgreementForm(makeVaHudVashFormData({ vamc_legal_name: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/vamc legal name/i);
+  });
+
+  it('rejects missing vamc_contact_name', () => {
+    const r = parseVaHudVashDsaAgreementForm(makeVaHudVashFormData({ vamc_contact_name: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/contact name/i);
+  });
+
+  it('rejects vamc_contact_email without @', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ vamc_contact_email: 'not-an-email' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/valid email/i);
+  });
+
+  it('rejects missing pha_legal_name', () => {
+    const r = parseVaHudVashDsaAgreementForm(makeVaHudVashFormData({ pha_legal_name: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/pha legal name/i);
+  });
+
+  it('rejects missing pha_contact_title', () => {
+    const r = parseVaHudVashDsaAgreementForm(makeVaHudVashFormData({ pha_contact_title: '' }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/contact title/i);
+  });
+
+  it('rejects no scope checkboxes selected', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ scope_voucher_status_roster: '' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/at least one data scope/i);
+  });
+
+  it('collects multiple scope checkboxes', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({
+        scope_eligibility_changes: 'on',
+        scope_supports_in_place: 'on',
+        scope_coordination_eligibility: 'on',
+      }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.scope.sort()).toEqual([
+      'coordination_eligibility',
+      'eligibility_changes',
+      'supports_in_place',
+      'voucher_status_roster',
+    ]);
+  });
+
+  it('accepts voucher_search_window_days at the lower bound (60)', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ voucher_search_window_days: '60' }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.voucher_search_window_days).toBe(60);
+  });
+
+  it('accepts voucher_search_window_days at the upper bound (240)', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ voucher_search_window_days: '240' }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.voucher_search_window_days).toBe(240);
+  });
+
+  it('rejects voucher_search_window_days below the minimum', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ voucher_search_window_days: '30' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/voucher-search window must be between/i);
+  });
+
+  it('rejects voucher_search_window_days above the maximum', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ voucher_search_window_days: '365' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/voucher-search window must be between/i);
+  });
+
+  it('rejects non-integer voucher_search_window_days', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ voucher_search_window_days: '120.5' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/whole number of days/i);
+  });
+
+  it('rejects missing individual_records_authorized', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ individual_records_authorized: '' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/individual-records authorization/i);
+  });
+
+  it('parses individual_records_authorized=false correctly', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ individual_records_authorized: 'false' }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.individual_records_authorized).toBe(false);
+  });
+
+  it('rejects no_service_denial_prediction_attestation missing', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ no_service_denial_prediction_attestation: '' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/no-service-denial-prediction attestation/i);
+  });
+
+  it('rejects no_service_denial_prediction_attestation set to anything other than "true"', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ no_service_denial_prediction_attestation: 'false' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/no-service-denial-prediction attestation/i);
+  });
+
+  it('rejects unknown data_destruction_due value', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ data_destruction_due: 'never_required' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/data destruction policy/i);
+  });
+
+  it('accepts open-ended agreement (no endDate)', () => {
+    const r = parseVaHudVashDsaAgreementForm(makeVaHudVashFormData({ endDate: '' }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.endDate).toBeNull();
+  });
+
+  it('rejects endDate before effectiveDate', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ effectiveDate: '2026-12-01', endDate: '2026-11-01' }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/end date must be on or after/i);
+  });
+
+  it('includes optional vamc_contact_phone when provided', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ vamc_contact_phone: '(502) 287-4000' }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.vamc_contact.phone).toBe('(502) 287-4000');
+  });
+
+  it('includes optional pha_contact_phone when provided', () => {
+    const r = parseVaHudVashDsaAgreementForm(
+      makeVaHudVashFormData({ pha_contact_phone: '(270) 685-3408' }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.terms.pha_contact.phone).toBe('(270) 685-3408');
+  });
+
+  it('rejects notes longer than 2000 chars', () => {
+    const r = parseVaHudVashDsaAgreementForm(makeVaHudVashFormData({ notes: 'x'.repeat(2001) }));
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/2 000 characters/i);
   });

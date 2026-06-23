@@ -8,7 +8,8 @@
  * placeholder until their stories ship.
  *
  * Validators (`validateFerpaTerms`, `validateMouTerms`, `validateDcbsDsaTerms`,
- * `validateOasisDsaTerms`, `validateKyDocDsaTerms`, `validateAgreementTerms`)
+ * `validateOasisDsaTerms`, `validateKyDocDsaTerms`, `validateVaHudVashDsaTerms`,
+ * `validateAgreementTerms`)
  * are pure functions — throw on invalid shape, return typed value on success.
  * They run BEFORE any DB insert so bad data never reaches storage.
  */
@@ -170,6 +171,58 @@ export type KyDocDsaScopeValue = (typeof KY_DOC_DSA_SCOPE_OPTIONS)[number]['valu
 export const KY_DOC_PRE_RELEASE_WINDOW_DEFAULT_DAYS = 60;
 export const KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS = 30;
 export const KY_DOC_PRE_RELEASE_WINDOW_MAX_DAYS = 180;
+
+/**
+ * VA HUD-VASH DSA data classes — the veteran cohort the coalition may receive
+ * from the U.S. Department of Veterans Affairs joint with the local Public
+ * Housing Authority. Veterans are voluntarily enrolled with HUD-VASH; the
+ * authorities executing the agreement are the local VA Medical Center
+ * HUD-VASH team and the local PHA holding the voucher allocation, under
+ * 38 U.S.C. § 7332, 38 CFR Part 1, 42 U.S.C. § 11403, and HIPAA. See ADR 0010.
+ *
+ * Single source of truth — the intake form renders checkboxes from this array.
+ *
+ * Notably absent: any field that would carry 38 U.S.C. § 7332 or 42 U.S.C.
+ * § 290dd-2 protected MH/SUD content (diagnosis codes, treatment plan content,
+ * session notes, medication lists). Those remain with the VA case manager.
+ * The MH/SUD scope boundary is enforced separately via `treatment_scope`.
+ */
+export const VA_HUDVASH_DSA_SCOPE_OPTIONS = [
+  {
+    value: 'voucher_status_roster' as const,
+    label: 'Voucher-status roster (eligible / vouchered / searching / leased)',
+  },
+  {
+    value: 'eligibility_changes' as const,
+    label:
+      'Eligibility changes (service-connection rating shifts, income changes affecting continued eligibility)',
+  },
+  {
+    value: 'supports_in_place' as const,
+    label:
+      'Supports-in-place (case-management engagement, treatment-continuity status, primary-care continuity)',
+  },
+  {
+    value: 'coordination_eligibility' as const,
+    label: 'Adjacent-program eligibility (SSVF, Veterans Treatment Court, HCHV grant programs)',
+  },
+] as const;
+
+export type VaHudVashDsaScopeValue = (typeof VA_HUDVASH_DSA_SCOPE_OPTIONS)[number]['value'];
+
+/**
+ * Voucher-search window bounds. The window is the number of days after
+ * voucher issuance during which VA HUD-VASH may share an individual
+ * veteran's record with the Coalition for housing-search and lease-
+ * stabilization coordination. Below 60 days is below HUD's operational
+ * minimum voucher term; above 240 is risk without value (records drift,
+ * identifying data sits in the system longer than necessary, the veteran
+ * is by then either housed-and-stable or has lost the voucher). See
+ * ADR 0010 § Decision.3.
+ */
+export const VA_HUDVASH_VOUCHER_WINDOW_DEFAULT_DAYS = 120;
+export const VA_HUDVASH_VOUCHER_WINDOW_MIN_DAYS = 60;
+export const VA_HUDVASH_VOUCHER_WINDOW_MAX_DAYS = 240;
 
 /**
  * Default redaction policy — abuser-blind by default. Locations and
@@ -386,11 +439,99 @@ export type KyDocDsaTerms = {
 };
 
 /**
- * Union of all DSA-kind terms shapes. The `agency` discriminator is the
- * narrowing key. As of Sprint 12: DCBS (foster), OASIS (DV survivor), and
- * KY DOC (reentry) are fully specified.
+ * VA HUD-VASH Data-Sharing Agreement terms (DTRS-015). Authorizes individual-
+ * record sharing for the veteran pathway (SUBP-006), bounded by a configurable
+ * voucher-search window.
+ *
+ * Distinguished from KY DOC (ADR 0009, state-as-custodian during incarceration,
+ * pre-release window): VA HUD-VASH veterans are voluntarily enrolled and the
+ * window is voucher-lifecycle bounded, not custody-bounded. Distinguished from
+ * OASIS (ADR 0007, abuser-blind redaction): the threat model is diffuse
+ * (insurers, employers, eligibility-screening systems) rather than a known
+ * third party, so the contract uses *bounded scope* rather than per-field
+ * suppression. See ADR 0010 for the privacy contract.
+ *
+ * `individual_records_authorized` is the runtime gate for SUBP-006.
+ * `voucher_search_window_days` bounds which records may flow.
+ * `no_service_denial_prediction_attestation` MUST be `true` when status='active'
+ * — the validator enforces this; the Coalition contractually commits to never
+ * use this data to predict voucher-failure or deprioritize veteran cases.
+ * `treatment_scope` codifies the MH/SUD scope boundary at the type level —
+ * v1 only permits `'status_only'`, meaning the *fact* of an active treatment
+ * relationship may be shared but never diagnosis, treatment plan, or session
+ * content. Expansion would require a separate QSOA + ADR.
  */
-export type DsaTerms = DcbsDsaTerms | OasisDsaTerms | KyDocDsaTerms;
+export type VaHudVashDsaTerms = {
+  kind: 'dsa';
+  agency: 'va_hudvash';
+  /** Which data classes are covered by this agreement. */
+  scope: VaHudVashDsaScopeValue[];
+  /** Full legal name of the executing VA Medical Center HUD-VASH program. */
+  vamc_legal_name: string;
+  /** Single point of contact at the VA HUD-VASH program. */
+  vamc_contact: {
+    name: string;
+    title: string;
+    email: string;
+    phone?: string;
+  };
+  /** Full legal name of the local Public Housing Authority co-signer. */
+  pha_legal_name: string;
+  /** Single point of contact at the PHA. */
+  pha_contact: {
+    name: string;
+    title: string;
+    email: string;
+    phone?: string;
+  };
+  /**
+   * Population scope of this agreement. Sprint 13 ships `hud_vash` only;
+   * future amendments may expand to `ssvf`, `hchv`, or `vtc` — each requires
+   * a separate ADR.
+   */
+  population_focus: 'hud_vash';
+  /**
+   * Number of days after voucher issuance during which the VA may share an
+   * individual veteran's record with the Coalition. SUBP-006's ingest
+   * middleware reads this as its single source of truth. Bounded by
+   * VA_HUDVASH_VOUCHER_WINDOW_MIN_DAYS / VA_HUDVASH_VOUCHER_WINDOW_MAX_DAYS.
+   */
+  voucher_search_window_days: number;
+  /**
+   * MUST be true for any individual-record ingest. SUBP-006 reads this flag
+   * before enabling per-individual views; if false, the agreement is
+   * informational only and no individual records may be persisted.
+   */
+  individual_records_authorized: boolean;
+  /**
+   * MUST be true to record this agreement as `status='active'`. The admin
+   * checks this box in the intake form after reviewing the no-service-
+   * denial-prediction commitment. Validator throws if not true.
+   */
+  no_service_denial_prediction_attestation: boolean;
+  /**
+   * MH/SUD scope boundary. v1 only permits `'status_only'`: the *fact* of an
+   * active treatment relationship may be shared (boolean / continuity-status
+   * enum), but never diagnosis codes, treatment plan content, session notes,
+   * or medication lists. Expanding to `'qsoa_protected'` would require a
+   * separate Qualified Service Organization Agreement under 42 CFR Part 2,
+   * additional Coalition-side personnel-training requirements, and a new ADR.
+   */
+  treatment_scope: 'status_only';
+  /**
+   * Records-retention deadline. HUD-VASH best practice favors `on_termination`
+   * or `after_3_years` — veteran records that have outlived the voucher-search
+   * window add risk without operational value.
+   */
+  data_destruction_due: 'on_termination' | 'after_3_years' | 'after_5_years';
+};
+
+/**
+ * Union of all DSA-kind terms shapes. The `agency` discriminator is the
+ * narrowing key. As of Sprint 13: DCBS (foster), OASIS (DV survivor), KY DOC
+ * (reentry), and VA HUD-VASH (veterans) are fully specified.
+ */
+export type DsaTerms = DcbsDsaTerms | OasisDsaTerms | KyDocDsaTerms | VaHudVashDsaTerms;
 
 /**
  * Placeholder for agreement kinds whose intake stories haven't shipped yet
@@ -961,14 +1102,190 @@ export function validateKyDocDsaTerms(input: unknown): KyDocDsaTerms {
   };
 }
 
+const VA_HUDVASH_DSA_SCOPE_VALUES = VA_HUDVASH_DSA_SCOPE_OPTIONS.map((o) => o.value);
+
+/**
+ * Validate VA HUD-VASH DSA terms (DTRS-015). Throws on invalid; returns typed
+ * value on success. See ADR 0010 for the privacy contract this validator
+ * enforces.
+ *
+ * **Strict no-service-denial-prediction enforcement:**
+ * `no_service_denial_prediction_attestation` MUST be `true`. Recording a VA
+ * HUD-VASH DSA without it is an architectural bug — the prohibition is the
+ * contract, not an option.
+ *
+ * **Voucher-search window bounds:** `voucher_search_window_days` must fall
+ * within `[VA_HUDVASH_VOUCHER_WINDOW_MIN_DAYS, VA_HUDVASH_VOUCHER_WINDOW_MAX_DAYS]`.
+ *
+ * **MH/SUD scope boundary:** `treatment_scope` MUST equal `'status_only'` at v1.
+ * Expansion to QSOA-protected content requires a separate agreement kind + ADR.
+ */
+export function validateVaHudVashDsaTerms(input: unknown): VaHudVashDsaTerms {
+  if (typeof input !== 'object' || input === null) {
+    throw new Error('DSA terms must be an object');
+  }
+
+  const {
+    kind,
+    agency,
+    scope,
+    vamc_legal_name,
+    vamc_contact,
+    pha_legal_name,
+    pha_contact,
+    population_focus,
+    voucher_search_window_days,
+    individual_records_authorized,
+    no_service_denial_prediction_attestation,
+    treatment_scope,
+    data_destruction_due,
+  } = input as {
+    kind?: unknown;
+    agency?: unknown;
+    scope?: unknown;
+    vamc_legal_name?: unknown;
+    vamc_contact?: unknown;
+    pha_legal_name?: unknown;
+    pha_contact?: unknown;
+    population_focus?: unknown;
+    voucher_search_window_days?: unknown;
+    individual_records_authorized?: unknown;
+    no_service_denial_prediction_attestation?: unknown;
+    treatment_scope?: unknown;
+    data_destruction_due?: unknown;
+  };
+
+  if (kind !== 'dsa') {
+    throw new Error('DSA terms must have kind: "dsa"');
+  }
+  if (agency !== 'va_hudvash') {
+    throw new Error('DSA terms.agency must be "va_hudvash" for VA HUD-VASH agreements');
+  }
+
+  if (!Array.isArray(scope) || scope.length === 0) {
+    throw new Error('DSA terms must include at least one scope value');
+  }
+  for (const s of scope as unknown[]) {
+    if (!VA_HUDVASH_DSA_SCOPE_VALUES.includes(s as VaHudVashDsaScopeValue)) {
+      throw new Error(
+        `Invalid VA-HUDVASH-DSA scope value: "${String(s)}" (allowed: ${VA_HUDVASH_DSA_SCOPE_VALUES.join(', ')})`,
+      );
+    }
+  }
+
+  if (typeof vamc_legal_name !== 'string' || !vamc_legal_name.trim()) {
+    throw new Error('DSA terms must include a non-empty vamc_legal_name');
+  }
+  const validatedVamcContact = validateContact(vamc_contact, 'vamc_contact');
+
+  if (typeof pha_legal_name !== 'string' || !pha_legal_name.trim()) {
+    throw new Error('DSA terms must include a non-empty pha_legal_name');
+  }
+  const validatedPhaContact = validateContact(pha_contact, 'pha_contact');
+
+  if (population_focus !== 'hud_vash') {
+    throw new Error('DSA terms.population_focus must be "hud_vash" (Sprint 13 scope)');
+  }
+
+  if (
+    typeof voucher_search_window_days !== 'number' ||
+    !Number.isInteger(voucher_search_window_days) ||
+    voucher_search_window_days < VA_HUDVASH_VOUCHER_WINDOW_MIN_DAYS ||
+    voucher_search_window_days > VA_HUDVASH_VOUCHER_WINDOW_MAX_DAYS
+  ) {
+    throw new Error(
+      `DSA terms.voucher_search_window_days must be an integer in ` +
+        `[${VA_HUDVASH_VOUCHER_WINDOW_MIN_DAYS}, ${VA_HUDVASH_VOUCHER_WINDOW_MAX_DAYS}] ` +
+        `(see ADR 0010 § Decision.3)`,
+    );
+  }
+
+  if (typeof individual_records_authorized !== 'boolean') {
+    throw new Error('DSA terms.individual_records_authorized must be a boolean');
+  }
+
+  if (no_service_denial_prediction_attestation !== true) {
+    throw new Error(
+      'DSA terms.no_service_denial_prediction_attestation must be true — the no-service-denial-' +
+        'prediction commitment is the VA HUD-VASH contract (ADR 0010). Recording without ' +
+        'attestation is not permitted.',
+    );
+  }
+
+  if (treatment_scope !== 'status_only') {
+    throw new Error(
+      'DSA terms.treatment_scope must be "status_only" (Sprint 13 scope). Expanding to ' +
+        'QSOA-protected MH/SUD content requires a separate agreement kind and ADR (see ADR 0010).',
+    );
+  }
+
+  const validDestruction = ['on_termination', 'after_3_years', 'after_5_years'] as const;
+  if (!validDestruction.includes(data_destruction_due as (typeof validDestruction)[number])) {
+    throw new Error(`DSA data_destruction_due must be one of: ${validDestruction.join(', ')}`);
+  }
+
+  return {
+    kind: 'dsa',
+    agency: 'va_hudvash',
+    scope: scope as VaHudVashDsaScopeValue[],
+    vamc_legal_name,
+    vamc_contact: validatedVamcContact,
+    pha_legal_name,
+    pha_contact: validatedPhaContact,
+    population_focus: 'hud_vash',
+    voucher_search_window_days,
+    individual_records_authorized,
+    no_service_denial_prediction_attestation: true,
+    treatment_scope: 'status_only',
+    data_destruction_due: data_destruction_due as VaHudVashDsaTerms['data_destruction_due'],
+  };
+}
+
+interface ContactRecord {
+  name: string;
+  title: string;
+  email: string;
+  phone?: string;
+}
+
+function validateContact(input: unknown, label: string): ContactRecord {
+  if (typeof input !== 'object' || input === null) {
+    throw new Error(`DSA terms must include a ${label} object`);
+  }
+  const { name, title, email, phone } = input as {
+    name?: unknown;
+    title?: unknown;
+    email?: unknown;
+    phone?: unknown;
+  };
+  if (typeof name !== 'string' || !name.trim()) {
+    throw new Error(`DSA ${label} must include a non-empty name`);
+  }
+  if (typeof title !== 'string' || !title.trim()) {
+    throw new Error(`DSA ${label} must include a non-empty title`);
+  }
+  if (typeof email !== 'string' || !email.trim()) {
+    throw new Error(`DSA ${label} must include a non-empty email`);
+  }
+  if (phone !== undefined && typeof phone !== 'string') {
+    throw new Error(`DSA ${label}.phone must be a string when provided`);
+  }
+  return {
+    name,
+    title,
+    email,
+    ...(phone !== undefined ? { phone: phone as string } : {}),
+  };
+}
+
 /**
  * Dispatcher — picks the right validator for the given agreement kind.
  *
  * Placeholder kinds (baa, qsoa, memo_of_cooperation) are intentionally
  * fail-closed: they throw until their intake stories ship and a real validator
  * is wired in. `dsa` is dispatched on the `agency` discriminator: `dcbs`
- * (DTRS-011), `oasis` (DTRS-012), and `ky_doc` (DTRS-013) are supported.
- * See ADR 0004 for the registry plan.
+ * (DTRS-011), `oasis` (DTRS-012), `ky_doc` (DTRS-013), and `va_hudvash`
+ * (DTRS-015) are supported. See ADR 0004 for the registry plan.
  */
 export function validateAgreementTerms(
   kind: PartnerAgreementKind,
@@ -987,8 +1304,11 @@ export function validateAgreementTerms(
       if (agency === 'dcbs') return validateDcbsDsaTerms(input);
       if (agency === 'oasis') return validateOasisDsaTerms(input);
       if (agency === 'ky_doc') return validateKyDocDsaTerms(input);
+      if (agency === 'va_hudvash') return validateVaHudVashDsaTerms(input);
       if (typeof agency !== 'string' || !agency) {
-        throw new Error("DSA terms.agency is required (e.g. 'dcbs', 'oasis', 'ky_doc')");
+        throw new Error(
+          "DSA terms.agency is required (e.g. 'dcbs', 'oasis', 'ky_doc', 'va_hudvash')",
+        );
       }
       throw new Error(
         `DSA agency '${agency}' not yet supported — its intake story has not shipped. ` +

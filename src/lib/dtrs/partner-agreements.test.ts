@@ -8,12 +8,17 @@ import {
   KY_DOC_PRE_RELEASE_WINDOW_MIN_DAYS,
   OASIS_DEFAULT_REDACTION_POLICY,
   OASIS_DSA_SCOPE_OPTIONS,
+  VA_HUDVASH_DSA_SCOPE_OPTIONS,
+  VA_HUDVASH_VOUCHER_WINDOW_DEFAULT_DAYS,
+  VA_HUDVASH_VOUCHER_WINDOW_MAX_DAYS,
+  VA_HUDVASH_VOUCHER_WINDOW_MIN_DAYS,
   validateAgreementTerms,
   validateDcbsDsaTerms,
   validateFerpaTerms,
   validateKyDocDsaTerms,
   validateMouTerms,
   validateOasisDsaTerms,
+  validateVaHudVashDsaTerms,
 } from './partner-agreements';
 
 // ---------------------------------------------------------------------------
@@ -739,5 +744,230 @@ describe('validateKyDocDsaTerms', () => {
     const result = validateAgreementTerms('dsa', validKyDocDsa);
     expect(result.kind).toBe('dsa');
     if (result.kind === 'dsa') expect(result.agency).toBe('ky_doc');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateVaHudVashDsaTerms (DTRS-015)
+// ---------------------------------------------------------------------------
+
+const validVaHudVashDsa = {
+  kind: 'dsa',
+  agency: 'va_hudvash',
+  scope: ['voucher_status_roster', 'eligibility_changes'],
+  vamc_legal_name: 'Robley Rex VA Medical Center HUD-VASH Program',
+  vamc_contact: {
+    name: 'VASH Coordinator',
+    title: 'HUD-VASH Program Coordinator',
+    email: 'vash.coordinator@va.gov',
+    phone: '(502) 287-4000',
+  },
+  pha_legal_name: 'Housing Authority of Owensboro',
+  pha_contact: {
+    name: 'Voucher Administrator',
+    title: 'HCV Program Manager',
+    email: 'hcv@owensborohousing.org',
+    phone: '(270) 685-3408',
+  },
+  population_focus: 'hud_vash',
+  voucher_search_window_days: VA_HUDVASH_VOUCHER_WINDOW_DEFAULT_DAYS,
+  individual_records_authorized: true,
+  no_service_denial_prediction_attestation: true,
+  treatment_scope: 'status_only',
+  data_destruction_due: 'on_termination',
+};
+
+describe('validateVaHudVashDsaTerms', () => {
+  it('accepts a valid VA HUD-VASH DSA terms object', () => {
+    const result = validateVaHudVashDsaTerms(validVaHudVashDsa);
+    expect(result.kind).toBe('dsa');
+    expect(result.agency).toBe('va_hudvash');
+    expect(result.scope).toEqual(['voucher_status_roster', 'eligibility_changes']);
+    expect(result.population_focus).toBe('hud_vash');
+    expect(result.voucher_search_window_days).toBe(VA_HUDVASH_VOUCHER_WINDOW_DEFAULT_DAYS);
+    expect(result.individual_records_authorized).toBe(true);
+    expect(result.no_service_denial_prediction_attestation).toBe(true);
+    expect(result.treatment_scope).toBe('status_only');
+    expect(result.vamc_legal_name).toBe('Robley Rex VA Medical Center HUD-VASH Program');
+    expect(result.pha_legal_name).toBe('Housing Authority of Owensboro');
+  });
+
+  it('accepts all valid scope values', () => {
+    const allScopes = VA_HUDVASH_DSA_SCOPE_OPTIONS.map((o) => o.value);
+    const result = validateVaHudVashDsaTerms({ ...validVaHudVashDsa, scope: allScopes });
+    expect(result.scope).toEqual(allScopes);
+  });
+
+  it('accepts all valid data_destruction_due values', () => {
+    for (const val of ['on_termination', 'after_3_years', 'after_5_years'] as const) {
+      const result = validateVaHudVashDsaTerms({ ...validVaHudVashDsa, data_destruction_due: val });
+      expect(result.data_destruction_due).toBe(val);
+    }
+  });
+
+  it('accepts voucher_search_window_days at the lower bound', () => {
+    const result = validateVaHudVashDsaTerms({
+      ...validVaHudVashDsa,
+      voucher_search_window_days: VA_HUDVASH_VOUCHER_WINDOW_MIN_DAYS,
+    });
+    expect(result.voucher_search_window_days).toBe(VA_HUDVASH_VOUCHER_WINDOW_MIN_DAYS);
+  });
+
+  it('accepts voucher_search_window_days at the upper bound', () => {
+    const result = validateVaHudVashDsaTerms({
+      ...validVaHudVashDsa,
+      voucher_search_window_days: VA_HUDVASH_VOUCHER_WINDOW_MAX_DAYS,
+    });
+    expect(result.voucher_search_window_days).toBe(VA_HUDVASH_VOUCHER_WINDOW_MAX_DAYS);
+  });
+
+  it('accepts terms without optional contact phones', () => {
+    const noPhone = {
+      ...validVaHudVashDsa,
+      vamc_contact: { name: 'A', title: 'T', email: 'a@va.gov' },
+      pha_contact: { name: 'B', title: 'U', email: 'b@pha.org' },
+    };
+    const result = validateVaHudVashDsaTerms(noPhone);
+    expect(result.vamc_contact.phone).toBeUndefined();
+    expect(result.pha_contact.phone).toBeUndefined();
+  });
+
+  it('rejects non-object input', () => {
+    expect(() => validateVaHudVashDsaTerms(null)).toThrow('must be an object');
+    expect(() => validateVaHudVashDsaTerms('dsa')).toThrow('must be an object');
+  });
+
+  it('rejects wrong kind', () => {
+    expect(() => validateVaHudVashDsaTerms({ ...validVaHudVashDsa, kind: 'mou' })).toThrow(
+      'kind: "dsa"',
+    );
+  });
+
+  it('rejects wrong agency', () => {
+    expect(() => validateVaHudVashDsaTerms({ ...validVaHudVashDsa, agency: 'ky_doc' })).toThrow(
+      'agency must be "va_hudvash"',
+    );
+  });
+
+  it('rejects empty scope array', () => {
+    expect(() => validateVaHudVashDsaTerms({ ...validVaHudVashDsa, scope: [] })).toThrow(
+      'at least one scope value',
+    );
+  });
+
+  it('rejects an invalid scope value', () => {
+    expect(() =>
+      validateVaHudVashDsaTerms({ ...validVaHudVashDsa, scope: ['mh_sud_diagnosis'] }),
+    ).toThrow('Invalid VA-HUDVASH-DSA scope value: "mh_sud_diagnosis"');
+  });
+
+  it('rejects empty vamc_legal_name', () => {
+    expect(() => validateVaHudVashDsaTerms({ ...validVaHudVashDsa, vamc_legal_name: '' })).toThrow(
+      'non-empty vamc_legal_name',
+    );
+  });
+
+  it('rejects empty pha_legal_name', () => {
+    expect(() => validateVaHudVashDsaTerms({ ...validVaHudVashDsa, pha_legal_name: '' })).toThrow(
+      'non-empty pha_legal_name',
+    );
+  });
+
+  it('rejects missing vamc_contact name', () => {
+    expect(() =>
+      validateVaHudVashDsaTerms({
+        ...validVaHudVashDsa,
+        vamc_contact: { name: '', title: 'T', email: 'a@va.gov' },
+      }),
+    ).toThrow('vamc_contact must include a non-empty name');
+  });
+
+  it('rejects missing pha_contact email', () => {
+    expect(() =>
+      validateVaHudVashDsaTerms({
+        ...validVaHudVashDsa,
+        pha_contact: { name: 'B', title: 'U', email: '' },
+      }),
+    ).toThrow('pha_contact must include a non-empty email');
+  });
+
+  it('rejects wrong population_focus', () => {
+    expect(() =>
+      validateVaHudVashDsaTerms({ ...validVaHudVashDsa, population_focus: 'ssvf' }),
+    ).toThrow('population_focus must be "hud_vash"');
+  });
+
+  it('rejects voucher_search_window_days below the minimum', () => {
+    expect(() =>
+      validateVaHudVashDsaTerms({
+        ...validVaHudVashDsa,
+        voucher_search_window_days: VA_HUDVASH_VOUCHER_WINDOW_MIN_DAYS - 1,
+      }),
+    ).toThrow('voucher_search_window_days must be an integer in');
+  });
+
+  it('rejects voucher_search_window_days above the maximum', () => {
+    expect(() =>
+      validateVaHudVashDsaTerms({
+        ...validVaHudVashDsa,
+        voucher_search_window_days: VA_HUDVASH_VOUCHER_WINDOW_MAX_DAYS + 1,
+      }),
+    ).toThrow('voucher_search_window_days must be an integer in');
+  });
+
+  it('rejects non-integer voucher_search_window_days', () => {
+    expect(() =>
+      validateVaHudVashDsaTerms({ ...validVaHudVashDsa, voucher_search_window_days: 120.5 }),
+    ).toThrow('voucher_search_window_days must be an integer in');
+  });
+
+  it('rejects non-boolean individual_records_authorized', () => {
+    expect(() =>
+      validateVaHudVashDsaTerms({ ...validVaHudVashDsa, individual_records_authorized: 'yes' }),
+    ).toThrow('individual_records_authorized must be a boolean');
+  });
+
+  it('rejects no_service_denial_prediction_attestation = false (the cornerstone of the contract)', () => {
+    expect(() =>
+      validateVaHudVashDsaTerms({
+        ...validVaHudVashDsa,
+        no_service_denial_prediction_attestation: false,
+      }),
+    ).toThrow('no_service_denial_prediction_attestation must be true');
+  });
+
+  it('rejects no_service_denial_prediction_attestation missing entirely', () => {
+    const { no_service_denial_prediction_attestation: _omit, ...withoutAttestation } =
+      validVaHudVashDsa;
+    void _omit;
+    expect(() => validateVaHudVashDsaTerms(withoutAttestation)).toThrow(
+      'no_service_denial_prediction_attestation must be true',
+    );
+  });
+
+  it('rejects treatment_scope other than "status_only" (MH/SUD scope boundary)', () => {
+    expect(() =>
+      validateVaHudVashDsaTerms({ ...validVaHudVashDsa, treatment_scope: 'qsoa_protected' }),
+    ).toThrow('treatment_scope must be "status_only"');
+  });
+
+  it('rejects invalid data_destruction_due', () => {
+    expect(() =>
+      validateVaHudVashDsaTerms({ ...validVaHudVashDsa, data_destruction_due: 'never_required' }),
+    ).toThrow('data_destruction_due must be one of');
+  });
+
+  it('strips extra/unexpected keys (does not pass through to JSONB)', () => {
+    const result = validateVaHudVashDsaTerms({
+      ...validVaHudVashDsa,
+      service_denial_score: 0.42,
+    });
+    expect(result).not.toHaveProperty('service_denial_score');
+  });
+
+  it("dispatches dsa+agency='va_hudvash' to validateVaHudVashDsaTerms", () => {
+    const result = validateAgreementTerms('dsa', validVaHudVashDsa);
+    expect(result.kind).toBe('dsa');
+    if (result.kind === 'dsa') expect(result.agency).toBe('va_hudvash');
   });
 });

@@ -20,12 +20,17 @@ import {
   OASIS_REDACTABLE_FIELDS,
   type OasisRedactionPolicy,
   type OasisRedactionTreatment,
+  VA_HUDVASH_DSA_SCOPE_OPTIONS,
+  VA_HUDVASH_VOUCHER_WINDOW_DEFAULT_DAYS,
+  VA_HUDVASH_VOUCHER_WINDOW_MAX_DAYS,
+  VA_HUDVASH_VOUCHER_WINDOW_MIN_DAYS,
 } from '@/lib/dtrs';
 
 const FERPA_SCOPE_VALUES = FERPA_SCOPE_OPTIONS.map((o) => o.value);
 const DCBS_DSA_SCOPE_VALUES = DCBS_DSA_SCOPE_OPTIONS.map((o) => o.value);
 const OASIS_DSA_SCOPE_VALUES = OASIS_DSA_SCOPE_OPTIONS.map((o) => o.value);
 const KY_DOC_DSA_SCOPE_VALUES = KY_DOC_DSA_SCOPE_OPTIONS.map((o) => o.value);
+const VA_HUDVASH_DSA_SCOPE_VALUES = VA_HUDVASH_DSA_SCOPE_OPTIONS.map((o) => o.value);
 const OASIS_REDACTION_TREATMENTS: readonly OasisRedactionTreatment[] = [
   'share',
   'suppress',
@@ -666,6 +671,215 @@ export function parseKyDocDsaAgreementForm(
       },
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// DTRS-015 — VA HUD-VASH DSA parser
+// ---------------------------------------------------------------------------
+
+export type ParsedVaHudVashDsaAgreementInput = {
+  partnerOrgId: string;
+  effectiveDate: string;
+  endDate: string | null;
+  signedByPartner: string | null;
+  notes: string | null;
+  terms: {
+    kind: 'dsa';
+    agency: 'va_hudvash';
+    scope: string[];
+    vamc_legal_name: string;
+    vamc_contact: { name: string; title: string; email: string; phone?: string };
+    pha_legal_name: string;
+    pha_contact: { name: string; title: string; email: string; phone?: string };
+    population_focus: 'hud_vash';
+    voucher_search_window_days: number;
+    individual_records_authorized: boolean;
+    no_service_denial_prediction_attestation: true;
+    treatment_scope: 'status_only';
+    data_destruction_due: 'on_termination' | 'after_3_years' | 'after_5_years';
+  };
+};
+
+/**
+ * Parse + validate a FormData from the VA HUD-VASH DSA agreement intake form.
+ *
+ * Per ADR 0010, the no-service-denial-prediction attestation is required (the
+ * form's submit button is disabled until checked, and this parser fails closed
+ * if the box was bypassed). The voucher-search window must fall within
+ * [VA_HUDVASH_VOUCHER_WINDOW_MIN_DAYS, VA_HUDVASH_VOUCHER_WINDOW_MAX_DAYS];
+ * empty input falls back to VA_HUDVASH_VOUCHER_WINDOW_DEFAULT_DAYS. The
+ * `treatment_scope` is locked to `'status_only'` at v1.
+ *
+ * FormData shape:
+ *   partnerOrgId                                      — uuid of the VA HUD-VASH partner_org
+ *   effectiveDate                                     — YYYY-MM-DD (required)
+ *   endDate                                           — YYYY-MM-DD (optional)
+ *   signedByPartner                                   — text (optional)
+ *   notes                                             — text (optional)
+ *   vamc_legal_name                                   — text (required)
+ *   vamc_contact_name / _title / _email / _phone      — VA HUD-VASH coordinator contact
+ *   pha_legal_name                                    — text (required)
+ *   pha_contact_name / _title / _email / _phone       — local PHA contact
+ *   scope_{value}                                     — checkbox "on" when checked
+ *   voucher_search_window_days                        — integer in [MIN, MAX]; defaults to DEFAULT
+ *   individual_records_authorized                     — "true" | "false"
+ *   no_service_denial_prediction_attestation          — "true" required (any other value rejected)
+ *   data_destruction_due                              — 'on_termination' | 'after_3_years' | 'after_5_years'
+ */
+export function parseVaHudVashDsaAgreementForm(
+  formData: FormData,
+): { ok: true; input: ParsedVaHudVashDsaAgreementInput } | { ok: false; error: string } {
+  const str = (key: string) => (formData.get(key) ?? '').toString().trim();
+
+  const partnerOrgId = str('partnerOrgId');
+  if (!partnerOrgId) return { ok: false, error: 'VA HUD-VASH partner is required.' };
+
+  const effectiveDateRaw = str('effectiveDate');
+  if (!effectiveDateRaw) return { ok: false, error: 'Effective date is required.' };
+  if (Number.isNaN(Date.parse(effectiveDateRaw))) {
+    return { ok: false, error: 'Effective date is not a valid date.' };
+  }
+
+  const endDateRaw = str('endDate');
+  let endDate: string | null = null;
+  if (endDateRaw) {
+    if (Number.isNaN(Date.parse(endDateRaw))) {
+      return { ok: false, error: 'End date is not a valid date.' };
+    }
+    if (endDateRaw < effectiveDateRaw) {
+      return { ok: false, error: 'End date must be on or after effective date.' };
+    }
+    endDate = endDateRaw;
+  }
+
+  const signedByPartner = str('signedByPartner') || null;
+
+  const notes = str('notes') || null;
+  if (notes && notes.length > 2000) {
+    return { ok: false, error: 'Notes must be 2 000 characters or fewer.' };
+  }
+
+  const vamc_legal_name = str('vamc_legal_name');
+  if (!vamc_legal_name) {
+    return { ok: false, error: 'VAMC legal name is required.' };
+  }
+
+  const vamcContact = readContactFields(formData, 'vamc_contact', 'VA HUD-VASH');
+  if (!vamcContact.ok) return vamcContact;
+
+  const pha_legal_name = str('pha_legal_name');
+  if (!pha_legal_name) {
+    return { ok: false, error: 'PHA legal name is required.' };
+  }
+
+  const phaContact = readContactFields(formData, 'pha_contact', 'PHA');
+  if (!phaContact.ok) return phaContact;
+
+  const scope: string[] = [];
+  for (const opt of VA_HUDVASH_DSA_SCOPE_VALUES) {
+    const val = formData.get(`scope_${opt}`);
+    if (val === 'on' || val === 'true' || val === opt) {
+      scope.push(opt);
+    }
+  }
+  if (scope.length === 0) {
+    return { ok: false, error: 'At least one data scope must be selected.' };
+  }
+
+  const windowRaw = str('voucher_search_window_days');
+  let voucher_search_window_days = VA_HUDVASH_VOUCHER_WINDOW_DEFAULT_DAYS;
+  if (windowRaw) {
+    const n = Number(windowRaw);
+    if (!Number.isInteger(n)) {
+      return { ok: false, error: 'Voucher-search window must be a whole number of days.' };
+    }
+    if (n < VA_HUDVASH_VOUCHER_WINDOW_MIN_DAYS || n > VA_HUDVASH_VOUCHER_WINDOW_MAX_DAYS) {
+      return {
+        ok: false,
+        error:
+          `Voucher-search window must be between ${VA_HUDVASH_VOUCHER_WINDOW_MIN_DAYS} ` +
+          `and ${VA_HUDVASH_VOUCHER_WINDOW_MAX_DAYS} days (ADR 0010 § Decision.3).`,
+      };
+    }
+    voucher_search_window_days = n;
+  }
+
+  const indivAuthRaw = str('individual_records_authorized');
+  if (indivAuthRaw !== 'true' && indivAuthRaw !== 'false') {
+    return { ok: false, error: 'Individual-records authorization selection is required.' };
+  }
+  const individual_records_authorized = indivAuthRaw === 'true';
+
+  const attestationRaw = str('no_service_denial_prediction_attestation');
+  if (attestationRaw !== 'true') {
+    return {
+      ok: false,
+      error:
+        'The no-service-denial-prediction attestation must be checked. Recording a VA HUD-VASH DSA without it is not permitted (ADR 0010).',
+    };
+  }
+
+  const VALID_DESTRUCTION = ['on_termination', 'after_3_years', 'after_5_years'] as const;
+  type DestructionValue = (typeof VALID_DESTRUCTION)[number];
+  const destructionRaw = str('data_destruction_due');
+  if (!VALID_DESTRUCTION.includes(destructionRaw as DestructionValue)) {
+    return { ok: false, error: 'Data destruction policy selection is required.' };
+  }
+  const data_destruction_due = destructionRaw as DestructionValue;
+
+  return {
+    ok: true,
+    input: {
+      partnerOrgId,
+      effectiveDate: effectiveDateRaw,
+      endDate,
+      signedByPartner,
+      notes,
+      terms: {
+        kind: 'dsa',
+        agency: 'va_hudvash',
+        scope,
+        vamc_legal_name,
+        vamc_contact: vamcContact.contact,
+        pha_legal_name,
+        pha_contact: phaContact.contact,
+        population_focus: 'hud_vash',
+        voucher_search_window_days,
+        individual_records_authorized,
+        no_service_denial_prediction_attestation: true,
+        treatment_scope: 'status_only',
+        data_destruction_due,
+      },
+    },
+  };
+}
+
+interface ParsedContact {
+  name: string;
+  title: string;
+  email: string;
+  phone?: string;
+}
+
+function readContactFields(
+  formData: FormData,
+  prefix: string,
+  label: string,
+): { ok: true; contact: ParsedContact } | { ok: false; error: string } {
+  const str = (key: string) => (formData.get(key) ?? '').toString().trim();
+  const name = str(`${prefix}_name`);
+  if (!name) return { ok: false, error: `${label} contact name is required.` };
+  const title = str(`${prefix}_title`);
+  if (!title) return { ok: false, error: `${label} contact title is required.` };
+  const email = str(`${prefix}_email`);
+  if (!email) return { ok: false, error: `${label} contact email is required.` };
+  if (!email.includes('@')) {
+    return { ok: false, error: `${label} contact email must be a valid email address.` };
+  }
+  const phoneRaw = str(`${prefix}_phone`);
+  const contact: ParsedContact = { name, title, email };
+  if (phoneRaw) contact.phone = phoneRaw;
+  return { ok: true, contact };
 }
 
 // ---------------------------------------------------------------------------
