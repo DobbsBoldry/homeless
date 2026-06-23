@@ -1,9 +1,12 @@
-import { asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
+import type { FagFeedbackCategory } from '@/db/schema/enums';
 import {
   type FagCompensationEntry,
+  type FagFeedback,
   type FagMember,
   fagCompensationEntries,
+  fagFeedback,
   fagMembers,
 } from '@/db/schema/fag-members';
 
@@ -17,6 +20,43 @@ export async function listFagMembers(): Promise<FagMember[]> {
 export async function getFagMemberById(id: string): Promise<FagMember | null> {
   const [row] = await db.select().from(fagMembers).where(eq(fagMembers.id, id)).limit(1);
   return row ?? null;
+}
+
+/**
+ * CWT-023a: resolve the *active* advisory-member row linked to a platform
+ * user, or null. This is the gate for the in-app feedback button — only an
+ * active member with a linked account sees it.
+ */
+export async function getActiveFagMemberForUser(userId: string): Promise<FagMember | null> {
+  const [row] = await db
+    .select()
+    .from(fagMembers)
+    .where(and(eq(fagMembers.userId, userId), eq(fagMembers.status, 'active')))
+    .limit(1);
+  return row ?? null;
+}
+
+export interface InsertFagFeedbackInput {
+  fagMemberId: string;
+  userId: string;
+  route: string;
+  rating: number;
+  comment: string | null;
+  category: FagFeedbackCategory;
+}
+
+export async function insertFagFeedback(input: InsertFagFeedbackInput): Promise<FagFeedback> {
+  const [row] = await db.insert(fagFeedback).values(input).returning();
+  return row;
+}
+
+/** A member's own past submissions, newest first. */
+export async function listFeedbackForMember(fagMemberId: string): Promise<FagFeedback[]> {
+  return await db
+    .select()
+    .from(fagFeedback)
+    .where(eq(fagFeedback.fagMemberId, fagMemberId))
+    .orderBy(desc(fagFeedback.createdAt));
 }
 
 export async function listEntriesForMember(memberId: string): Promise<FagCompensationEntry[]> {

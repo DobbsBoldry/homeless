@@ -4,12 +4,16 @@ import { navItemsForRole } from '@/components/app-shell/nav-config';
 import { PendingBanner } from '@/components/app-shell/pending-banner';
 import { Sidebar } from '@/components/app-shell/sidebar';
 import { Topbar } from '@/components/app-shell/topbar';
+import { FagFeedbackButton } from '@/components/cwt/fag-feedback-button';
+import { getActiveFagMemberForUser } from '@/db/queries/fag';
 import { requireUser } from '@/lib/auth';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const items = navItemsForRole(user.role);
   const brand = 'Daviess';
+  // CWT-023a: the in-app feedback button shows only for active advisory members.
+  const fagMember = await getActiveFagMemberForUser(user.id);
 
   return (
     <div className="grid min-h-screen md:grid-cols-[16rem_1fr]">
@@ -30,6 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+      {fagMember ? <FagFeedbackButton /> : null}
     </div>
   );
 }

@@ -175,6 +175,16 @@ export const fagPayoutStatusEnum = pgEnum('fag_payout_status', ['unpaid', 'paid'
 
 export type FagPayoutStatus = (typeof fagPayoutStatusEnum.enumValues)[number];
 
+// CWT-023a: category an advisory member tags their in-app feedback with.
+export const fagFeedbackCategoryEnum = pgEnum('fag_feedback_category', [
+  'service_gap',
+  'tool_issue',
+  'process_suggestion',
+  'other',
+]);
+
+export type FagFeedbackCategory = (typeof fagFeedbackCategoryEnum.enumValues)[number];
+
 export const clientIntakeStatusEnum = pgEnum('client_intake_status', [
   'recording',
   'transcribed',

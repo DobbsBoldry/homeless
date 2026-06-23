@@ -7,6 +7,7 @@ export * from './benefits';
 export * from './case-note-generator';
 export * from './cwt-triage';
 export * from './document-extraction';
+export * from './fag-feedback';
 export * from './followup-sms';
 export * from './intake-extraction';
 export * from './intake-to-screener';
