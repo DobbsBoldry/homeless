@@ -1,8 +1,10 @@
-import { asc, desc, eq } from 'drizzle-orm';
+import { asc, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { partnerOrgs } from '@/db/schema/partner-orgs';
 import { partnerServiceEvents } from '@/db/schema/partner-service-events';
+import { personPartnerConsentEvents } from '@/db/schema/person-partner-consent-events';
 import { personPartnerConsents } from '@/db/schema/person-partner-consents';
+import { type LabeledConsentEvent, labelConsentEvents } from '@/lib/dtrs';
 
 export interface PersonPartnerSummary {
   partnerOrgId: string;
@@ -13,6 +15,8 @@ export interface PersonPartnerSummary {
   eventCount: number;
   latestEventAt: Date | null;
   latestEventType: string | null;
+  /** Append-only grant/revoke history (INDC-019), oldest→newest, labeled. */
+  consentEvents: LabeledConsentEvent[];
 }
 
 /**
@@ -65,6 +69,25 @@ export async function listPersonPartnerSummary(
     }
   }
 
+  // Consent grant/revoke history per parent row (INDC-019).
+  const consentIds = consents.map((c) => c.id);
+  const consentEventRows = consentIds.length
+    ? await db
+        .select({
+          consentId: personPartnerConsentEvents.consentId,
+          eventType: personPartnerConsentEvents.eventType,
+          eventAt: personPartnerConsentEvents.eventAt,
+        })
+        .from(personPartnerConsentEvents)
+        .where(inArray(personPartnerConsentEvents.consentId, consentIds))
+    : [];
+  const eventsByConsent = new Map<string, { eventType: 'granted' | 'revoked'; eventAt: Date }[]>();
+  for (const e of consentEventRows) {
+    const list = eventsByConsent.get(e.consentId) ?? [];
+    list.push({ eventType: e.eventType, eventAt: e.eventAt });
+    eventsByConsent.set(e.consentId, list);
+  }
+
   return consents.map((c) => {
     const ev = eventByPartner.get(c.partnerOrgId);
     return {
@@ -76,6 +99,7 @@ export async function listPersonPartnerSummary(
       eventCount: ev?.count ?? 0,
       latestEventAt: ev?.latestAt ?? null,
       latestEventType: ev?.latestType ?? null,
+      consentEvents: labelConsentEvents(eventsByConsent.get(c.id) ?? []),
     };
   });
 }

@@ -4,6 +4,7 @@
 // scripts/check-domain-boundaries.mts (FND-040b, ADR 0001).
 
 export * from './consent';
+export * from './consent-events';
 export * from './consent-text';
 export * from './consent-token';
 export * from './data-access';

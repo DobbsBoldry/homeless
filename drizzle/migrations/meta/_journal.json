@@ -1,314 +1,321 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1777159840170,
-      "tag": "0000_FND-002_init_schema",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1777160718880,
-      "tag": "0001_FND-003_clerk_user_mirror",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1777161985393,
-      "tag": "0002_FND-008_core_data_model",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1777164429337,
-      "tag": "0003_EVDT-004_eviction_filings",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1777165748182,
-      "tag": "0004_FND-193_pending_role_enum",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1777165748183,
-      "tag": "0005_pending_default",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1777168170746,
-      "tag": "0006_EVDT-009_risk_scoring",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1777173132993,
-      "tag": "0007_EVDT-012_response_packets",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1777176000000,
-      "tag": "0008_audit_log_append_only",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1777176959605,
-      "tag": "0009_EVDT-017_case_outcomes",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1777177377000,
-      "tag": "0010_EVDT-014_rental_assistance",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1777213496658,
-      "tag": "0011_ESUC-024_synthetic_ed_encounters",
-      "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "7",
-      "when": 1777228050129,
-      "tag": "0012_ESUC-011_care_plans",
-      "breakpoints": true
-    },
-    {
-      "idx": 13,
-      "version": "7",
-      "when": 1777229074412,
-      "tag": "0013_COAL-001_partner_directory",
-      "breakpoints": true
-    },
-    {
-      "idx": 14,
-      "version": "7",
-      "when": 1777229503830,
-      "tag": "0014_COAL-002_cross_org_view",
-      "breakpoints": true
-    },
-    {
-      "idx": 15,
-      "version": "7",
-      "when": 1777230056734,
-      "tag": "0015_INDC-017_consent_panel",
-      "breakpoints": true
-    },
-    {
-      "idx": 16,
-      "version": "7",
-      "when": 1777232613184,
-      "tag": "0016_COOR-001_shelter_beds",
-      "breakpoints": true
-    },
-    {
-      "idx": 17,
-      "version": "7",
-      "when": 1777234082170,
-      "tag": "0017_COOR-006_bed_holds",
-      "breakpoints": true
-    },
-    {
-      "idx": 18,
-      "version": "7",
-      "when": 1777234734701,
-      "tag": "0018_INDC-005_sms_messages",
-      "breakpoints": true
-    },
-    {
-      "idx": 19,
-      "version": "7",
-      "when": 1777235054698,
-      "tag": "0019_INDC-005_sms_conversations",
-      "breakpoints": true
-    },
-    {
-      "idx": 20,
-      "version": "7",
-      "when": 1777238311241,
-      "tag": "0020_INDC-005_sms_conversation_extras",
-      "breakpoints": true
-    },
-    {
-      "idx": 21,
-      "version": "7",
-      "when": 1777239126177,
-      "tag": "0021_INDC-006_consents_versioning",
-      "breakpoints": true
-    },
-    {
-      "idx": 22,
-      "version": "7",
-      "when": 1777239540035,
-      "tag": "0022_DTRS-001_dv_flagged_persons",
-      "breakpoints": true
-    },
-    {
-      "idx": 23,
-      "version": "7",
-      "when": 1777240694967,
-      "tag": "0023_INDC-007_consent_access_tokens",
-      "breakpoints": true
-    },
-    {
-      "idx": 24,
-      "version": "7",
-      "when": 1777247227040,
-      "tag": "0024_CWT-014_triage_overrides",
-      "breakpoints": true
-    },
-    {
-      "idx": 25,
-      "version": "7",
-      "when": 1777247863356,
-      "tag": "0025_OPRT-008_steering_minutes",
-      "breakpoints": true
-    },
-    {
-      "idx": 26,
-      "version": "7",
-      "when": 1777248119703,
-      "tag": "0026_CWT-021_doc_upload",
-      "breakpoints": true
-    },
-    {
-      "idx": 27,
-      "version": "7",
-      "when": 1777248849242,
-      "tag": "0027_OPRT-010_comms_advisory",
-      "breakpoints": true
-    },
-    {
-      "idx": 28,
-      "version": "7",
-      "when": 1777249184720,
-      "tag": "0028_OPRT-004_frontline_advisory",
-      "breakpoints": true
-    },
-    {
-      "idx": 29,
-      "version": "7",
-      "when": 1777250069814,
-      "tag": "0029_CWT-019_voice_intake",
-      "breakpoints": true
-    },
-    {
-      "idx": 30,
-      "version": "7",
-      "when": 1777260557105,
-      "tag": "0030_CWT-004_case_note_drafts",
-      "breakpoints": true
-    },
-    {
-      "idx": 31,
-      "version": "7",
-      "when": 1777261609196,
-      "tag": "0031_QA-001_e2e_baseline",
-      "breakpoints": true
-    },
-    {
-      "idx": 32,
-      "version": "7",
-      "when": 1777324911073,
-      "tag": "0032_response_packet_touch_updated_at",
-      "breakpoints": true
-    },
-    {
-      "idx": 33,
-      "version": "7",
-      "when": 1777325665808,
-      "tag": "0033_users_email_citext",
-      "breakpoints": true
-    },
-    {
-      "idx": 34,
-      "version": "7",
-      "when": 1777338159000,
-      "tag": "0034_DTRS-007_faith_aggregate_schema",
-      "breakpoints": true
-    },
-    {
-      "idx": 35,
-      "version": "7",
-      "when": 1745798400000,
-      "tag": "0035_DTRS-010_partner_agreements",
-      "breakpoints": true
-    },
-    {
-      "idx": 36,
-      "version": "7",
-      "when": 1777397200000,
-      "tag": "0036_PRVN-003_school_referrals",
-      "breakpoints": true
-    },
-    {
-      "idx": 37,
-      "version": "7",
-      "when": 1777484400000,
-      "tag": "0037_COOR-014_referral_status_events",
-      "breakpoints": true
-    },
-    {
-      "idx": 38,
-      "version": "7",
-      "when": 1777572000000,
-      "tag": "0038_SUBP-001_foster_aging_out",
-      "breakpoints": true
-    },
-    {
-      "idx": 39,
-      "version": "7",
-      "when": 1777650000000,
-      "tag": "0039_SUBP-002_medicaid_extension_applications",
-      "breakpoints": true
-    },
-    {
-      "idx": 40,
-      "version": "7",
-      "when": 1777737600000,
-      "tag": "0040_SUBP-004_dv_survivor_pathway",
-      "breakpoints": true
-    },
-    {
-      "idx": 41,
-      "version": "7",
-      "when": 1777824000000,
-      "tag": "0041_SUBP-007_family_units",
-      "breakpoints": true
-    },
-    {
-      "idx": 42,
-      "version": "7",
-      "when": 1777910400000,
-      "tag": "0042_SUBP-005_pre_release_subjects",
-      "breakpoints": true
-    },
-    {
-      "idx": 43,
-      "version": "7",
-      "when": 1778256000000,
-      "tag": "0043_COOR-012_case_handoffs",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "postgresql",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "7",
+			"when": 1777159840170,
+			"tag": "0000_FND-002_init_schema",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1777160718880,
+			"tag": "0001_FND-003_clerk_user_mirror",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1777161985393,
+			"tag": "0002_FND-008_core_data_model",
+			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1777164429337,
+			"tag": "0003_EVDT-004_eviction_filings",
+			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1777165748182,
+			"tag": "0004_FND-193_pending_role_enum",
+			"breakpoints": true
+		},
+		{
+			"idx": 5,
+			"version": "7",
+			"when": 1777165748183,
+			"tag": "0005_pending_default",
+			"breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "7",
+			"when": 1777168170746,
+			"tag": "0006_EVDT-009_risk_scoring",
+			"breakpoints": true
+		},
+		{
+			"idx": 7,
+			"version": "7",
+			"when": 1777173132993,
+			"tag": "0007_EVDT-012_response_packets",
+			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "7",
+			"when": 1777176000000,
+			"tag": "0008_audit_log_append_only",
+			"breakpoints": true
+		},
+		{
+			"idx": 9,
+			"version": "7",
+			"when": 1777176959605,
+			"tag": "0009_EVDT-017_case_outcomes",
+			"breakpoints": true
+		},
+		{
+			"idx": 10,
+			"version": "7",
+			"when": 1777177377000,
+			"tag": "0010_EVDT-014_rental_assistance",
+			"breakpoints": true
+		},
+		{
+			"idx": 11,
+			"version": "7",
+			"when": 1777213496658,
+			"tag": "0011_ESUC-024_synthetic_ed_encounters",
+			"breakpoints": true
+		},
+		{
+			"idx": 12,
+			"version": "7",
+			"when": 1777228050129,
+			"tag": "0012_ESUC-011_care_plans",
+			"breakpoints": true
+		},
+		{
+			"idx": 13,
+			"version": "7",
+			"when": 1777229074412,
+			"tag": "0013_COAL-001_partner_directory",
+			"breakpoints": true
+		},
+		{
+			"idx": 14,
+			"version": "7",
+			"when": 1777229503830,
+			"tag": "0014_COAL-002_cross_org_view",
+			"breakpoints": true
+		},
+		{
+			"idx": 15,
+			"version": "7",
+			"when": 1777230056734,
+			"tag": "0015_INDC-017_consent_panel",
+			"breakpoints": true
+		},
+		{
+			"idx": 16,
+			"version": "7",
+			"when": 1777232613184,
+			"tag": "0016_COOR-001_shelter_beds",
+			"breakpoints": true
+		},
+		{
+			"idx": 17,
+			"version": "7",
+			"when": 1777234082170,
+			"tag": "0017_COOR-006_bed_holds",
+			"breakpoints": true
+		},
+		{
+			"idx": 18,
+			"version": "7",
+			"when": 1777234734701,
+			"tag": "0018_INDC-005_sms_messages",
+			"breakpoints": true
+		},
+		{
+			"idx": 19,
+			"version": "7",
+			"when": 1777235054698,
+			"tag": "0019_INDC-005_sms_conversations",
+			"breakpoints": true
+		},
+		{
+			"idx": 20,
+			"version": "7",
+			"when": 1777238311241,
+			"tag": "0020_INDC-005_sms_conversation_extras",
+			"breakpoints": true
+		},
+		{
+			"idx": 21,
+			"version": "7",
+			"when": 1777239126177,
+			"tag": "0021_INDC-006_consents_versioning",
+			"breakpoints": true
+		},
+		{
+			"idx": 22,
+			"version": "7",
+			"when": 1777239540035,
+			"tag": "0022_DTRS-001_dv_flagged_persons",
+			"breakpoints": true
+		},
+		{
+			"idx": 23,
+			"version": "7",
+			"when": 1777240694967,
+			"tag": "0023_INDC-007_consent_access_tokens",
+			"breakpoints": true
+		},
+		{
+			"idx": 24,
+			"version": "7",
+			"when": 1777247227040,
+			"tag": "0024_CWT-014_triage_overrides",
+			"breakpoints": true
+		},
+		{
+			"idx": 25,
+			"version": "7",
+			"when": 1777247863356,
+			"tag": "0025_OPRT-008_steering_minutes",
+			"breakpoints": true
+		},
+		{
+			"idx": 26,
+			"version": "7",
+			"when": 1777248119703,
+			"tag": "0026_CWT-021_doc_upload",
+			"breakpoints": true
+		},
+		{
+			"idx": 27,
+			"version": "7",
+			"when": 1777248849242,
+			"tag": "0027_OPRT-010_comms_advisory",
+			"breakpoints": true
+		},
+		{
+			"idx": 28,
+			"version": "7",
+			"when": 1777249184720,
+			"tag": "0028_OPRT-004_frontline_advisory",
+			"breakpoints": true
+		},
+		{
+			"idx": 29,
+			"version": "7",
+			"when": 1777250069814,
+			"tag": "0029_CWT-019_voice_intake",
+			"breakpoints": true
+		},
+		{
+			"idx": 30,
+			"version": "7",
+			"when": 1777260557105,
+			"tag": "0030_CWT-004_case_note_drafts",
+			"breakpoints": true
+		},
+		{
+			"idx": 31,
+			"version": "7",
+			"when": 1777261609196,
+			"tag": "0031_QA-001_e2e_baseline",
+			"breakpoints": true
+		},
+		{
+			"idx": 32,
+			"version": "7",
+			"when": 1777324911073,
+			"tag": "0032_response_packet_touch_updated_at",
+			"breakpoints": true
+		},
+		{
+			"idx": 33,
+			"version": "7",
+			"when": 1777325665808,
+			"tag": "0033_users_email_citext",
+			"breakpoints": true
+		},
+		{
+			"idx": 34,
+			"version": "7",
+			"when": 1777338159000,
+			"tag": "0034_DTRS-007_faith_aggregate_schema",
+			"breakpoints": true
+		},
+		{
+			"idx": 35,
+			"version": "7",
+			"when": 1745798400000,
+			"tag": "0035_DTRS-010_partner_agreements",
+			"breakpoints": true
+		},
+		{
+			"idx": 36,
+			"version": "7",
+			"when": 1777397200000,
+			"tag": "0036_PRVN-003_school_referrals",
+			"breakpoints": true
+		},
+		{
+			"idx": 37,
+			"version": "7",
+			"when": 1777484400000,
+			"tag": "0037_COOR-014_referral_status_events",
+			"breakpoints": true
+		},
+		{
+			"idx": 38,
+			"version": "7",
+			"when": 1777572000000,
+			"tag": "0038_SUBP-001_foster_aging_out",
+			"breakpoints": true
+		},
+		{
+			"idx": 39,
+			"version": "7",
+			"when": 1777650000000,
+			"tag": "0039_SUBP-002_medicaid_extension_applications",
+			"breakpoints": true
+		},
+		{
+			"idx": 40,
+			"version": "7",
+			"when": 1777737600000,
+			"tag": "0040_SUBP-004_dv_survivor_pathway",
+			"breakpoints": true
+		},
+		{
+			"idx": 41,
+			"version": "7",
+			"when": 1777824000000,
+			"tag": "0041_SUBP-007_family_units",
+			"breakpoints": true
+		},
+		{
+			"idx": 42,
+			"version": "7",
+			"when": 1777910400000,
+			"tag": "0042_SUBP-005_pre_release_subjects",
+			"breakpoints": true
+		},
+		{
+			"idx": 43,
+			"version": "7",
+			"when": 1778256000000,
+			"tag": "0043_COOR-012_case_handoffs",
+			"breakpoints": true
+		},
+		{
+			"idx": 44,
+			"version": "7",
+			"when": 1782183059601,
+			"tag": "0044_INDC-019_consent_event_history",
+			"breakpoints": true
+		}
+	]
 }

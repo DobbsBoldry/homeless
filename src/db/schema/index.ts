@@ -27,6 +27,7 @@ export * from './outbound-messages-test';
 export * from './partner-agreements';
 export * from './partner-orgs';
 export * from './partner-service-events';
+export * from './person-partner-consent-events';
 export * from './person-partner-consents';
 export * from './pre-release-subjects';
 export * from './rental-assistance-programs';

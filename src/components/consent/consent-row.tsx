@@ -57,9 +57,22 @@ export function ConsentRow({
               summary.latestEventType ? ` (${summary.latestEventType})` : ''
             }`}
       </p>
-      <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-        Consent granted {fmtDate(summary.grantedAt)}
-      </p>
+      {summary.consentEvents.length > 0 ? (
+        <ul className="mt-1 space-y-0.5">
+          {summary.consentEvents.map((e) => (
+            <li
+              key={`${e.eventType}-${new Date(e.eventAt).toISOString()}`}
+              className="text-[10px] uppercase tracking-wide text-muted-foreground"
+            >
+              {e.label} {fmtDate(e.eventAt)}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+          Consent granted {fmtDate(summary.grantedAt)}
+        </p>
+      )}
       <div className="mt-2 flex items-center gap-3">
         <Button
           size="sm"
