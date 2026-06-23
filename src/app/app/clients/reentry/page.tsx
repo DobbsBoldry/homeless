@@ -64,67 +64,121 @@ export default async function ReentryListPage() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/30 text-left">
-                <th className="px-3 py-2 font-medium">Name</th>
-                <th className="px-3 py-2 font-medium">Days to release</th>
-                <th className="px-3 py-2 font-medium">Tier</th>
-                <th className="px-3 py-2 font-medium">Release type</th>
-                <th className="px-3 py-2 font-medium">Destination</th>
-                <th className="px-3 py-2 font-medium">Supports</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ranked.map(({ subject: s, days, tier }) => {
-                const supports = countPreReleaseSupportsInPlace(s.supportsInPlace);
-                return (
-                  <tr key={s.id} className="border-b last:border-0 hover:bg-muted/10">
-                    <td className="px-3 py-2">
-                      <Link
-                        href={`/app/clients/reentry/${s.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {s.legalFirstName} {s.legalLastName}
-                      </Link>
-                      <div className="text-[10px] font-mono text-muted-foreground">
-                        inmate {s.kyDocInmateId}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 tabular-nums">
-                      {days < 0 ? `+${Math.abs(days)}d past` : `${days}d`}
-                    </td>
-                    <td className="px-3 py-2">
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${TIER_BADGE[tier] ?? ''}`}
-                      >
-                        {tier}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 capitalize">{s.releaseType.replace(/_/g, ' ')}</td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground">
-                      {s.designatedDestination}
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className="text-muted-foreground">{supports}/5</span>
-                    </td>
-                    <td className="px-3 py-2">
-                      {s.status === 'handed_off' ? (
-                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
-                          handed off
+        <>
+          {/* Desktop: table. Mobile: card stack (no horizontal scroll). */}
+          <div className="hidden overflow-x-auto rounded-md border border-border md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/30 text-left">
+                  <th className="px-3 py-2 font-medium">Name</th>
+                  <th className="px-3 py-2 font-medium">Days to release</th>
+                  <th className="px-3 py-2 font-medium">Tier</th>
+                  <th className="px-3 py-2 font-medium">Release type</th>
+                  <th className="px-3 py-2 font-medium">Destination</th>
+                  <th className="px-3 py-2 font-medium">Supports</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ranked.map(({ subject: s, days, tier }) => {
+                  const supports = countPreReleaseSupportsInPlace(s.supportsInPlace);
+                  return (
+                    <tr key={s.id} className="border-b last:border-0 hover:bg-muted/10">
+                      <td className="px-3 py-2">
+                        <Link
+                          href={`/app/clients/reentry/${s.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {s.legalFirstName} {s.legalLastName}
+                        </Link>
+                        <div className="text-[10px] font-mono text-muted-foreground">
+                          inmate {s.kyDocInmateId}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 tabular-nums">
+                        {days < 0 ? `+${Math.abs(days)}d past` : `${days}d`}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${TIER_BADGE[tier] ?? ''}`}
+                        >
+                          {tier}
                         </span>
-                      ) : (
-                        <span className="text-muted-foreground">active</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className="px-3 py-2 capitalize">{s.releaseType.replace(/_/g, ' ')}</td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">
+                        {s.designatedDestination}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="text-muted-foreground">{supports}/5</span>
+                      </td>
+                      <td className="px-3 py-2">
+                        {s.status === 'handed_off' ? (
+                          <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                            handed off
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">active</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <ul className="space-y-2 md:hidden">
+            {ranked.map(({ subject: s, days, tier }) => {
+              const supports = countPreReleaseSupportsInPlace(s.supportsInPlace);
+              return (
+                <li key={s.id} className="rounded-md border border-border bg-card p-3 text-sm">
+                  <div className="flex items-start justify-between gap-2">
+                    <Link
+                      href={`/app/clients/reentry/${s.id}`}
+                      className="font-medium hover:underline"
+                    >
+                      {s.legalFirstName} {s.legalLastName}
+                    </Link>
+                    <span
+                      className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${TIER_BADGE[tier] ?? ''}`}
+                    >
+                      {tier}
+                    </span>
+                  </div>
+                  <div className="font-mono text-[10px] text-muted-foreground">
+                    inmate {s.kyDocInmateId}
+                  </div>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <div>
+                      <dt className="inline font-medium">Release: </dt>
+                      <dd className="inline tabular-nums">
+                        {days < 0 ? `+${Math.abs(days)}d past` : `${days}d`}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="inline font-medium">Supports: </dt>
+                      <dd className="inline">{supports}/5</dd>
+                    </div>
+                    <div className="capitalize">
+                      <dt className="inline font-medium">Type: </dt>
+                      <dd className="inline">{s.releaseType.replace(/_/g, ' ')}</dd>
+                    </div>
+                    <div>
+                      <dt className="inline font-medium">Status: </dt>
+                      <dd className="inline">
+                        {s.status === 'handed_off' ? 'handed off' : 'active'}
+                      </dd>
+                    </div>
+                    <div className="col-span-2">
+                      <dt className="inline font-medium">Destination: </dt>
+                      <dd className="inline">{s.designatedDestination}</dd>
+                    </div>
+                  </dl>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </div>
   );

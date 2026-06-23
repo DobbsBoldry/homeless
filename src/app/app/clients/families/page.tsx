@@ -79,56 +79,97 @@ export default async function FamiliesPage() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/30 text-left">
-                <th className="px-3 py-2 font-medium">Family</th>
-                <th className="px-3 py-2 font-medium">Stability risk</th>
-                <th className="px-3 py-2 font-medium">Children</th>
-                <th className="px-3 py-2 font-medium">Housing</th>
-                <th className="px-3 py-2 font-medium">Entry</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...enriched]
-                .sort((a, b) => {
-                  const r = (RISK_ORDER[a.risk.risk] ?? 9) - (RISK_ORDER[b.risk.risk] ?? 9);
-                  if (r !== 0) return r;
-                  return (
-                    new Date(b.family.createdAt).getTime() - new Date(a.family.createdAt).getTime()
-                  );
-                })
-                .map(({ family: f, risk, childCount }) => (
-                  <tr key={f.id} className="border-b last:border-0 hover:bg-muted/10">
-                    <td className="px-3 py-2">
+        (() => {
+          const sorted = [...enriched].sort((a, b) => {
+            const r = (RISK_ORDER[a.risk.risk] ?? 9) - (RISK_ORDER[b.risk.risk] ?? 9);
+            if (r !== 0) return r;
+            return new Date(b.family.createdAt).getTime() - new Date(a.family.createdAt).getTime();
+          });
+          return (
+            <>
+              {/* Desktop: table. Mobile: card stack (no horizontal scroll). */}
+              <div className="hidden overflow-x-auto rounded-md border border-border md:block">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/30 text-left">
+                      <th className="px-3 py-2 font-medium">Family</th>
+                      <th className="px-3 py-2 font-medium">Stability risk</th>
+                      <th className="px-3 py-2 font-medium">Children</th>
+                      <th className="px-3 py-2 font-medium">Housing</th>
+                      <th className="px-3 py-2 font-medium">Entry</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sorted.map(({ family: f, risk, childCount }) => (
+                      <tr key={f.id} className="border-b last:border-0 hover:bg-muted/10">
+                        <td className="px-3 py-2">
+                          <Link
+                            href={`/app/clients/families/${f.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            {f.primaryCaregiverName}
+                          </Link>
+                          <div className="text-[10px] text-muted-foreground">
+                            household {f.householdSize}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${RISK_BADGE[risk.risk] ?? ''}`}
+                          >
+                            {risk.risk}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 tabular-nums">{childCount}</td>
+                        <td className="px-3 py-2 capitalize">
+                          {f.currentHousingStatus.replace(/_/g, ' ')}
+                        </td>
+                        <td className="px-3 py-2 capitalize">{f.entrySignal.replace(/_/g, ' ')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <ul className="space-y-2 md:hidden">
+                {sorted.map(({ family: f, risk, childCount }) => (
+                  <li key={f.id} className="rounded-md border border-border bg-card p-3 text-sm">
+                    <div className="flex items-start justify-between gap-2">
                       <Link
                         href={`/app/clients/families/${f.id}`}
                         className="font-medium hover:underline"
                       >
                         {f.primaryCaregiverName}
                       </Link>
-                      <div className="text-[10px] text-muted-foreground">
-                        household {f.householdSize}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
                       <span
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${RISK_BADGE[risk.risk] ?? ''}`}
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${RISK_BADGE[risk.risk] ?? ''}`}
                       >
                         {risk.risk}
                       </span>
-                    </td>
-                    <td className="px-3 py-2 tabular-nums">{childCount}</td>
-                    <td className="px-3 py-2 capitalize">
-                      {f.currentHousingStatus.replace(/_/g, ' ')}
-                    </td>
-                    <td className="px-3 py-2 capitalize">{f.entrySignal.replace(/_/g, ' ')}</td>
-                  </tr>
+                    </div>
+                    <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <div>
+                        <dt className="inline font-medium">Household: </dt>
+                        <dd className="inline tabular-nums">{f.householdSize}</dd>
+                      </div>
+                      <div>
+                        <dt className="inline font-medium">Children: </dt>
+                        <dd className="inline tabular-nums">{childCount}</dd>
+                      </div>
+                      <div className="capitalize">
+                        <dt className="inline font-medium">Housing: </dt>
+                        <dd className="inline">{f.currentHousingStatus.replace(/_/g, ' ')}</dd>
+                      </div>
+                      <div className="capitalize">
+                        <dt className="inline font-medium">Entry: </dt>
+                        <dd className="inline">{f.entrySignal.replace(/_/g, ' ')}</dd>
+                      </div>
+                    </dl>
+                  </li>
                 ))}
-            </tbody>
-          </table>
-        </div>
+              </ul>
+            </>
+          );
+        })()
       )}
     </div>
   );

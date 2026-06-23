@@ -126,68 +126,110 @@ export default async function DvSurvivorsPage() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/30 text-left">
-                <th className="px-3 py-2 font-medium">Case</th>
-                <th className="px-3 py-2 font-medium">Risk tier</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Enrolled</th>
-                <th className="px-3 py-2 font-medium">Safety plan</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...rows]
-                .sort((a, b) => {
-                  const r = (RISK_ORDER[a.riskTier] ?? 9) - (RISK_ORDER[b.riskTier] ?? 9);
-                  if (r !== 0) return r;
-                  return new Date(b.enrolledAt).getTime() - new Date(a.enrolledAt).getTime();
-                })
-                .map((s) => (
-                  <tr key={s.id} className="border-b last:border-0 hover:bg-muted/10">
-                    <td className="px-3 py-2">
+        (() => {
+          const sorted = [...rows].sort((a, b) => {
+            const r = (RISK_ORDER[a.riskTier] ?? 9) - (RISK_ORDER[b.riskTier] ?? 9);
+            if (r !== 0) return r;
+            return new Date(b.enrolledAt).getTime() - new Date(a.enrolledAt).getTime();
+          });
+          return (
+            <>
+              {/* Desktop: table. Mobile: card stack (no horizontal scroll). */}
+              <div className="hidden overflow-x-auto rounded-md border border-border md:block">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/30 text-left">
+                      <th className="px-3 py-2 font-medium">Case</th>
+                      <th className="px-3 py-2 font-medium">Risk tier</th>
+                      <th className="px-3 py-2 font-medium">Status</th>
+                      <th className="px-3 py-2 font-medium">Enrolled</th>
+                      <th className="px-3 py-2 font-medium">Safety plan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sorted.map((s) => (
+                      <tr key={s.id} className="border-b last:border-0 hover:bg-muted/10">
+                        <td className="px-3 py-2">
+                          <Link
+                            href={`/app/clients/dv-survivors/${s.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            {s.oasisCaseId}
+                          </Link>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${RISK_BADGE[s.riskTier] ?? ''}`}
+                          >
+                            {s.riskTier.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${STATUS_BADGE[s.status] ?? ''}`}
+                          >
+                            {s.status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 tabular-nums text-xs text-muted-foreground">
+                          {new Date(s.enrolledAt).toISOString().slice(0, 10)}
+                        </td>
+                        <td className="px-3 py-2">
+                          {s.safetyPlanOnFile ? (
+                            <span className="text-emerald-700 dark:text-emerald-400">on file</span>
+                          ) : (
+                            <span className="text-muted-foreground">none</span>
+                          )}
+                          {s.safetyPlanLastReviewedAt && (
+                            <span className="ml-1 text-[10px] text-muted-foreground">
+                              (rev {new Date(s.safetyPlanLastReviewedAt).toISOString().slice(0, 10)}
+                              )
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <ul className="space-y-2 md:hidden">
+                {sorted.map((s) => (
+                  <li key={s.id} className="rounded-md border border-border bg-card p-3 text-sm">
+                    <div className="flex items-start justify-between gap-2">
                       <Link
                         href={`/app/clients/dv-survivors/${s.id}`}
                         className="font-medium hover:underline"
                       >
                         {s.oasisCaseId}
                       </Link>
-                    </td>
-                    <td className="px-3 py-2">
                       <span
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${RISK_BADGE[s.riskTier] ?? ''}`}
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${RISK_BADGE[s.riskTier] ?? ''}`}
                       >
                         {s.riskTier.replace(/_/g, ' ')}
                       </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${STATUS_BADGE[s.status] ?? ''}`}
-                      >
-                        {s.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 tabular-nums text-xs text-muted-foreground">
-                      {new Date(s.enrolledAt).toISOString().slice(0, 10)}
-                    </td>
-                    <td className="px-3 py-2">
-                      {s.safetyPlanOnFile ? (
-                        <span className="text-emerald-700 dark:text-emerald-400">on file</span>
-                      ) : (
-                        <span className="text-muted-foreground">none</span>
-                      )}
-                      {s.safetyPlanLastReviewedAt && (
-                        <span className="ml-1 text-[10px] text-muted-foreground">
-                          (rev {new Date(s.safetyPlanLastReviewedAt).toISOString().slice(0, 10)})
-                        </span>
-                      )}
-                    </td>
-                  </tr>
+                    </div>
+                    <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <div>
+                        <dt className="inline font-medium">Status: </dt>
+                        <dd className="inline">{s.status}</dd>
+                      </div>
+                      <div>
+                        <dt className="inline font-medium">Enrolled: </dt>
+                        <dd className="inline tabular-nums">
+                          {new Date(s.enrolledAt).toISOString().slice(0, 10)}
+                        </dd>
+                      </div>
+                      <div className="col-span-2">
+                        <dt className="inline font-medium">Safety plan: </dt>
+                        <dd className="inline">{s.safetyPlanOnFile ? 'on file' : 'none'}</dd>
+                      </div>
+                    </dl>
+                  </li>
                 ))}
-            </tbody>
-          </table>
-        </div>
+              </ul>
+            </>
+          );
+        })()
       )}
     </div>
   );
