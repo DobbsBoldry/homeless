@@ -113,6 +113,36 @@ export async function getActiveKyDocDsa(partnerOrgId: string): Promise<PartnerAg
 }
 
 /**
+ * Return the active VA HUD-VASH Data-Sharing Agreement for a partner, or null.
+ *
+ * SUBP-006's veteran ingest middleware reads the active agreement before every
+ * record write and exposes `terms.voucher_search_window_days` and
+ * `terms.individual_records_authorized` as the contract-of-record. The JSONB
+ * filter `terms->>'agency' = 'va_hudvash'` discriminates VA HUD-VASH agreements
+ * from DCBS / OASIS / KY DOC under the shared `dsa` kind (ADR 0004 / ADR 0010).
+ *
+ * Returns `null` when no active VA HUD-VASH DSA exists; SUBP-006 must fail
+ * closed in that case (ADR 0010 § Decision.1).
+ */
+export async function getActiveVaHudVashDsa(
+  partnerOrgId: string,
+): Promise<PartnerAgreement | null> {
+  const rows = await db
+    .select()
+    .from(partnerAgreements)
+    .where(
+      and(
+        eq(partnerAgreements.partnerOrgId, partnerOrgId),
+        eq(partnerAgreements.kind, 'dsa'),
+        eq(partnerAgreements.status, 'active'),
+        sql`(${partnerAgreements.terms}->>'agency') = 'va_hudvash'`,
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/**
  * Insert a new agreement row. Validates `terms` via `validateAgreementTerms`
  * before the insert — throws on invalid shape, so the caller never needs to
  * re-check. The normalized/typed return value is used in the insert so that

@@ -4,13 +4,21 @@ import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
 import { recordAgreement, updateAgreementStatus } from '@/db/queries/partner-agreements';
 import { requireRole } from '@/lib/auth';
-import type { DcbsDsaTerms, FerpaTerms, KyDocDsaTerms, MouTerms, OasisDsaTerms } from '@/lib/dtrs';
+import type {
+  DcbsDsaTerms,
+  FerpaTerms,
+  KyDocDsaTerms,
+  MouTerms,
+  OasisDsaTerms,
+  VaHudVashDsaTerms,
+} from '@/lib/dtrs';
 import {
   parseDcbsDsaAgreementForm,
   parseKyDocDsaAgreementForm,
   parseMouAgreementForm,
   parseOasisDsaAgreementForm,
   parsePartnerAgreementForm,
+  parseVaHudVashDsaAgreementForm,
 } from './partner-agreements-parse';
 
 /**
@@ -32,6 +40,9 @@ const KNOWN_DOMAIN_PREFIXES = [
   'Invalid OASIS-DSA scope',
   'Invalid OASIS-DSA redaction_policy',
   'Invalid KY-DOC-DSA scope',
+  'Invalid VA-HUDVASH-DSA scope',
+  'DSA vamc_contact',
+  'DSA pha_contact',
 ] as const;
 
 export type RecordFerpaAgreementResult =
@@ -258,6 +269,64 @@ export async function recordKyDocDsaAgreementAction(
   }
 }
 
+export type RecordVaHudVashDsaAgreementResult =
+  | { ok: true; agreementId: string }
+  | { ok: false; error: string };
+
+/**
+ * Admin-only server action: parse the DTRS-015 VA HUD-VASH DSA intake FormData
+ * and persist via `recordAgreement` (terms validation + audit log happen inside
+ * that query function). The validator strictly enforces
+ * `no_service_denial_prediction_attestation === true` and
+ * `treatment_scope === 'status_only'` (ADR 0010); the parser also fails closed
+ * if the attestation checkbox is missing from the form.
+ */
+export async function recordVaHudVashDsaAgreementAction(
+  formData: FormData,
+): Promise<RecordVaHudVashDsaAgreementResult> {
+  const user = await requireRole(['admin']);
+
+  const parsed = parseVaHudVashDsaAgreementForm(formData);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+
+  try {
+    const { effectiveDate, endDate, signedByPartner, notes, partnerOrgId, terms } = parsed.input;
+
+    const agreement = await recordAgreement({
+      partnerOrgId,
+      kind: 'dsa',
+      status: 'active',
+      effectiveDate: effectiveDate || null,
+      endDate: endDate || null,
+      signedByPartner: signedByPartner || null,
+      signedByCoalitionUserId: user.id,
+      templateVersion: 'vahudvash-dsa-v1',
+      templateRendered: null,
+      // parseVaHudVashDsaAgreementForm validates scope + window + attestation +
+      // treatment_scope; the narrow cast bridges the parser's structural type
+      // to the domain type. recordAgreement re-validates via
+      // validateAgreementTerms before any insert.
+      terms: terms as VaHudVashDsaTerms,
+      notes: notes || null,
+      actorUserId: user.id,
+    });
+
+    revalidatePath('/app/admin/agreements/vahudvash');
+    return { ok: true, agreementId: agreement.id };
+  } catch (err) {
+    Sentry.captureException(err);
+    console.error('[partner-agreements.recordVaHudVashDsa] failed', err);
+    const raw = err instanceof Error ? err.message : '';
+    const isKnown = KNOWN_DOMAIN_PREFIXES.some((prefix) =>
+      raw.toLowerCase().startsWith(prefix.toLowerCase()),
+    );
+    const error = isKnown
+      ? raw
+      : 'Recording the agreement failed — please retry. The error has been logged.';
+    return { ok: false, error };
+  }
+}
+
 export type RecordMouAgreementResult =
   | { ok: true; agreementId: string }
   | { ok: false; error: string };
@@ -325,6 +394,7 @@ export async function updateAgreementStatusAction(
     revalidatePath('/app/admin/agreements/dcbs');
     revalidatePath('/app/admin/agreements/oasis');
     revalidatePath('/app/admin/agreements/kydoc');
+    revalidatePath('/app/admin/agreements/vahudvash');
     return { ok: true };
   } catch (err) {
     Sentry.captureException(err);
