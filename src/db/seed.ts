@@ -13,6 +13,7 @@ import { db } from './client';
 import { auditLog } from './schema/audit-log';
 import type { UserRole } from './schema/enums';
 import { faithMinistries } from './schema/faith-ministries';
+import { hudVashVouchers, type NewHudVashVoucher } from './schema/hud-vash-vouchers';
 import { orgMemberships } from './schema/org-memberships';
 import { type NewPartnerOrg, partnerOrgs } from './schema/partner-orgs';
 import { type NewPartnerServiceEvent, partnerServiceEvents } from './schema/partner-service-events';
@@ -846,6 +847,9 @@ async function main() {
           | 'branchOfService'
           | 'eligibilitySource'
           | 'caseworkerVerified'
+          | 'bedroomNeed'
+          | 'accessibilityNeed'
+          | 'targetZip'
         >
       > = [
         {
@@ -854,6 +858,9 @@ async function main() {
           branchOfService: 'Army',
           eligibilitySource: 'va_confirmed',
           caseworkerVerified: false,
+          bedroomNeed: 2,
+          accessibilityNeed: false,
+          targetZip: '42301',
         },
         {
           legalFirstName: 'Tanya',
@@ -861,6 +868,9 @@ async function main() {
           branchOfService: 'Navy',
           eligibilitySource: 'self_reported',
           caseworkerVerified: true,
+          bedroomNeed: 1,
+          accessibilityNeed: true,
+          targetZip: '42303',
         },
         {
           legalFirstName: 'Earl',
@@ -868,6 +878,9 @@ async function main() {
           branchOfService: 'Marine Corps',
           eligibilitySource: 'self_reported',
           caseworkerVerified: false,
+          bedroomNeed: 3,
+          accessibilityNeed: false,
+          targetZip: '42301',
         },
         {
           legalFirstName: 'Renee',
@@ -875,6 +888,9 @@ async function main() {
           branchOfService: null,
           eligibilitySource: 'va_confirmed',
           caseworkerVerified: false,
+          bedroomNeed: null,
+          accessibilityNeed: false,
+          targetZip: null,
         },
       ];
       const veteranRows: NewVeteran[] = refs.map((ref, i) => ({
@@ -887,6 +903,60 @@ async function main() {
     }
   } else {
     console.log('[seed]   = veteran-pathway records (exist)');
+  }
+
+  // ---- SUBP-006b: synthetic HUD-VASH vouchers (admin-managed seed) ----
+  const existingVouchers = await db
+    .select({ id: hudVashVouchers.id })
+    .from(hudVashVouchers)
+    .limit(1);
+  if (existingVouchers.length === 0) {
+    const voucherRows: NewHudVashVoucher[] = [
+      {
+        voucherCode: 'HV-0001',
+        unitType: '2BR apartment',
+        bedrooms: 2,
+        location: 'Owensboro - downtown',
+        zip: '42301',
+        accessible: false,
+        availabilityStatus: 'available',
+        notes: 'Synthetic SUBP-006b seed.',
+      },
+      {
+        voucherCode: 'HV-0002',
+        unitType: '1BR accessible',
+        bedrooms: 1,
+        location: 'Owensboro - east',
+        zip: '42303',
+        accessible: true,
+        availabilityStatus: 'available',
+        notes: 'Synthetic SUBP-006b seed.',
+      },
+      {
+        voucherCode: 'HV-0003',
+        unitType: '3BR house',
+        bedrooms: 3,
+        location: 'Owensboro - west',
+        zip: '42301',
+        accessible: false,
+        availabilityStatus: 'available',
+        notes: 'Synthetic SUBP-006b seed.',
+      },
+      {
+        voucherCode: 'HV-0004',
+        unitType: 'Studio',
+        bedrooms: 0,
+        location: 'Whitesville',
+        zip: '42378',
+        accessible: false,
+        availabilityStatus: 'leased',
+        notes: 'Synthetic SUBP-006b seed.',
+      },
+    ];
+    await db.insert(hudVashVouchers).values(voucherRows);
+    console.log(`[seed]   + ${voucherRows.length} HUD-VASH vouchers`);
+  } else {
+    console.log('[seed]   = HUD-VASH vouchers (exist)');
   }
 
   // ---- 3 sample audit entries ----

@@ -81,9 +81,12 @@ export default async function VeteransListPage({
                 return (
                   <tr key={v.id} className="border-b last:border-0 hover:bg-muted/10">
                     <td className="px-3 py-2">
-                      <span className="font-medium">
+                      <Link
+                        href={`/app/clients/veterans/${v.id}`}
+                        className="font-medium hover:underline"
+                      >
                         {v.legalFirstName} {v.legalLastName}
-                      </span>
+                      </Link>
                       <div className="font-mono text-[10px] text-muted-foreground">
                         {v.syntheticPersonRef}
                       </div>

@@ -14,7 +14,7 @@
  *
  * PHI fence: synthetic data only until the relevant BAA closes.
  */
-import { boolean, index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { veteranEligibilitySourceEnum, veteranStatusEnum } from './enums';
 import { users } from './users';
 
@@ -46,6 +46,13 @@ export const veterans = pgTable(
       onDelete: 'set null',
     }),
     status: veteranStatusEnum('status').notNull().default('active'),
+    // SUBP-006b housing profile — inputs to HUD-VASH voucher match scoring.
+    /** Bedrooms the household needs; null = unknown / no stated constraint. */
+    bedroomNeed: integer('bedroom_need'),
+    /** True when the subject requires an accessible unit. */
+    accessibilityNeed: boolean('accessibility_need').notNull().default(false),
+    /** Target 5-digit ZIP for voucher proximity matching; null = unknown. */
+    targetZip: text('target_zip'),
     notes: text('notes'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
