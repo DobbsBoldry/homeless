@@ -438,6 +438,23 @@ export const preReleaseTypeEnum = pgEnum('pre_release_release_type', [
 
 export type PreReleaseType = (typeof preReleaseTypeEnum.enumValues)[number];
 
+/**
+ * SUBP-006a — how a veteran's status was established. `va_confirmed` means VA
+ * documentation is on file (eligible outright); `self_reported` requires a
+ * caseworker to verify before the subject counts as veteran-eligible.
+ */
+export const veteranEligibilitySourceEnum = pgEnum('veteran_eligibility_source', [
+  'va_confirmed',
+  'self_reported',
+]);
+
+export type VeteranEligibilitySource = (typeof veteranEligibilitySourceEnum.enumValues)[number];
+
+/** SUBP-006a — veteran pathway lifecycle. */
+export const veteranStatusEnum = pgEnum('veteran_status', ['active', 'exited']);
+
+export type VeteranStatus = (typeof veteranStatusEnum.enumValues)[number];
+
 // COOR-012 — inter-agency handoff workflow
 
 /**

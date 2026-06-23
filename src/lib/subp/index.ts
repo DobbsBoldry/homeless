@@ -14,3 +14,4 @@ export * from './oasis-gate';
 export * from './pre-release-engine';
 export * from './pre-release-supports';
 export * from './supports-in-place';
+export * from './veteran-eligibility';

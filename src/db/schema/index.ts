@@ -41,3 +41,4 @@ export * from './sms-messages';
 export * from './steering-meetings';
 export * from './triage-overrides';
 export * from './users';
+export * from './veterans';
