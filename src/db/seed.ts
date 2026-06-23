@@ -27,6 +27,7 @@ import {
 } from './schema/rental-assistance-programs';
 import { type NewShelter, shelters } from './schema/shelters';
 import { users } from './schema/users';
+import { type NewVeteran, veterans } from './schema/veterans';
 
 config({ path: ['.env.local', '.env'] });
 
@@ -824,6 +825,68 @@ async function main() {
     }
   } else {
     console.log('[seed]   = person-partner consents (exist)');
+  }
+
+  // ---- SUBP-006a: synthetic veteran-pathway records ----
+  // A small mix of VA-confirmed and self-reported (verified + unverified) so
+  // the veterans list + eligibility filter have realistic state in dev/e2e.
+  const existingVeterans = await db.select({ id: veterans.id }).from(veterans).limit(1);
+  if (existingVeterans.length === 0) {
+    const refRows = await db
+      .selectDistinct({ ref: partnerServiceEvents.syntheticPersonRef })
+      .from(partnerServiceEvents)
+      .limit(4);
+    const refs = refRows.map((r) => r.ref);
+    if (refs.length >= 1) {
+      const profiles: Array<
+        Pick<
+          NewVeteran,
+          | 'legalFirstName'
+          | 'legalLastName'
+          | 'branchOfService'
+          | 'eligibilitySource'
+          | 'caseworkerVerified'
+        >
+      > = [
+        {
+          legalFirstName: 'Marcus',
+          legalLastName: 'Doyle',
+          branchOfService: 'Army',
+          eligibilitySource: 'va_confirmed',
+          caseworkerVerified: false,
+        },
+        {
+          legalFirstName: 'Tanya',
+          legalLastName: 'Webb',
+          branchOfService: 'Navy',
+          eligibilitySource: 'self_reported',
+          caseworkerVerified: true,
+        },
+        {
+          legalFirstName: 'Earl',
+          legalLastName: 'Crain',
+          branchOfService: 'Marine Corps',
+          eligibilitySource: 'self_reported',
+          caseworkerVerified: false,
+        },
+        {
+          legalFirstName: 'Renee',
+          legalLastName: 'Salas',
+          branchOfService: null,
+          eligibilitySource: 'va_confirmed',
+          caseworkerVerified: false,
+        },
+      ];
+      const veteranRows: NewVeteran[] = refs.map((ref, i) => ({
+        syntheticPersonRef: ref,
+        ...profiles[i % profiles.length],
+        notes: 'Synthetic SUBP-006a seed record.',
+      }));
+      await db.insert(veterans).values(veteranRows);
+      console.log(`[seed]   + ${veteranRows.length} veteran-pathway records`);
+    }
+  } else {
+    console.log('[seed]   = veteran-pathway records (exist)');
   }
 
   // ---- 3 sample audit entries ----
